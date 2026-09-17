@@ -51,7 +51,7 @@ export function FAQSection() {
           <div className="inline-flex items-center gap-2 rounded-md border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-semibold text-stone-700 w-fit">
             <span>FAQ</span>
           </div>
-          <h2 className="text-stone-900 font-bold text-2xl sm:text-3xl md:text-4xl font-sans tracking-tight leading-[1.12] text-balance">
+          <h2 className="text-stone-900 font-normal text-3xl sm:text-4xl md:text-5xl font-display tracking-tight leading-[1.1] text-balance">
             Frequently asked questions
           </h2>
           <p className="text-stone-600 text-sm sm:text-base font-sans leading-relaxed">

@@ -139,7 +139,7 @@ export function CapabilitiesSection() {
               <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#487aa8] mb-2.5">
                 From fragmented case files to a court-ready brief
               </p>
-              <h2 className="max-w-2xl font-sans text-2xl sm:text-3xl md:text-4xl font-bold leading-[1.12] tracking-tight text-stone-900">
+              <h2 className="max-w-2xl font-display text-3xl sm:text-4xl md:text-5xl font-normal leading-[1.1] tracking-tight text-stone-900">
                 An evidence operations room, built for Indian litigation practices.
               </h2>
             </div>

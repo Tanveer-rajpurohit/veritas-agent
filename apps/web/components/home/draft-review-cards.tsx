@@ -163,7 +163,7 @@ export function DraftReviewCards() {
             <span className="h-1.5 w-1.5 rounded-full bg-[#487aa8]" />
             <span>Forensic Verification Standards</span>
           </div>
-          <h2 className="text-stone-900 text-2xl sm:text-3xl md:text-5xl font-bold font-sans tracking-tight leading-[1.12] mb-3 max-w-3xl">
+          <h2 className="text-stone-900 text-3xl sm:text-4xl md:text-5xl font-normal font-display tracking-tight leading-[1.1] mb-3 max-w-3xl">
             Engineered for courtroom credibility
           </h2>
           <p className="text-stone-600 text-sm sm:text-base font-sans max-w-2xl leading-relaxed">

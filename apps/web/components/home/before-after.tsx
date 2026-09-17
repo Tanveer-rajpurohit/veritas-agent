@@ -11,7 +11,7 @@ export function BeforeAfter() {
 
   return (
     <div className="w-full">
-      <div className="relative mx-auto max-w-5xl rounded-lg border border-white/80 bg-white/95 p-4 sm:p-6 md:p-8 shadow-[0_25px_60px_-15px_rgba(20,40,70,0.15)] backdrop-blur-xl">
+      <div className="relative mx-auto max-w-5xl rounded-xl border border-white/80 bg-white/95 p-4 sm:p-6 md:p-8 shadow-[0_25px_60px_-15px_rgba(20,40,70,0.15)] backdrop-blur-xl">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-b border-stone-200/80 pb-5">
           <div className="flex items-center gap-2">
             <span className="flex h-2 w-2 rounded-full bg-[#487aa8] animate-pulse" />

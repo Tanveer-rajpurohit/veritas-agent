@@ -34,7 +34,7 @@ export function HowItWorks() {
         ))}
       </div>
 
-      <div className="w-full overflow-hidden rounded-lg bg-[linear-gradient(180deg,var(--hero-from),var(--hero-mid)_55%,var(--hero-to))] px-6 py-12 sm:px-12">
+      <div className="w-full overflow-hidden rounded-xl bg-[linear-gradient(180deg,var(--hero-from),var(--hero-mid)_55%,var(--hero-to))] px-6 py-12 sm:px-12">
         {tab === "draft" ? (
           <div className="mx-auto flex max-w-xl flex-col items-center text-center" role="tabpanel">
             <p className="m-0 pb-2 text-sm font-semibold text-white/85">Getting started with a brief</p>

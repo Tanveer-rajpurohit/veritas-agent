@@ -10,7 +10,7 @@ export function Plans() {
   return (
     <section id="plans" className="w-full border-b border-stone-200 bg-white scroll-mt-20">
       <div className="w-full max-w-6xl lg:max-w-7xl mx-auto border-x border-stone-200 px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
-        <div className="relative overflow-hidden rounded-lg bg-[linear-gradient(180deg,#7aa0c6_0%,#96b7d7_45%,#d2e3f0_85%,#ecf3f9_100%)] px-5 py-14 sm:px-10 md:px-12 sm:py-18 shadow-[0_20px_60px_-15px_rgba(25,45,75,0.15)]">
+        <div className="relative overflow-hidden rounded-xl bg-[linear-gradient(180deg,#7aa0c6_0%,#96b7d7_45%,#d2e3f0_85%,#ecf3f9_100%)] px-5 py-14 sm:px-10 md:px-12 sm:py-18 shadow-[0_20px_60px_-15px_rgba(25,45,75,0.15)]">
           <div
             className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 h-[450px] w-[650px] rounded-full opacity-40 blur-3xl"
             style={{
@@ -28,28 +28,34 @@ export function Plans() {
               Transparent plans for advocates, legal teams, and law practices across India.
             </p>
 
-            <div className="inline-flex items-center rounded-md bg-white/90 p-1 text-xs shadow-md backdrop-blur-md mb-12">
+            <div className="inline-flex items-center gap-1 rounded-md bg-white p-1 border border-stone-200/90 shadow-2xs mb-12">
               <button
                 type="button"
                 onClick={() => setBilling("annual")}
-                className={`flex items-center gap-1.5 rounded-md px-3.5 py-1.5 font-medium transition-all ${
+                className={`inline-flex items-center gap-2 rounded-sm px-3.5 py-1.5 text-xs transition-all cursor-pointer ${
                   billing === "annual"
-                    ? "bg-[#487aa8] text-white shadow-xs"
-                    : "text-stone-600 hover:text-stone-900"
+                    ? "bg-[#487aa8] text-white font-semibold shadow-2xs"
+                    : "text-stone-600 hover:text-stone-900 font-medium"
                 }`}
               >
                 <span>Annual</span>
-                <span className="rounded-md bg-[#dbe8f4] px-1.5 py-0.5 text-[10px] font-bold text-[#2c5478]">
+                <span
+                  className={`rounded-sm px-1.5 py-0.5 text-[10px] font-bold tracking-tight transition-colors ${
+                    billing === "annual"
+                      ? "bg-white/20 text-white"
+                      : "bg-[#eaf3fa] text-[#2c5478]"
+                  }`}
+                >
                   Save 15%
                 </span>
               </button>
               <button
                 type="button"
                 onClick={() => setBilling("monthly")}
-                className={`rounded-md px-3.5 py-1.5 font-medium transition-all ${
+                className={`rounded-sm px-3.5 py-1.5 text-xs transition-all cursor-pointer ${
                   billing === "monthly"
-                    ? "bg-[#487aa8] text-white shadow-xs"
-                    : "text-stone-600 hover:text-stone-900"
+                    ? "bg-[#487aa8] text-white font-semibold shadow-2xs"
+                    : "text-stone-600 hover:text-stone-900 font-medium"
                 }`}
               >
                 Monthly

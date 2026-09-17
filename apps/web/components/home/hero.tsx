@@ -4,6 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import gsap from "gsap";
 
+const LINE_1 = ["Draft", "with", "the"];
+const LINE_2 = ["evidence", "beside", "you."];
+
 function DownloadIcon() {
   return (
     <svg
@@ -35,19 +38,16 @@ export function Hero() {
   useEffect(() => {
     if (!titleRef.current) return;
 
-    const words = titleRef.current.querySelectorAll<HTMLElement>("span.hero-word");
-    gsap.fromTo(
-      words,
-      { yPercent: 110, opacity: 0 },
-      {
-        yPercent: 0,
-        opacity: 1,
-        duration: 0.95,
-        ease: "power4.out",
-        stagger: 0.05,
-        clearProps: "transform,opacity",
-      }
-    );
+    const words = titleRef.current.querySelectorAll<HTMLElement>(".hero-word");
+    gsap.set(words, { yPercent: 110, opacity: 0 });
+    gsap.to(words, {
+      yPercent: 0,
+      opacity: 1,
+      duration: 0.9,
+      ease: "power4.out",
+      stagger: 0.045,
+      clearProps: "transform,opacity",
+    });
 
     if (envelopeRef.current) {
       gsap.fromTo(
@@ -136,7 +136,7 @@ export function Hero() {
 
   return (
     <section className="w-full relative overflow-hidden">
-      <div className="relative flex min-h-[44rem] w-full flex-col items-center justify-between overflow-hidden bg-[linear-gradient(180deg,#7aa0c6_0%,#96b7d7_45%,#d2e3f0_85%,#ecf3f9_100%)] pt-28 pb-0 text-center sm:min-h-[100dvh] sm:pt-36">
+      <div className="relative flex min-h-[580px] sm:min-h-screen w-full flex-col items-center justify-between overflow-hidden bg-[linear-gradient(180deg,#7aa0c6_0%,#96b7d7_45%,#d2e3f0_85%,#ecf3f9_100%)] pt-24 sm:pt-40 md:pt-44 pb-0 text-center">
         <div
           className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 h-[550px] w-[900px] rounded-full opacity-45 blur-3xl"
           style={{
@@ -146,20 +146,30 @@ export function Hero() {
           aria-hidden="true"
         />
 
-        <div className="relative z-10 mx-auto flex max-w-3xl flex-col items-center px-5 text-center sm:px-6">
+        <div className="relative z-10 mx-auto my-0 sm:my-auto flex max-w-3xl flex-col items-center px-5 text-center sm:px-6">
           <h1
             ref={titleRef}
             className="m-0 text-center font-sans text-[clamp(2.35rem,6vw,4.75rem)] leading-[1.04] font-bold tracking-[-0.045em] text-white drop-shadow-xs"
           >
             <span className="block overflow-hidden pb-1">
-              <span className="hero-word inline-block mr-[0.25em]">
-                Draft with the
-              </span>
+              {LINE_1.map((word) => (
+                <span
+                  key={word}
+                  className="hero-word inline-block mr-[0.22em] last:mr-0"
+                >
+                  {word}
+                </span>
+              ))}
             </span>
             <span className="block overflow-hidden pb-1">
-              <span className="hero-word inline-block">
-                evidence beside you.
-              </span>
+              {LINE_2.map((word) => (
+                <span
+                  key={word}
+                  className="hero-word inline-block mr-[0.22em] last:mr-0"
+                >
+                  {word}
+                </span>
+              ))}
             </span>
           </h1>
 
@@ -187,7 +197,7 @@ export function Hero() {
 
         <div
           ref={envelopeRef}
-          className="relative z-20 mt-10 flex w-full max-w-full flex-col items-center px-4 pt-10 sm:pt-16 select-none sm:mt-auto"
+          className="relative z-20 mt-4 sm:mt-auto flex w-full max-w-full flex-col items-center px-4 pt-4 sm:pt-14 select-none"
         >
           <div
             onMouseEnter={handleMouseEnter}

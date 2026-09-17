@@ -63,11 +63,11 @@
   --ring: var(--vt-brand);
 
   /* Radius & Transitions */
-  --radius: 0.5rem;
-  --vt-radius-sm: 6px;
-  --vt-radius-md: 10px;
-  --vt-radius-lg: 16px;
-  --vt-radius-xl: 24px;
+  --radius: 8px;
+  --vt-radius-sm: 4px;
+  --vt-radius-md: 6px;
+  --vt-radius-lg: 12px;
+  --vt-radius-xl: 18px;
   --vt-ease: cubic-bezier(0.2, 0, 0, 1);
 
   --vh: 100vh;
