@@ -4,7 +4,7 @@ import { RegisterForm } from "../../../components/auth/register-form";
 
 export const metadata: Metadata = {
   title: "Sign up",
-  description: "Create your Veritas chamber to start drafting with evidence beside you.",
+  description: "Create your Veritas workspace to start drafting with evidence beside you.",
   alternates: { canonical: "/register" },
 };
 

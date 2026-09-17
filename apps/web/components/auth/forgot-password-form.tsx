@@ -70,7 +70,7 @@ export function ForgotPasswordForm() {
           type="email"
           name="email"
           autoComplete="email"
-          placeholder="you@chamber.in"
+          placeholder="name@example.com"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           error={fieldErrors.email}
