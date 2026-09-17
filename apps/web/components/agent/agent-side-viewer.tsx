@@ -1,6 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { gsap } from "gsap";
 import {
   XIcon,
@@ -51,6 +56,7 @@ interface AgentSideViewerProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenInEditor?: () => void;
+  onResizeStart?: (event: ReactPointerEvent<HTMLButtonElement>) => void;
 }
 
 export function AgentSideViewer({
@@ -58,6 +64,7 @@ export function AgentSideViewer({
   isOpen,
   onClose,
   onOpenInEditor,
+  onResizeStart,
 }: AgentSideViewerProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [selectedVersion, setSelectedVersion] = useState<string>("v3");
@@ -116,8 +123,19 @@ export function AgentSideViewer({
     <aside
       ref={panelRef}
       aria-label="Generated draft preview"
-      className="fixed inset-y-0 right-0 z-50 flex w-full max-w-2xl shrink-0 select-none flex-col overflow-hidden border-l border-[#cbe0f2] bg-[#edf4fa] shadow-2xl md:relative md:inset-auto md:w-[560px] lg:w-[600px]"
+      className="fixed inset-y-0 right-0 z-50 flex w-full max-w-2xl shrink-0 select-none flex-col overflow-hidden border-l border-[#cbe0f2] bg-[#edf4fa] md:relative md:inset-auto md:w-full md:max-w-none"
     >
+      {onResizeStart && (
+        <button
+          type="button"
+          onPointerDown={onResizeStart}
+          aria-label="Resize document preview"
+          title="Drag to resize"
+          className="group absolute inset-y-0 left-0 z-40 hidden w-2 -translate-x-1/2 cursor-col-resize touch-none items-center justify-center md:flex"
+        >
+          <span className="h-12 w-0.5 rounded-full bg-[#9fc2df] opacity-0 transition-opacity group-hover:opacity-100" />
+        </button>
+      )}
       <header className="flex h-11.5 shrink-0 items-center justify-between border-b border-[#cbe0f2] bg-white px-4">
         <div className="flex items-center gap-2 min-w-0">
           <strong className="text-[13px] font-medium text-stone-900 truncate">

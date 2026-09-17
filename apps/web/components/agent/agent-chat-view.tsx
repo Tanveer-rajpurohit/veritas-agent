@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  useMemo,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { SEED_MATTERS } from "../../lib/workspace-data";
 import {
   ArrowUpIcon,
@@ -438,6 +445,7 @@ export function AgentChatView({
     null,
   );
   const [sideViewerOpen, setSideViewerOpen] = useState(false);
+  const [sideViewerWidth, setSideViewerWidth] = useState(560);
   const [expandedThinkingMessageId, setExpandedThinkingMessageId] = useState<
     string | null
   >(null);
@@ -573,6 +581,34 @@ export function AgentChatView({
     setActiveSessionId(null);
     setSideViewerOpen(false);
     onNewChat?.();
+  };
+
+  const handleViewerResizeStart = (
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) => {
+    if (window.innerWidth < 768) return;
+
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = sideViewerWidth;
+    const maximumWidth = Math.min(820, Math.floor(window.innerWidth * 0.68));
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      const nextWidth = startWidth + startX - moveEvent.clientX;
+      setSideViewerWidth(Math.min(maximumWidth, Math.max(380, nextWidth)));
+    };
+
+    const handlePointerUp = () => {
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
   };
 
   const handleDownloadDraft = () => {
@@ -849,9 +885,14 @@ export function AgentChatView({
       <div
         className={`flex-1 min-h-0 grid overflow-hidden ${
           sideViewerOpen && sideViewerDoc
-            ? "grid-cols-[minmax(0,1fr)_minmax(0,560px)]"
+            ? "md:grid-cols-[minmax(0,1fr)_var(--viewer-width)]"
             : "grid-cols-[minmax(0,1fr)]"
         }`}
+        style={
+          sideViewerOpen && sideViewerDoc
+            ? ({ "--viewer-width": `${sideViewerWidth}px` } as CSSProperties)
+            : undefined
+        }
       >
         <section
           className={`flex flex-col h-full min-h-0 overflow-hidden relative ${
@@ -971,7 +1012,10 @@ export function AgentChatView({
                             {msg.draftArtifact && (
                               <div className="mt-4 flex items-center gap-3 rounded-lg border border-[#cbe0f2] bg-[#f7fbfe] px-3.5 py-3 transition-colors hover:border-[#9fc2df]">
                                 <div className="shrink-0 flex items-center justify-center">
-                                  <StreamlineFileEditIcon size={24} />
+                                  <StreamlineFileTextIcon
+                                    size={24}
+                                    className="text-[#487aa8]"
+                                  />
                                 </div>
                                 <div className="min-w-0 flex-1">
                                   <strong className="text-[13px] font-semibold text-stone-900 block truncate">
@@ -1082,6 +1126,7 @@ export function AgentChatView({
             document={sideViewerDoc}
             isOpen={sideViewerOpen}
             onClose={() => setSideViewerOpen(false)}
+            onResizeStart={handleViewerResizeStart}
             onOpenInEditor={() => {
               if (onOpenMatter && currentMatterId) {
                 onOpenMatter(currentMatterId);
