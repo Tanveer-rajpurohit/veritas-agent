@@ -39,7 +39,7 @@ export function SiteNav() {
     <header className="fixed top-0 left-0 right-0 z-40 pointer-events-none">
       <div className="mx-auto px-4 sm:px-6">
         <nav
-          className="pointer-events-auto mx-auto flex items-center justify-between rounded-2xl border transition-[max-width,margin,padding,box-shadow,border-color,background-color,backdrop-filter] duration-200 ease-out"
+          className="pointer-events-auto mx-auto flex items-center justify-between rounded-lg border transition-[max-width,margin,padding,box-shadow,border-color,background-color,backdrop-filter] duration-200 ease-out"
           style={{
             maxWidth: `min(calc(100vw - 2rem), ${navMaxWidth}px)`,
             marginTop: `${navMarginTop}px`,
@@ -47,7 +47,7 @@ export function SiteNav() {
             paddingBottom: `${navPaddingY}px`,
             paddingLeft: `${navPaddingX}px`,
             paddingRight: `${navPaddingX}px`,
-            backgroundColor: `rgba(255, 255, 255, ${0.65 + progress * 0.3})`,
+            backgroundColor: `rgba(255, 255, 255, ${0.88 + progress * 0.1})`,
             borderColor: `rgba(215, 228, 240, ${0.5 + progress * 0.4})`,
             boxShadow:
               progress > 0.05
@@ -107,7 +107,7 @@ export function SiteNav() {
 
             <Link
               href="/login"
-              className="px-4 py-1.5 bg-[#487aa8] text-white shadow-xs rounded-xl flex justify-center items-center text-xs md:text-[13px] font-medium hover:bg-[#3d6991] active:scale-95 transition-all"
+              className="flex items-center justify-center rounded-md bg-[#487aa8] px-4 py-1.5 text-xs font-medium text-white shadow-xs transition-all hover:bg-[#3d6991] active:scale-95 md:text-[13px]"
             >
               Launch Workspace
             </Link>

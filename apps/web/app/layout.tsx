@@ -18,9 +18,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${fontSans.variable} ${fontSerif.variable} ${fontMono.variable}`}
+      className={`${fontSans.variable} ${fontSerif.variable} ${fontMono.variable} overflow-x-hidden`}
     >
-      <body className="font-sans antialiased">{children}</body>
+      <body className="font-sans antialiased overflow-x-hidden">{children}</body>
     </html>
   );
 }
