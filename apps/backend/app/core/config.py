@@ -10,6 +10,19 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     ALLOWED_ORIGINS: list[str] = ["http://localhost:3000"]
 
+    BEDROCK_AGENT_ENABLED: bool = False
+    AGENT_MAX_TOKENS: int = 2048
+    AGENT_TEMPERATURE: float = 0.1
+
+    GROQ_API_KEY: str = ""
+    GROQ_BASE_URL: str = "https://api.groq.com/openai/v1"
+    GROQ_MODEL: str = "openai/gpt-oss-120b"
+
+    AWS_REGION: str = "ap-south-1"
+    AWS_ACCESS_KEY_ID: str = ""
+    AWS_SECRET_ACCESS_KEY: str = ""
+    AWS_BEDROCK_MODEL_ID: str = "amazon.nova-lite-v1:0"
+
     @field_validator("ALLOWED_ORIGINS", mode="before")
     @classmethod
     def parse_allowed_origins(cls, value: str | list[str]) -> list[str]:
@@ -23,6 +36,16 @@ class Settings(BaseSettings):
                 return [str(origin).strip().rstrip("/") for origin in parsed if origin]
 
         return [origin.strip().rstrip("/") for origin in value.split(",") if origin.strip()]
+
+    @property
+    def active_agent_provider(self) -> str:
+        return "bedrock" if self.BEDROCK_AGENT_ENABLED else "groq"
+
+    @property
+    def active_agent_model(self) -> str:
+        if self.BEDROCK_AGENT_ENABLED:
+            return self.AWS_BEDROCK_MODEL_ID
+        return self.GROQ_MODEL
 
     model_config = SettingsConfigDict(
         env_file=".env",
