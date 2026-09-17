@@ -11,9 +11,7 @@ from app.core.config import settings
 
 def _build_boto_session() -> boto3.Session:
     if not settings.AWS_ACCESS_KEY_ID or not settings.AWS_SECRET_ACCESS_KEY:
-        raise ValueError(
-            "AWS credentials are required when the Bedrock agent is enabled"
-        )
+        raise ValueError("AWS credentials are required when the Bedrock agent is enabled")
 
     return boto3.Session(
         region_name=settings.AWS_REGION,

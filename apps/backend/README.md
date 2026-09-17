@@ -11,12 +11,26 @@ From `apps/backend`:
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
 Copy-Item .env.example .env
 python -m uvicorn app.main:app --reload --port 8000
 ```
 
 For macOS or Linux, activate the environment with `source .venv/bin/activate` and copy the environment file with `cp .env.example .env`.
+
+## Quality checks
+
+Run these commands from `apps/backend` before committing:
+
+```powershell
+python -m ruff format --check --no-cache .
+python -m ruff check --no-cache .
+python -m pytest
+```
+
+Use `python -m ruff format --no-cache .` to apply formatting. Tests use pytest and live in the
+top-level `tests/` directory; this flat layout keeps the current backend easy to navigate
+while its test suite is small.
 
 ## Endpoints
 
@@ -86,5 +100,8 @@ apps/backend/
 |   `-- main.py
 |-- .env.example
 |-- package.json
-`-- requirements.txt
+|-- pyproject.toml
+|-- requirements.txt
+|-- requirements-dev.txt
+`-- tests/
 ```
