@@ -313,16 +313,21 @@ export const EMPTY_FILTERS: MatterFilters = {
   types: [],
   stages: [],
   statuses: [],
-  years: [],
 };
 
 export function classifyStage(stage: string): StageBucket {
   const value = stage.toLowerCase();
   if (value.includes("draft") || value.includes("review")) return "drafting";
-  if (["disposed", "concluded", "closed", "decree"].some((word) => value.includes(word))) {
+  if (
+    ["disposed", "concluded", "closed", "decree"].some((word) =>
+      value.includes(word),
+    )
+  ) {
     return "final";
   }
-  if (["filed", "notice issued", "admitted"].some((word) => value.includes(word))) {
+  if (
+    ["filed", "notice issued", "admitted"].some((word) => value.includes(word))
+  ) {
     return "initiation";
   }
   return "progress";

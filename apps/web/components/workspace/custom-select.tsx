@@ -16,6 +16,7 @@ interface CustomSelectProps<T extends string = string> {
   options: SelectOption<T>[];
   placeholder?: string;
   className?: string;
+  ariaLabel?: string;
 }
 
 export function CustomSelect<T extends string = string>({
@@ -24,6 +25,7 @@ export function CustomSelect<T extends string = string>({
   options,
   placeholder = "Select an option",
   className = "",
+  ariaLabel = "Select an option",
 }: CustomSelectProps<T>) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -32,7 +34,10 @@ export function CustomSelect<T extends string = string>({
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
         setIsOpen(false);
       }
     }
@@ -64,7 +69,10 @@ export function CustomSelect<T extends string = string>({
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className={`flex h-10 w-full items-center justify-between rounded-lg border bg-white px-3.5 text-xs text-stone-900 shadow-2xs transition-all outline-none cursor-pointer ${
+        aria-label={ariaLabel}
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
+        className={`flex h-10 w-full items-center justify-between rounded-lg border bg-white px-3.5 text-xs text-stone-900 shadow-2xs transition-[border-color,box-shadow] cursor-pointer focus-visible:ring-2 focus-visible:ring-[#487aa8]/20 focus-visible:outline-none ${
           isOpen
             ? "border-[#487aa8] ring-3 ring-[#487aa8]/10"
             : "border-stone-200/90 hover:border-stone-300"
@@ -82,7 +90,11 @@ export function CustomSelect<T extends string = string>({
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1.5 max-h-52 overflow-y-auto rounded-xl border border-stone-200/90 bg-white p-1.5 shadow-xl animate-in fade-in zoom-in-95 duration-100">
+        <div
+          role="listbox"
+          aria-label={ariaLabel}
+          className="absolute top-full right-0 left-0 z-50 mt-1.5 max-h-52 overflow-y-auto overscroll-contain rounded-xl border border-stone-200/90 bg-white p-1.5 shadow-xl animate-in fade-in zoom-in-95 duration-100"
+        >
           <div className="flex flex-col gap-0.5">
             {options.map((opt) => {
               const isSelected = opt.value === value;
@@ -90,6 +102,8 @@ export function CustomSelect<T extends string = string>({
                 <button
                   key={opt.value}
                   type="button"
+                  role="option"
+                  aria-selected={isSelected}
                   onClick={() => handleSelect(opt.value)}
                   className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition-colors cursor-pointer ${
                     isSelected

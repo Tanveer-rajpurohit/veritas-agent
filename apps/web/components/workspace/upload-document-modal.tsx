@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { Matter } from "../../types/workspace/types";
 import { CustomSelect, type SelectOption } from "./custom-select";
 import {
@@ -59,15 +59,27 @@ export function UploadDocumentModal({
   matters = [],
   preselectedMatterId,
 }: UploadDocumentModalProps) {
+  const formId = useId();
   const [docName, setDocName] = useState("");
   const [category, setCategory] = useState<EvidenceType>("Evidence");
   const [selectedMatterId, setSelectedMatterId] = useState<string>(
-    preselectedMatterId || (matters[0]?.id ?? "")
+    preselectedMatterId || (matters[0]?.id ?? ""),
   );
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [matters, onClose, open, preselectedMatterId]);
 
   if (!open) return null;
 
@@ -77,6 +89,8 @@ export function UploadDocumentModal({
     description: `${m.caseNumber} · ${m.court}`,
     badge: m.matterType,
   }));
+  const effectiveMatterId =
+    selectedMatterId || preselectedMatterId || (matters[0]?.id ?? "");
 
   function handleFileChange(files: FileList | null) {
     if (!files || files.length === 0) return;
@@ -106,12 +120,14 @@ export function UploadDocumentModal({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const finalName = docName.trim() || selectedFile?.name || "Untitled_Evidence.pdf";
+    if (!selectedFile) return;
+
+    const finalName = docName.trim() || selectedFile.name;
 
     onUpload({
       name: finalName,
       type: category,
-      matterId: selectedMatterId,
+      matterId: effectiveMatterId,
       file: selectedFile,
     });
 
@@ -121,23 +137,39 @@ export function UploadDocumentModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/40 p-4 backdrop-blur-xs select-none overflow-y-auto">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain bg-stone-950/40 p-4 backdrop-blur-xs [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      onMouseDown={(event) => {
+        if (event.currentTarget === event.target) onClose();
+      }}
+    >
       <div
-        onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-xl sm:max-w-2xl rounded-xl border border-stone-200/90 bg-white p-7 sm:p-8 shadow-2xl animate-in fade-in zoom-in-95 duration-150 overflow-visible my-auto"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={`${formId}-title`}
+        aria-describedby={`${formId}-description`}
+        className="relative my-auto w-full max-w-xl overflow-visible rounded-xl border border-stone-200/90 bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150 sm:max-w-2xl sm:p-8"
       >
         <div className="flex items-start justify-between pb-4 border-b border-stone-100">
           <div>
-            <h2 className="font-sans text-base sm:text-lg font-semibold text-stone-900 m-0">
-              Upload Evidentiary Document
+            <h2
+              id={`${formId}-title`}
+              className="m-0 font-sans text-base font-semibold text-stone-900 sm:text-lg"
+            >
+              Add Documents
             </h2>
-            <p className="text-xs text-stone-500 m-0 pt-1 leading-relaxed">
-              Add primary PDF records, agreements, and pleadings to this matter&apos;s evidentiary vault.
+            <p
+              id={`${formId}-description`}
+              className="m-0 pt-1 text-xs leading-relaxed text-stone-500"
+            >
+              Upload a source record, agreement, order, or pleading to the
+              selected matter.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close add documents dialog"
             className="flex h-8 w-8 items-center justify-center rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition-colors cursor-pointer shrink-0 ml-4"
           >
             <XIcon size={15} />
@@ -148,40 +180,48 @@ export function UploadDocumentModal({
           {matters.length > 1 && !preselectedMatterId && (
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-stone-700">
-                Target Legal Matter
+                Target matter
               </label>
               <CustomSelect
-                value={selectedMatterId}
+                value={effectiveMatterId}
                 onChange={setSelectedMatterId}
                 options={matterOptions}
-                placeholder="Select a legal matter"
+                placeholder="Select a matter"
+                ariaLabel="Target matter"
               />
             </div>
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-stone-700">
-                Document Title
+              <label
+                htmlFor={`${formId}-document-title`}
+                className="text-xs font-semibold text-stone-700"
+              >
+                Document title
               </label>
               <input
                 type="text"
                 required
+                id={`${formId}-document-title`}
+                name="document-title"
+                autoComplete="off"
                 value={docName}
                 onChange={(e) => setDocName(e.target.value)}
-                placeholder="e.g. Syndicated_Facility_Agreement.pdf"
-                className="h-10 w-full rounded-lg border border-stone-200/90 bg-white px-3.5 text-xs text-stone-900 placeholder:text-stone-400 shadow-2xs outline-none transition-all focus:border-[#487aa8] focus:ring-3 focus:ring-[#487aa8]/10"
+                placeholder="Syndicated Facility Agreement.pdf…"
+                className="h-10 w-full rounded-lg border border-stone-200/90 bg-white px-3.5 text-xs text-stone-900 shadow-2xs transition-[border-color,box-shadow] placeholder:text-stone-400 focus-visible:border-[#487aa8] focus-visible:ring-2 focus-visible:ring-[#487aa8]/15 focus-visible:outline-none"
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-stone-700">
-                Evidence Category
+                Document type
               </label>
               <CustomSelect<EvidenceType>
                 value={category}
                 onChange={setCategory}
                 options={CATEGORY_OPTIONS}
+                ariaLabel="Document type"
               />
             </div>
           </div>
@@ -193,17 +233,32 @@ export function UploadDocumentModal({
             <input
               ref={fileInputRef}
               type="file"
+              id={`${formId}-source-file`}
+              name="source-file"
               accept=".pdf,.docx,.xlsx,.txt"
               className="hidden"
               onChange={(e) => handleFileChange(e.target.files)}
             />
 
             <div
+              role="button"
+              tabIndex={0}
+              aria-label={
+                selectedFile
+                  ? `Change selected file ${selectedFile.name}`
+                  : "Choose a source file"
+              }
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onClick={() => fileInputRef.current?.click()}
-              className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-all cursor-pointer ${
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  fileInputRef.current?.click();
+                }
+              }}
+              className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-[background-color,border-color,box-shadow] cursor-pointer focus-visible:ring-2 focus-visible:ring-[#487aa8]/20 focus-visible:outline-none ${
                 isDragging
                   ? "border-[#487aa8] bg-[#edf4fa]/60"
                   : selectedFile
@@ -221,7 +276,8 @@ export function UploadDocumentModal({
                       {selectedFile.name}
                     </p>
                     <p className="m-0 text-[11px] text-stone-500 font-mono pt-0.5">
-                      {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB · Ready to upload
+                      {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB ·
+                      Ready to upload
                     </p>
                   </div>
                   <button
@@ -242,10 +298,12 @@ export function UploadDocumentModal({
                   </div>
                   <p className="m-0 text-xs font-semibold text-stone-800">
                     Drop your legal file here, or{" "}
-                    <span className="text-[#487aa8] underline underline-offset-2">browse files</span>
+                    <span className="text-[#487aa8] underline underline-offset-2">
+                      browse files
+                    </span>
                   </p>
                   <p className="m-0 pt-1 text-[11px] text-stone-400">
-                    Supports PDF, DOCX, XLSX up to 100MB
+                    PDF, DOCX, XLSX, or TXT up to 100 MB
                   </p>
                 </div>
               )}
@@ -253,9 +311,14 @@ export function UploadDocumentModal({
           </div>
 
           <div className="flex items-start gap-2.5 rounded-lg border border-[#cbe0f2] bg-[#f8fbfe] p-3 text-[11px] text-stone-600 leading-relaxed">
-            <ShieldCheckIcon size={15} className="shrink-0 text-[#487aa8] mt-0.5" />
+            <ShieldCheckIcon
+              size={15}
+              className="shrink-0 text-[#487aa8] mt-0.5"
+            />
             <span>
-              Uploaded files are stored as immutable evidentiary source records in the matter vault. Evidence remains preserved and tamper-proof without modifying your original documents.
+              Veritas keeps the uploaded file as a source record and links later
+              findings back to its extracted pages. Review the extracted text
+              before relying on it in a draft.
             </span>
           </div>
 
@@ -269,10 +332,11 @@ export function UploadDocumentModal({
             </button>
             <button
               type="submit"
-              className="inline-flex h-9.5 items-center gap-1.5 rounded-lg bg-[#487aa8] px-5 text-xs font-semibold text-white shadow-2xs hover:bg-[#3b668e] transition-all cursor-pointer"
+              disabled={!selectedFile || !effectiveMatterId}
+              className="inline-flex h-9.5 items-center gap-1.5 rounded-lg bg-[#487aa8] px-5 text-xs font-semibold text-white shadow-2xs transition-[background-color,opacity] hover:bg-[#3b668e] focus-visible:ring-2 focus-visible:ring-[#487aa8] focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer"
             >
               <UploadIcon size={13} />
-              <span>Upload Document</span>
+              <span>Add Document</span>
             </button>
           </div>
         </form>

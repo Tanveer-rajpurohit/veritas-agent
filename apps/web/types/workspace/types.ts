@@ -28,13 +28,13 @@ export interface Matter {
   name: string;
   caseNumber: string;
   court: string;
-  stage: MatterStage | string;
+  stage: MatterStage;
   practiceArea: string;
   lastActivity: string;
   updatedAt: number;
   petitioner: string;
   respondent: string;
-  matterType: MatterType | string;
+  matterType: MatterType;
   createdDate: string;
   health: MatterHealth;
   discrepanciesCount?: number;
@@ -45,5 +45,4 @@ export interface MatterFilters {
   types: string[];
   stages: string[];
   statuses: string[];
-  years: string[];
 }
