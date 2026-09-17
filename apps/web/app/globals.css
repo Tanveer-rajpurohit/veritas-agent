@@ -53,38 +53,41 @@
   --radius-xl: var(--vt-radius-xl);
 }
 
-/* Custom Scrollbar - matches the serene sky theme and completely hides default Windows arrows */
+/* Custom Scrollbar - matches the serene sky theme across all containers */
+html, body, *, *::before, *::after {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(120, 160, 200, 0.4) transparent;
+}
+
 html {
   font-size: 90%;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(120, 160, 200, 0.45) transparent;
 }
 
-::-webkit-scrollbar {
-  width: 7px;
-  height: 7px;
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
-::-webkit-scrollbar-track {
+*::-webkit-scrollbar-track {
   background: transparent;
 }
 
-::-webkit-scrollbar-thumb {
-  background: rgba(120, 160, 200, 0.45);
+*::-webkit-scrollbar-thumb {
+  background: rgba(120, 160, 200, 0.4);
   border-radius: 9999px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(85, 135, 185, 0.75);
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(72, 122, 168, 0.7);
 }
 
-::-webkit-scrollbar-button {
+*::-webkit-scrollbar-button {
   display: none !important;
   width: 0 !important;
   height: 0 !important;
 }
 
-::-webkit-scrollbar-corner {
+*::-webkit-scrollbar-corner {
   background: transparent;
 }
 

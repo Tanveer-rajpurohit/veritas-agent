@@ -1,0 +1,313 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { VeritasOrb } from "../brand/veritas-orb";
+import {
+  BriefcaseIcon,
+  ChevronDownIcon,
+  ClockIcon,
+  PanelLeftIcon,
+  PlusIcon,
+  SearchIcon,
+  SettingsIcon,
+  BotIcon,
+} from "./workspace-icons";
+
+interface AppSidebarProps {
+  collapsed: boolean;
+  onToggleCollapse: () => void;
+  onOpenCreateMatter: () => void;
+  onOpenUpload: () => void;
+  activeNav: string;
+  onSelectNav: (nav: string) => void;
+  onSelectChatSession?: (sessionTitle: string) => void;
+}
+
+export function AppSidebar({
+  collapsed,
+  onToggleCollapse,
+  onOpenCreateMatter,
+  onOpenUpload,
+  activeNav,
+  onSelectNav,
+  onSelectChatSession,
+}: AppSidebarProps) {
+  const [newMenuOpen, setNewMenuOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(true);
+
+  const chatSessions = [
+    { id: "chat-1", title: "IBC Sec 7 Financial Debt Claim", time: "2h ago" },
+    { id: "chat-2", title: "Verify Annexure B Default Date", time: "Yesterday" },
+    { id: "chat-3", title: "Draft Section 9 Relief Petition", time: "3d ago" },
+    { id: "chat-4", title: "Citation Scan: Innoventive Industries", time: "5d ago" },
+    { id: "chat-5", title: "Fact Check: Ledger Discrepancy", time: "1w ago" },
+  ];
+
+  return (
+    <>
+      {newMenuOpen && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setNewMenuOpen(false)}
+        />
+      )}
+      <aside
+        className={`relative z-30 flex h-full shrink-0 flex-col justify-between rounded-lg border border-stone-200/90 bg-white transition-all duration-200 select-none shadow-2xs ${
+          newMenuOpen ? "overflow-visible" : "overflow-hidden"
+        } ${collapsed ? "w-[56px]" : "w-[248px]"}`}
+      >
+        <div className="relative shrink-0 px-2.5 pt-3 pb-1">
+          <div
+            className={`flex items-center pb-3 ${
+              collapsed ? "justify-center" : "justify-between px-1"
+            }`}
+          >
+            {collapsed ? (
+              <button
+                type="button"
+                onClick={onToggleCollapse}
+                className="group relative flex h-8 w-8 items-center justify-center rounded-md text-stone-700 hover:bg-[#edf4fa] hover:text-[#487aa8] transition-colors cursor-pointer"
+                title="Expand sidebar"
+              >
+                <span className="transition-opacity duration-150 group-hover:opacity-0 group-hover:scale-90">
+                  <VeritasOrb size={20} className="text-[#487aa8]" />
+                </span>
+                <span className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-hover:scale-100 text-[#487aa8]">
+                  <PanelLeftIcon size={16} />
+                </span>
+              </button>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <Link
+                    href="/"
+                    className="flex items-center gap-2 transition-opacity hover:opacity-85"
+                    title="Veritas Home"
+                  >
+                    <VeritasOrb size={20} className="text-[#487aa8]" />
+                    <span className="font-display text-[17px] font-medium tracking-tight text-stone-900">
+                      Veritas
+                    </span>
+                  </Link>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    className="flex h-7 w-7 items-center justify-center rounded-md text-stone-400 hover:bg-[#edf4fa] hover:text-[#487aa8] transition-colors cursor-pointer"
+                    title="Search workspace (⌘K)"
+                  >
+                    <SearchIcon size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onToggleCollapse}
+                    className="flex h-7 w-7 items-center justify-center rounded-md text-stone-400 hover:bg-[#edf4fa] hover:text-[#487aa8] transition-colors cursor-pointer"
+                    title="Collapse sidebar"
+                  >
+                    <PanelLeftIcon size={14} />
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="relative pb-2">
+            {collapsed ? (
+              <button
+                type="button"
+                onClick={() => setNewMenuOpen(!newMenuOpen)}
+                className="flex h-8.5 w-full items-center justify-center rounded-md border border-stone-200 bg-white shadow-2xs hover:bg-[#edf4fa] text-stone-700 hover:text-[#487aa8] cursor-pointer transition-colors"
+                title="New matter or document"
+              >
+                <PlusIcon size={14} />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setNewMenuOpen(!newMenuOpen)}
+                className="flex h-8.5 w-full items-center justify-between rounded-md border border-stone-200 bg-white px-2.5 text-xs font-semibold text-stone-800 shadow-2xs hover:bg-[#edf4fa] hover:text-[#487aa8] cursor-pointer transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <PlusIcon size={13} />
+                  <span>New</span>
+                </span>
+                <ChevronDownIcon
+                  size={12}
+                  className={`transition-transform text-stone-400 ${
+                    newMenuOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+            )}
+
+            {newMenuOpen && (
+              <div
+                className={`absolute z-50 mt-1 rounded-md border border-stone-200 bg-white p-1.5 shadow-xl ${
+                  collapsed ? "left-12 top-0 w-48" : "inset-x-0"
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewMenuOpen(false);
+                    onOpenCreateMatter();
+                  }}
+                  className="flex w-full items-center gap-2 rounded-sm px-2.5 py-1.5 text-left text-xs font-medium text-stone-700 hover:bg-[#edf4fa] hover:text-[#2c5478] cursor-pointer transition-colors"
+                >
+                  <BriefcaseIcon size={13} className="text-[#487aa8]" />
+                  <span>New legal matter</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewMenuOpen(false);
+                    onOpenUpload();
+                  }}
+                  className="flex w-full items-center gap-2 rounded-sm px-2.5 py-1.5 text-left text-xs font-medium text-stone-700 hover:bg-[#edf4fa] hover:text-[#2c5478] cursor-pointer transition-colors"
+                >
+                  <PlusIcon size={13} className="text-[#487aa8]" />
+                  <span>Upload document</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-col flex-1 min-h-0 overflow-y-auto px-2.5 pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <nav className="flex flex-col gap-0.5">
+            <button
+              type="button"
+              onClick={() => onSelectNav("home")}
+              className={`flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
+                activeNav === "home"
+                  ? "bg-[#edf4fa] text-[#2c5478] font-semibold"
+                  : "text-stone-600 hover:bg-[#edf4fa]/60 hover:text-[#2c5478]"
+              } ${collapsed ? "justify-center px-0" : ""}`}
+              title="Home"
+            >
+              <span className={activeNav === "home" ? "text-[#487aa8]" : "text-stone-600"}>
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                  <polyline points="9 22 9 12 15 12 15 22" />
+                </svg>
+              </span>
+              {!collapsed && <span>Home</span>}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onSelectNav("agent")}
+              className={`flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
+                activeNav === "agent"
+                  ? "bg-[#edf4fa] text-[#2c5478] font-semibold"
+                  : "text-stone-600 hover:bg-[#edf4fa]/60 hover:text-[#2c5478]"
+              } ${collapsed ? "justify-center px-0" : ""}`}
+              title="Agent"
+            >
+              <BotIcon size={15} className={activeNav === "agent" ? "text-[#487aa8]" : "text-stone-500"} />
+              {!collapsed && <span>Agent</span>}
+            </button>
+          </nav>
+
+        <div className="pt-4 pb-1">
+          {!collapsed ? (
+            <div className="flex items-center justify-between px-2 pb-1">
+              <span className="text-[10.5px] font-semibold tracking-wider text-stone-400 uppercase font-mono">
+                Chat History
+              </span>
+              <button
+                type="button"
+                onClick={() => setHistoryOpen(!historyOpen)}
+                className="text-stone-400 hover:text-stone-700 cursor-pointer"
+              >
+                <ChevronDownIcon
+                  size={11}
+                  className={`transition-transform ${historyOpen ? "" : "-rotate-90"}`}
+                />
+              </button>
+            </div>
+          ) : (
+            <div className="my-2 border-t border-stone-100" />
+          )}
+
+          {collapsed ? (
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              className="flex h-8 w-full items-center justify-center rounded-md text-stone-600 hover:bg-[#edf4fa] hover:text-[#487aa8] cursor-pointer transition-colors"
+              title="Chat History"
+            >
+              <ClockIcon size={14} />
+            </button>
+          ) : (
+            historyOpen && (
+              <div className="flex flex-col gap-0.5 pt-1">
+                {chatSessions.map((session) => (
+                  <button
+                    key={session.id}
+                    type="button"
+                    onClick={() => onSelectChatSession?.(session.title)}
+                    className="group flex flex-col items-start rounded-md px-2.5 py-1.5 text-left text-xs transition-colors hover:bg-[#edf4fa] cursor-pointer"
+                  >
+                    <span className="font-medium text-stone-800 group-hover:text-[#487aa8] truncate w-full">
+                      {session.title}
+                    </span>
+                    <span className="text-[10px] text-stone-400 font-mono pt-0.5">
+                      {session.time}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )
+          )}
+        </div>
+      </div>
+
+      <div className="border-t border-stone-200/90 p-2 flex flex-col gap-1">
+        <button
+          type="button"
+          className={`flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-stone-700 hover:bg-[#edf4fa] hover:text-[#487aa8] cursor-pointer transition-colors ${
+            collapsed ? "justify-center px-0" : ""
+          }`}
+          title="Settings"
+        >
+          <SettingsIcon size={14} className="text-stone-600" />
+          {!collapsed && <span>Settings</span>}
+        </button>
+
+        <div
+          className={`flex items-center gap-2 rounded-md p-1.5 hover:bg-[#edf4fa]/60 transition-colors ${
+            collapsed ? "justify-center p-0" : ""
+          }`}
+        >
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#edf4fa] text-[#2c5478] font-sans text-[11px] font-bold border border-[#cbe0f2]">
+            TS
+          </div>
+          {!collapsed && (
+            <div className="min-w-0 flex-1 text-left">
+              <p className="m-0 text-xs font-semibold text-stone-800 truncate">
+                Tanveer Singh
+              </p>
+              <p className="m-0 text-[10px] text-stone-400 truncate">
+                tanveersinghrajpurohit4@gmail.com
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </aside>
+    </>
+  );
+}

@@ -180,7 +180,7 @@ export function Hero() {
 
           <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
             <Link
-              href="/register"
+              href="/workspace"
               className="rounded-md bg-[#487aa8] hover:bg-[#3a6792] px-5 sm:px-6 py-2.5 text-xs sm:text-sm font-semibold text-white no-underline shadow-xs transition-all hover:scale-[1.02] active:scale-95 border border-white/20"
             >
               Launch Workspace
