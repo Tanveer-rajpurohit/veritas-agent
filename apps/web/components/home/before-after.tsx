@@ -11,9 +11,7 @@ export function BeforeAfter() {
 
   return (
     <div className="w-full">
-      {/* Docket / Envelope Folder Frame */}
-      <div className="relative mx-auto max-w-5xl rounded-3xl border border-white/80 bg-white/95 p-4 sm:p-6 md:p-8 shadow-[0_25px_60px_-15px_rgba(20,40,70,0.15)] backdrop-blur-xl">
-        {/* Interactive Scenario Tabs */}
+      <div className="relative mx-auto max-w-5xl rounded-lg border border-white/80 bg-white/95 p-4 sm:p-6 md:p-8 shadow-[0_25px_60px_-15px_rgba(20,40,70,0.15)] backdrop-blur-xl">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-b border-stone-200/80 pb-5">
           <div className="flex items-center gap-2">
             <span className="flex h-2 w-2 rounded-full bg-[#487aa8] animate-pulse" />
@@ -26,14 +24,14 @@ export function BeforeAfter() {
             </span>
           </div>
 
-          <div className="flex items-center rounded-full bg-stone-100 p-1 text-xs">
+          <div className="flex items-center rounded-md bg-stone-100 p-1 text-xs">
             <button
               type="button"
               onClick={() => {
                 setActiveTab("conflict");
                 setEdited(false);
               }}
-              className={`rounded-full px-3.5 py-1.5 font-medium transition-all ${
+              className={`rounded-md px-3.5 py-1.5 font-medium transition-all ${
                 activeTab === "conflict"
                   ? "bg-white text-stone-900 shadow-xs"
                   : "text-stone-600 hover:text-stone-900"
@@ -47,7 +45,7 @@ export function BeforeAfter() {
                 setActiveTab("citation");
                 setEdited(false);
               }}
-              className={`rounded-full px-3.5 py-1.5 font-medium transition-all ${
+              className={`rounded-md px-3.5 py-1.5 font-medium transition-all ${
                 activeTab === "citation"
                   ? "bg-white text-stone-900 shadow-xs"
                   : "text-stone-600 hover:text-stone-900"
@@ -58,7 +56,7 @@ export function BeforeAfter() {
             <button
               type="button"
               onClick={() => setActiveTab("stale")}
-              className={`rounded-full px-3.5 py-1.5 font-medium transition-all ${
+              className={`rounded-md px-3.5 py-1.5 font-medium transition-all ${
                 activeTab === "stale"
                   ? "bg-white text-stone-900 shadow-xs"
                   : "text-stone-600 hover:text-stone-900"
@@ -69,13 +67,11 @@ export function BeforeAfter() {
           </div>
         </div>
 
-        {/* Before / After Comparison Grid */}
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
-          {/* BEFORE: Traditional AI & Blind Drafting */}
-          <div className="flex flex-col justify-between rounded-2xl border border-stone-200 bg-stone-50/70 p-5 sm:p-6 text-left transition-all">
+          <div className="flex flex-col justify-between rounded-lg border border-stone-200 bg-stone-50/70 p-5 sm:p-6 text-left transition-all">
             <div>
               <div className="flex items-center justify-between gap-2 pb-4">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-100 px-3 py-1 text-[11px] font-semibold text-rose-800">
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-rose-100 px-3 py-1 text-[11px] font-semibold text-rose-800">
                   <span className="h-1.5 w-1.5 rounded-full bg-rose-600" />
                   Before Veritas (Standard AI & Unchecked Drafts)
                 </span>
@@ -86,12 +82,12 @@ export function BeforeAfter() {
 
               {activeTab === "conflict" && (
                 <div className="space-y-3">
-                  <div className="rounded-xl border border-amber-200/80 bg-amber-50/70 p-3.5">
+                  <div className="rounded-md border border-amber-200/80 bg-amber-50/70 p-3.5">
                     <div className="flex items-center justify-between pb-1.5">
                       <span className="text-[11px] font-semibold text-amber-900">
                         Loan Sanction Letter · Page 14
                       </span>
-                      <span className="rounded-full bg-amber-200/60 px-2 py-0.5 text-[10px] font-semibold text-amber-900">
+                      <span className="rounded-md bg-amber-200/60 px-2 py-0.5 text-[10px] font-semibold text-amber-900">
                         ₹4.85 Crore
                       </span>
                     </div>
@@ -100,12 +96,12 @@ export function BeforeAfter() {
                     </p>
                   </div>
 
-                  <div className="rounded-xl border border-rose-200/80 bg-rose-50/70 p-3.5">
+                  <div className="rounded-md border border-rose-200/80 bg-rose-50/70 p-3.5">
                     <div className="flex items-center justify-between pb-1.5">
                       <span className="text-[11px] font-semibold text-rose-900">
                         Bank Demand Notice · Page 1
                       </span>
-                      <span className="rounded-full bg-rose-200/60 px-2 py-0.5 text-[10px] font-semibold text-rose-900">
+                      <span className="rounded-md bg-rose-200/60 px-2 py-0.5 text-[10px] font-semibold text-rose-900">
                         ₹5.20 Crore
                       </span>
                     </div>
@@ -114,7 +110,7 @@ export function BeforeAfter() {
                     </p>
                   </div>
 
-                  <div className="rounded-xl border border-dashed border-stone-300 bg-white p-3 text-xs text-stone-600">
+                  <div className="rounded-md border border-dashed border-stone-300 bg-white p-3 text-xs text-stone-600">
                     <span className="font-semibold text-stone-800">
                       Standard AI Flaw:
                     </span>{" "}
@@ -125,12 +121,12 @@ export function BeforeAfter() {
 
               {activeTab === "citation" && (
                 <div className="space-y-3">
-                  <div className="rounded-xl border border-rose-200 bg-rose-50/60 p-3.5">
+                  <div className="rounded-md border border-rose-200 bg-rose-50/60 p-3.5">
                     <div className="flex items-center justify-between pb-1">
                       <span className="text-[11px] font-semibold text-stone-900">
                         Pooja Ramesh Singh v. J&K Bank Ltd.
                       </span>
-                      <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-800">
+                      <span className="rounded-md bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-800">
                         2026 INSC 668
                       </span>
                     </div>
@@ -139,7 +135,7 @@ export function BeforeAfter() {
                     </p>
                   </div>
 
-                  <div className="rounded-xl border border-rose-200 bg-white p-3 text-xs text-rose-800">
+                  <div className="rounded-md border border-rose-200 bg-white p-3 text-xs text-rose-800">
                     <span className="font-semibold">The Dangerous Trap:</span> The case is real, but the quoted sentence was made up by an AI model. In 2026, the Supreme Court quashed insolvency proceedings across India specifically for this type of hallucinated citation.
                   </div>
                 </div>
@@ -147,19 +143,19 @@ export function BeforeAfter() {
 
               {activeTab === "stale" && (
                 <div className="space-y-3">
-                  <div className="rounded-xl border border-stone-200 bg-white p-3.5">
+                  <div className="rounded-md border border-stone-200 bg-white p-3.5">
                     <span className="text-[11px] text-stone-500">
                       Yesterday&apos;s Drafted Paragraph
                     </span>
                     <p className="font-serif text-xs leading-relaxed text-stone-800 pt-1">
                       “Default occurred on 14 March 2025 for ₹5.20 Cr.”
                     </p>
-                    <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-800">
+                    <div className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-emerald-100 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-800">
                       ✓ Checked Yesterday
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-stone-200 bg-stone-100/70 p-3 text-xs text-stone-600">
+                  <div className="rounded-md border border-stone-200 bg-stone-100/70 p-3 text-xs text-stone-600">
                     <span className="font-semibold text-stone-800">
                       Hidden Problem:
                     </span>{" "}
@@ -174,11 +170,10 @@ export function BeforeAfter() {
             </p>
           </div>
 
-          {/* AFTER: Veritas Evidence-Linked Workbench */}
-          <div className="flex flex-col justify-between rounded-2xl border border-[#bed7ec] bg-[#f8fbfe] p-5 sm:p-6 text-left shadow-xs transition-all">
+          <div className="flex flex-col justify-between rounded-lg border border-[#bed7ec] bg-[#f8fbfe] p-5 sm:p-6 text-left shadow-xs transition-all">
             <div>
               <div className="flex items-center justify-between gap-2 pb-4">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e3eef8] px-3 py-1 text-[11px] font-semibold text-[#3d6991]">
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-[#e3eef8] px-3 py-1 text-[11px] font-semibold text-[#3d6991]">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#487aa8]" />
                   With Veritas (Evidence Beside You)
                 </span>
@@ -189,8 +184,7 @@ export function BeforeAfter() {
 
               {activeTab === "conflict" && (
                 <div className="space-y-3">
-                  {/* Draft sentence with gutter marker */}
-                  <div className="rounded-xl border-l-4 border-l-[#487aa8] border border-stone-200 bg-white p-3.5 shadow-xs">
+                  <div className="rounded-md border-l-4 border-l-[#487aa8] border border-stone-200 bg-white p-3.5 shadow-xs">
                     <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide">
                       Draft Brief Paragraph
                     </span>
@@ -203,13 +197,12 @@ export function BeforeAfter() {
                     </p>
                   </div>
 
-                  {/* Tri-Directional Evidence Drawer Resolution */}
-                  <div className="rounded-xl border border-[#d2e4f2] bg-white p-3.5 shadow-xs">
+                  <div className="rounded-md border border-[#d2e4f2] bg-white p-3.5 shadow-xs">
                     <div className="flex items-center justify-between pb-2">
                       <span className="text-[11px] font-semibold text-[#2c5478]">
                         Evidence Drawer: Conflicting Records Found
                       </span>
-                      <span className="rounded-full bg-[#eaf3fa] px-2 py-0.5 text-[10px] font-semibold text-[#3d6991]">
+                      <span className="rounded-md bg-[#eaf3fa] px-2 py-0.5 text-[10px] font-semibold text-[#3d6991]">
                         You Decide
                       </span>
                     </div>
@@ -218,7 +211,7 @@ export function BeforeAfter() {
                       <button
                         type="button"
                         onClick={() => setChosenAmount("4.85")}
-                        className={`rounded-lg p-2.5 text-left border transition-all ${
+                        className={`rounded-md p-2.5 text-left border transition-all ${
                           chosenAmount === "4.85"
                             ? "border-[#487aa8] bg-[#f0f6fb] shadow-xs font-semibold text-stone-900"
                             : "border-stone-200 bg-white text-stone-600 hover:bg-stone-50"
@@ -233,7 +226,7 @@ export function BeforeAfter() {
                       <button
                         type="button"
                         onClick={() => setChosenAmount("5.20")}
-                        className={`rounded-lg p-2.5 text-left border transition-all ${
+                        className={`rounded-md p-2.5 text-left border transition-all ${
                           chosenAmount === "5.20"
                             ? "border-[#487aa8] bg-[#f0f6fb] shadow-xs font-semibold text-[#2c5478]"
                             : "border-stone-200 bg-white text-stone-600 hover:bg-stone-50"
@@ -255,7 +248,7 @@ export function BeforeAfter() {
 
               {activeTab === "citation" && (
                 <div className="space-y-2.5">
-                  <div className="rounded-xl border-l-4 border-l-[#487aa8] border border-stone-200 bg-white p-3 shadow-xs">
+                  <div className="rounded-md border-l-4 border-l-[#487aa8] border border-stone-200 bg-white p-3 shadow-xs">
                     <span className="text-[10px] text-stone-400 uppercase tracking-wide">
                       Cited Authority
                     </span>
@@ -264,9 +257,8 @@ export function BeforeAfter() {
                     </p>
                   </div>
 
-                  {/* 4 Separate Axes */}
                   <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-2.5">
+                    <div className="rounded-md border border-emerald-200 bg-emerald-50/60 p-2.5">
                       <span className="text-[10px] text-emerald-700 uppercase font-semibold">
                         1. Case Exists
                       </span>
@@ -275,7 +267,7 @@ export function BeforeAfter() {
                       </p>
                     </div>
 
-                    <div className="rounded-lg border border-rose-200 bg-rose-50/60 p-2.5">
+                    <div className="rounded-md border border-rose-200 bg-rose-50/60 p-2.5">
                       <span className="text-[10px] text-rose-700 uppercase font-semibold">
                         2. Exact Quote
                       </span>
@@ -284,7 +276,7 @@ export function BeforeAfter() {
                       </p>
                     </div>
 
-                    <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-2.5">
+                    <div className="rounded-md border border-amber-200 bg-amber-50/60 p-2.5">
                       <span className="text-[10px] text-amber-700 uppercase font-semibold">
                         3. Legal Support
                       </span>
@@ -293,7 +285,7 @@ export function BeforeAfter() {
                       </p>
                     </div>
 
-                    <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-2.5">
+                    <div className="rounded-md border border-emerald-200 bg-emerald-50/60 p-2.5">
                       <span className="text-[10px] text-emerald-700 uppercase font-semibold">
                         4. Still Good Law
                       </span>
@@ -303,7 +295,7 @@ export function BeforeAfter() {
                     </div>
                   </div>
 
-                  <p className="text-[11px] text-stone-600 bg-white p-2.5 rounded-lg border border-stone-200">
+                  <p className="text-[11px] text-stone-600 bg-white p-2.5 rounded-md border border-stone-200">
                     The quote mismatch is flagged in red so you can correct it before exporting.
                   </p>
                 </div>
@@ -311,7 +303,7 @@ export function BeforeAfter() {
 
               {activeTab === "stale" && (
                 <div className="space-y-3">
-                  <div className="rounded-xl border border-stone-200 bg-white p-3.5 shadow-xs">
+                  <div className="rounded-md border border-stone-200 bg-white p-3.5 shadow-xs">
                     <div className="flex items-center justify-between pb-1">
                       <span className="text-[10px] text-stone-400 uppercase tracking-wide">
                         Try modifying this sentence:
@@ -319,7 +311,7 @@ export function BeforeAfter() {
                       <button
                         type="button"
                         onClick={() => setEdited(!edited)}
-                        className="rounded-full bg-[#487aa8] hover:bg-[#3d6991] px-3 py-1 text-[11px] font-medium text-white transition-all"
+                        className="rounded-md bg-[#487aa8] hover:bg-[#3d6991] px-3 py-1 text-[11px] font-medium text-white transition-all"
                       >
                         {edited ? "Revert edit" : "Edit sentence"}
                       </button>
@@ -341,7 +333,7 @@ export function BeforeAfter() {
                   </div>
 
                   <div
-                    className={`rounded-xl border p-3.5 transition-all ${
+                    className={`rounded-md border p-3.5 transition-all ${
                       edited
                         ? "border-amber-300 bg-amber-50/80"
                         : "border-emerald-200 bg-emerald-50/60"
@@ -358,7 +350,7 @@ export function BeforeAfter() {
                           : "Status: VERIFIED AGAINST RECORD"}
                       </span>
                       <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                        className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${
                           edited
                             ? "bg-amber-200 text-amber-900"
                             : "bg-emerald-200 text-emerald-900"

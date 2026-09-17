@@ -58,24 +58,24 @@ export function AuthDemo() {
       {SCRIPT.slice(0, shown).map((step, index) => (
         <div
           key={step.question}
-          className={`flex flex-col gap-2 rounded-2xl border border-white/80 bg-white/95 p-4 text-left shadow-lg backdrop-blur-md ${index < shown - 1 ? "opacity-75" : ""}`}
+          className={`flex flex-col gap-2 rounded-lg border border-white/80 bg-white/95 p-4 text-left shadow-lg backdrop-blur-md ${index < shown - 1 ? "opacity-75" : ""}`}
         >
           <p className="m-0 text-xs font-semibold text-stone-600">{step.answer.title}</p>
           {step.answer.rows.map((row) => (
-            <div key={row.text} className="flex items-center justify-between gap-2 rounded-xl bg-stone-50 px-3 py-2 border border-stone-100">
+            <div key={row.text} className="flex items-center justify-between gap-2 rounded-md bg-stone-50 px-3 py-2 border border-stone-100">
               <span className="text-xs text-stone-800">{row.text}</span>
-              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${row.tone}`}>{row.chip}</span>
+              <span className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold ${row.tone}`}>{row.chip}</span>
             </div>
           ))}
           <p className="m-0 text-[11px] text-stone-500">{step.answer.foot}</p>
         </div>
       ))}
-      <div className="flex items-center justify-between gap-3 rounded-full border border-white/80 bg-white/95 py-2.5 pr-2 pl-4 shadow-lg backdrop-blur-md">
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-white/80 bg-white/95 py-2.5 pr-2 pl-4 shadow-lg backdrop-blur-md">
         <p className="m-0 min-h-5 flex-1 text-left text-xs sm:text-[13px] text-stone-800">
           {typed}
           <span className="ml-0.5 inline-block h-3.5 w-[2px] animate-pulse bg-[#487aa8] align-middle" aria-hidden="true" />
         </p>
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#487aa8] text-white shadow-xs" aria-hidden="true">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#487aa8] text-white shadow-xs" aria-hidden="true">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
             <path d="M12 19V5M6 11l6-6 6 6" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>

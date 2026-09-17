@@ -1,28 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import gsap from "gsap";
-
-function EditPencilIcon() {
-  return (
-    <svg
-      width="10"
-      height="10"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="inline-block"
-      aria-hidden="true"
-    >
-      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-      <path d="m15 5 4 4" />
-    </svg>
-  );
-}
 
 function DownloadIcon() {
   return (
@@ -48,11 +28,14 @@ function DownloadIcon() {
 export function Hero() {
   const titleRef = useRef<HTMLHeadingElement>(null);
   const envelopeRef = useRef<HTMLDivElement>(null);
+  const sheetBeforeRef = useRef<HTMLDivElement>(null);
+  const sheetAfterRef = useRef<HTMLDivElement>(null);
+  const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
     if (!titleRef.current) return;
 
-    const words = titleRef.current.querySelectorAll<HTMLElement>(".hero-word");
+    const words = titleRef.current.querySelectorAll<HTMLElement>("span.hero-word");
     gsap.fromTo(
       words,
       { yPercent: 110, opacity: 0 },
@@ -80,12 +63,80 @@ export function Hero() {
         }
       );
     }
+
+    if (sheetBeforeRef.current && sheetAfterRef.current) {
+      gsap.set(sheetBeforeRef.current, {
+        xPercent: -58,
+        x: -4,
+        y: 64,
+        rotate: -4,
+        transformOrigin: "bottom center",
+      });
+      gsap.set(sheetAfterRef.current, {
+        xPercent: -42,
+        x: 4,
+        y: 58,
+        rotate: 3,
+        transformOrigin: "bottom center",
+      });
+    }
   }, []);
+
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+    if (!sheetBeforeRef.current || !sheetAfterRef.current) return;
+
+    gsap.to(sheetBeforeRef.current, {
+      xPercent: -58,
+      x: -38,
+      y: -16,
+      rotate: -9,
+      scale: 1.02,
+      duration: 0.52,
+      ease: "power3.out",
+      overwrite: "auto",
+    });
+    gsap.to(sheetAfterRef.current, {
+      xPercent: -42,
+      x: 38,
+      y: -22,
+      rotate: 7,
+      scale: 1.03,
+      duration: 0.52,
+      ease: "power3.out",
+      overwrite: "auto",
+    });
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    if (!sheetBeforeRef.current || !sheetAfterRef.current) return;
+
+    gsap.to(sheetBeforeRef.current, {
+      xPercent: -58,
+      x: -4,
+      y: 64,
+      rotate: -4,
+      scale: 1.0,
+      duration: 0.45,
+      ease: "power3.inOut",
+      overwrite: "auto",
+    });
+    gsap.to(sheetAfterRef.current, {
+      xPercent: -42,
+      x: 4,
+      y: 58,
+      rotate: 3,
+      scale: 1.0,
+      duration: 0.45,
+      ease: "power3.inOut",
+      overwrite: "auto",
+    });
+  };
 
   return (
     <section className="w-full relative overflow-hidden">
       <div className="relative flex min-h-[44rem] w-full flex-col items-center justify-between overflow-hidden bg-[linear-gradient(180deg,#7aa0c6_0%,#96b7d7_45%,#d2e3f0_85%,#ecf3f9_100%)] pt-28 pb-0 text-center sm:min-h-[100dvh] sm:pt-36">
-        {/* Soft radial glow in the sky */}
         <div
           className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 h-[550px] w-[900px] rounded-full opacity-45 blur-3xl"
           style={{
@@ -95,7 +146,6 @@ export function Hero() {
           aria-hidden="true"
         />
 
-        {/* Hero Content: Title, Subtitle, and Buttons Centered */}
         <div className="relative z-10 mx-auto flex max-w-3xl flex-col items-center px-5 text-center sm:px-6">
           <h1
             ref={titleRef}
@@ -118,17 +168,16 @@ export function Hero() {
             its source, and keep every review decision attached to the draft.
           </p>
 
-          {/* Centered CTA Buttons: Launch Workspace (brand theme) + Download App */}
-          <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3.5">
+          <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
             <Link
               href="/register"
-              className="rounded-full bg-[#487aa8] hover:bg-[#3a6792] px-6 sm:px-8 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold text-white no-underline shadow-md transition-all hover:scale-[1.02] active:scale-95 border border-white/20"
+              className="rounded-md bg-[#487aa8] hover:bg-[#3a6792] px-5 sm:px-6 py-2.5 text-xs sm:text-sm font-semibold text-white no-underline shadow-xs transition-all hover:scale-[1.02] active:scale-95 border border-white/20"
             >
               Launch Workspace
             </Link>
             <Link
               href="#download"
-              className="inline-flex items-center gap-1.5 rounded-full bg-white hover:bg-slate-50 px-5 sm:px-7 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold text-slate-900 no-underline shadow-xs transition-all hover:scale-[1.02] active:scale-95"
+              className="inline-flex items-center gap-1.5 rounded-md bg-white hover:bg-slate-50 px-5 sm:px-6 py-2.5 text-xs sm:text-sm font-semibold text-slate-900 no-underline shadow-xs transition-all hover:scale-[1.02] active:scale-95"
             >
               <DownloadIcon />
               <span>Download App</span>
@@ -136,17 +185,18 @@ export function Hero() {
           </div>
         </div>
 
-        {/* Scaled-down Envelope with Letters nestled snugly inside */}
         <div
           ref={envelopeRef}
-          className="relative z-20 mt-10 flex w-full max-w-full flex-col items-center px-4 pt-14 sm:pt-20 select-none sm:mt-auto"
+          className="relative z-20 mt-10 flex w-full max-w-full flex-col items-center px-4 pt-10 sm:pt-16 select-none sm:mt-auto"
         >
-          {/* Main Envelope Scaffold */}
-          <div className="relative w-full max-w-[370px] sm:max-w-[430px] md:max-w-[470px] h-[145px] sm:h-[175px] md:h-[200px] flex items-end justify-center">
-
-            {/* Background Fanned Paper Silhouettes on Left */}
+          <div
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            onClick={() => (isHovered ? handleMouseLeave() : handleMouseEnter())}
+            className="relative w-full max-w-[370px] sm:max-w-[430px] md:max-w-[470px] h-[155px] sm:h-[185px] md:h-[210px] flex items-end justify-center cursor-pointer group"
+          >
             <div
-              className="pointer-events-none hidden sm:flex absolute -left-3 md:-left-6 bottom-4 md:bottom-5 h-16 md:h-20 w-22 md:w-28 -rotate-12 rounded-2xl border border-white/70 bg-white/35 p-2 shadow-xs backdrop-blur-xs flex-col justify-center gap-1.5"
+              className="pointer-events-none hidden sm:flex absolute -left-3 md:-left-6 bottom-4 md:bottom-5 h-16 md:h-20 w-22 md:w-28 -rotate-12 rounded-md border border-white/70 bg-white/35 p-2 shadow-xs backdrop-blur-xs flex-col justify-center gap-1.5 transition-transform duration-300 group-hover:-translate-x-1"
               aria-hidden="true"
             >
               <div className="h-1.5 w-3/4 rounded-full bg-sky-200/80" />
@@ -154,9 +204,8 @@ export function Hero() {
               <div className="h-1.5 w-2/3 rounded-full bg-sky-200/80" />
             </div>
 
-            {/* Background Fanned Paper Silhouettes on Right */}
             <div
-              className="pointer-events-none hidden sm:flex absolute -right-3 md:-right-6 bottom-4 md:bottom-5 h-16 md:h-20 w-22 md:w-28 rotate-12 rounded-2xl border border-white/70 bg-white/35 p-2 shadow-xs backdrop-blur-xs flex-col justify-center gap-1.5"
+              className="pointer-events-none hidden sm:flex absolute -right-3 md:-right-6 bottom-4 md:bottom-5 h-16 md:h-20 w-22 md:w-28 rotate-12 rounded-md border border-white/70 bg-white/35 p-2 shadow-xs backdrop-blur-xs flex-col justify-center gap-1.5 transition-transform duration-300 group-hover:translate-x-1"
               aria-hidden="true"
             >
               <div className="h-1.5 w-3/4 rounded-full bg-sky-200/80" />
@@ -164,8 +213,7 @@ export function Hero() {
               <div className="h-1.5 w-2/3 rounded-full bg-sky-200/80" />
             </div>
 
-            {/* 1. Open Envelope Back Wall */}
-            <div className="absolute inset-0 z-0 flex items-end">
+            <div className="absolute inset-0 z-0 flex items-end pointer-events-none">
               <svg
                 viewBox="0 0 540 240"
                 className="w-full h-full"
@@ -193,56 +241,56 @@ export function Hero() {
               </svg>
             </div>
 
-            {/* 2. Sheet 1: Before */}
-            <div className="absolute left-1/2 -translate-x-[62%] sm:-translate-x-[60%] bottom-8 sm:bottom-10 md:bottom-12 z-10 w-[145px] sm:w-[175px] md:w-[198px] h-[165px] sm:h-[190px] md:h-[212px] -rotate-5 rounded-2xl border border-stone-200/90 bg-white p-2.5 sm:p-3.5 shadow-[0_8px_24px_rgba(20,40,75,0.08)] text-left transition-transform hover:-rotate-2 duration-300">
-              {/* Centered Pill Badge */}
-              <div className="flex justify-center pb-1">
-                <span className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2 py-0.5 text-[8px] sm:text-[9px] font-semibold text-stone-600 border border-stone-200/80 shadow-2xs">
-                  <EditPencilIcon /> Before
+            <div
+              ref={sheetBeforeRef}
+              style={{ transform: "translate(-58%, 64px) rotate(-4deg)" }}
+              className="absolute left-1/2 bottom-8 sm:bottom-10 md:bottom-12 z-10 w-[145px] sm:w-[175px] md:w-[198px] h-[165px] sm:h-[190px] md:h-[212px] rounded-md border border-stone-200/90 bg-white p-2.5 sm:p-3.5 shadow-[0_8px_24px_rgba(20,40,75,0.08)] text-left will-change-transform"
+            >
+              <div className="flex justify-center pb-1.5">
+                <span className="inline-block rounded-md bg-stone-100 px-2 py-0.5 text-[8px] sm:text-[9px] font-mono font-semibold uppercase tracking-wider text-stone-600 border border-stone-200 shadow-2xs">
+                  Unverified Draft
                 </span>
               </div>
 
-              {/* Letter Heading & Body */}
-              <p className="font-serif italic text-[9.5px] sm:text-[11px] text-stone-700 pb-0.5">
-                Dear Registrar,
+              <p className="font-sans font-semibold text-[9px] sm:text-[10.5px] text-stone-900 pb-0.5">
+                Before NCLT (Court II)
               </p>
-              <p className="font-serif italic text-[8.5px] sm:text-[10px] leading-[1.5] text-stone-600 line-clamp-3">
-                &ldquo;Loan ledger reflects Rs. 4.85 Cr default. Corporate Debtor failed to service interest as per terms...&rdquo;
+              <p className="font-serif italic text-[8.5px] sm:text-[10px] leading-[1.5] text-stone-700">
+                &ldquo;Corporate Debtor failed to service loan interest as per Schedule I. Total claimed: ₹4.85 Cr.&rdquo;
               </p>
 
-              {/* Subtle unverified note */}
-              <div className="mt-1.5 pt-1 border-t border-stone-100 text-[7.5px] sm:text-[8.5px] font-mono text-rose-600/90 flex items-center gap-0.5 truncate">
-                <span>⚠️ Conflicting amount</span>
+              <div className="mt-2 pt-1.5 border-t border-stone-100 text-[7.5px] sm:text-[8.5px] font-mono text-rose-600 flex items-center justify-between">
+                <span>Schedule I vs Ledger</span>
+                <span className="font-semibold bg-rose-50 border border-rose-200/80 px-1 py-0.5 rounded-md">Mismatch</span>
               </div>
             </div>
 
-            {/* 3. Sheet 2: After */}
-            <div className="absolute left-1/2 -translate-x-[38%] sm:-translate-x-[36%] bottom-11 sm:bottom-13 md:bottom-15 z-20 w-[150px] sm:w-[180px] md:w-[204px] h-[175px] sm:h-[200px] md:h-[222px] rotate-3 rounded-2xl border border-[#cbe0f2] bg-white p-2.5 sm:p-3.5 shadow-[0_12px_28px_rgba(20,40,75,0.12)] text-left transition-transform hover:rotate-1 duration-300">
-              {/* Centered Pill Badge */}
-              <div className="flex justify-center pb-1">
-                <span className="inline-flex items-center gap-1 rounded-full bg-[#edf5fc] px-2 py-0.5 text-[8px] sm:text-[9px] font-semibold text-[#27537b] border border-[#cbe2f5] shadow-2xs">
-                  <EditPencilIcon /> After
+            <div
+              ref={sheetAfterRef}
+              style={{ transform: "translate(-42%, 58px) rotate(3deg)" }}
+              className="absolute left-1/2 bottom-11 sm:bottom-13 md:bottom-15 z-20 w-[150px] sm:w-[180px] md:w-[204px] h-[175px] sm:h-[200px] md:h-[222px] rounded-md border border-[#cbe0f2] bg-white p-2.5 sm:p-3.5 shadow-[0_12px_28px_rgba(20,40,75,0.12)] text-left will-change-transform"
+            >
+              <div className="flex justify-center pb-1.5">
+                <span className="inline-block rounded-md bg-[#edf5fc] px-2 py-0.5 text-[8px] sm:text-[9px] font-mono font-semibold uppercase tracking-wider text-[#1e466a] border border-[#cbe2f5] shadow-2xs">
+                  Veritas Verified
                 </span>
               </div>
 
-              {/* Letter Heading & Body */}
-              <p className="font-sans text-[8.5px] sm:text-[10px] font-bold text-stone-900 pb-0.5 truncate">
-                To the Hon&apos;ble Adjudicating Authority:
+              <p className="font-sans font-semibold text-[9px] sm:text-[10.5px] text-stone-900 pb-0.5">
+                Adjudicating Authority (NCLT)
               </p>
-              <p className="font-serif text-[8.5px] sm:text-[10px] leading-[1.5] text-stone-800 line-clamp-3">
-                &ldquo;Corporate Debtor defaulted on ₹5.20 crore as on 14 March 2025 as per Bank Certificate.&rdquo;
+              <p className="font-serif text-[8.5px] sm:text-[10px] leading-[1.5] text-stone-800">
+                &ldquo;Corporate Debtor defaulted on ₹5.20 Cr as of 14 March 2025, authenticated by Bank Certificate.&rdquo;
               </p>
 
-              {/* Clean citation confirmation tag */}
-              <div className="mt-1.5 pt-1 flex items-center justify-between border-t border-stone-100 text-[7.5px] sm:text-[8.5px] text-stone-500 font-mono">
-                <span>2026 INSC 668</span>
-                <span className="text-emerald-700 font-semibold bg-emerald-50 px-1 py-0.2 rounded-full border border-emerald-200/80">
-                  ✓ Matched
+              <div className="mt-2 pt-1.5 flex items-center justify-between border-t border-stone-100 text-[7.5px] sm:text-[8.5px] font-mono text-stone-500">
+                <span className="font-semibold text-stone-700">2026 INSC 668</span>
+                <span className="text-emerald-700 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-200/80">
+                  ✓ Record Matched
                 </span>
               </div>
             </div>
 
-            {/* 4. Envelope Front Pocket */}
             <div className="absolute bottom-0 inset-x-0 z-30 h-[68px] sm:h-[82px] md:h-[95px] pointer-events-none">
               <svg
                 viewBox="0 0 540 120"

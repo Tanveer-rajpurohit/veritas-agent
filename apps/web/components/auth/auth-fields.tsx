@@ -45,7 +45,7 @@ function ArrowIcon() {
 
 export function authInputClassName(invalid: boolean, withToggle = false): string {
   return [
-    "auth-input h-11 w-full flex-1 rounded-xl border bg-stone-50/50 px-3.5",
+    "auth-input h-11 w-full flex-1 rounded-md border bg-stone-50/50 px-3.5",
     "text-[14px] text-stone-900 outline-none transition-all duration-150",
     "placeholder:text-stone-400 hover:border-stone-300 focus:border-[#487aa8] focus:bg-white focus:ring-2 focus:ring-[#487aa8]/15",
     invalid ? "border-rose-500" : "border-stone-200",
@@ -181,7 +181,7 @@ export function AuthSubmit({ pending, pendingLabel, children, ...props }: Submit
     <button
       {...props}
       type={props.type ?? "submit"}
-      className="mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-full border-0 bg-[#487aa8] hover:bg-[#3d6991] px-6 text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.01] active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+      className="mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-md border-0 bg-[#487aa8] hover:bg-[#3d6991] px-6 text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.01] active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
       disabled={props.disabled || pending}
     >
       {pending ? (
@@ -205,7 +205,7 @@ export function GoogleAuthButton({ label = "Continue with Google" }: { label?: s
       onClick={() => {
         router.push("/");
       }}
-      className="flex h-11 w-full items-center justify-center gap-3 rounded-full border border-stone-200 bg-white px-4 text-sm font-semibold text-stone-800 shadow-2xs transition-all hover:bg-stone-50 hover:border-stone-300 active:scale-[0.99] cursor-pointer"
+      className="flex h-11 w-full items-center justify-center gap-3 rounded-md border border-stone-200 bg-white px-4 text-sm font-semibold text-stone-800 shadow-2xs transition-all hover:bg-stone-50 hover:border-stone-300 active:scale-[0.99] cursor-pointer"
     >
       <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
         <path

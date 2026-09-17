@@ -75,9 +75,8 @@ export function InfoSection() {
       className="w-full border-b border-stone-200 bg-white relative overflow-hidden"
     >
       <div className="w-full max-w-6xl lg:max-w-7xl mx-auto border-x border-stone-200 px-6 sm:px-10 lg:px-12 py-16 sm:py-24 flex flex-col items-start gap-8 sm:gap-12">
-        {/* Top Badge matching SIH style */}
         <div className="flex flex-wrap items-center gap-3">
-          <div className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-50/80 px-3.5 py-1.5 shadow-xs">
+          <div className="inline-flex items-center gap-2 rounded-md border border-stone-200 bg-stone-50/80 px-3.5 py-1.5 shadow-xs">
             <svg
               width="14"
               height="14"
@@ -109,7 +108,6 @@ export function InfoSection() {
           </span>
         </div>
 
-        {/* The 2 Scroll-Illuminated Paragraphs (Compact, readable editorial font size) */}
         <div className="flex flex-col gap-6 sm:gap-8 max-w-4xl">
           <p
             ref={para1Ref}

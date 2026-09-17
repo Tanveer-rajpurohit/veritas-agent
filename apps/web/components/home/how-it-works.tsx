@@ -17,7 +17,7 @@ export function HowItWorks() {
       <h2 className="m-0 pb-8 text-center text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
         How Veritas works
       </h2>
-      <div className="mb-8 inline-flex items-center gap-1 rounded-full border border-border bg-white p-1" role="tablist" aria-label="How Veritas works">
+      <div className="mb-8 inline-flex items-center gap-1 rounded-md border border-border bg-white p-1" role="tablist" aria-label="How Veritas works">
         {TABS.map((item) => (
           <button
             key={item.id}
@@ -25,7 +25,7 @@ export function HowItWorks() {
             role="tab"
             aria-selected={tab === item.id}
             onClick={() => setTab(item.id)}
-            className={`rounded-full px-5 py-1.5 text-[13px] font-medium transition-all ${
+            className={`rounded-md px-5 py-1.5 text-[13px] font-medium transition-all ${
               tab === item.id ? "bg-foreground text-white shadow-sm" : "text-ink-muted hover:text-ink"
             }`}
           >
@@ -34,16 +34,16 @@ export function HowItWorks() {
         ))}
       </div>
 
-      <div className="w-full overflow-hidden rounded-3xl bg-[linear-gradient(180deg,var(--hero-from),var(--hero-mid)_55%,var(--hero-to))] px-6 py-12 sm:px-12">
+      <div className="w-full overflow-hidden rounded-lg bg-[linear-gradient(180deg,var(--hero-from),var(--hero-mid)_55%,var(--hero-to))] px-6 py-12 sm:px-12">
         {tab === "draft" ? (
           <div className="mx-auto flex max-w-xl flex-col items-center text-center" role="tabpanel">
             <p className="m-0 pb-2 text-sm font-semibold text-white/85">Getting started with a brief</p>
             <h3 className="m-0 pb-6 font-display text-3xl font-normal text-white sm:text-4xl">From upload to working brief</h3>
-            <div className="w-full rounded-2xl bg-white/95 p-5 text-left shadow-xl">
+            <div className="w-full rounded-lg bg-white/95 p-5 text-left shadow-xl">
               <div className="flex items-center gap-2 pb-3">
                 <span className="rounded-md bg-muted px-2 py-1 font-mono text-[11px] text-ink">loan-ledger.pdf</span>
                 <span className="rounded-md bg-muted px-2 py-1 font-mono text-[11px] text-ink">bank-cert.pdf</span>
-                <span className="ml-auto rounded-full bg-ok-wash px-2 py-0.5 text-[10px] font-semibold text-ok-ink">Ready</span>
+                <span className="ml-auto rounded-md bg-ok-wash px-2 py-0.5 text-[10px] font-semibold text-ok-ink">Ready</span>
               </div>
               <div className="flex flex-col gap-1.5" aria-hidden="true">
                 <span className="h-2 w-3/4 rounded-full bg-border" />
@@ -64,9 +64,9 @@ export function HowItWorks() {
                 { text: "Quoted words differ from the authentic paragraph", tone: "bg-bad-wash text-bad-ink", chip: "Mismatch" },
                 { text: "Ledger and certificate disagree on the default amount", tone: "bg-warn-wash text-warn-ink", chip: "Conflict" },
               ].map((row) => (
-                <div key={row.text} className="flex items-center justify-between gap-3 rounded-xl bg-white/95 px-4 py-3 shadow">
+                <div key={row.text} className="flex items-center justify-between gap-3 rounded-md bg-white/95 px-4 py-3 shadow">
                   <p className="m-0 text-[13px] text-ink">{row.text}</p>
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${row.tone}`}>{row.chip}</span>
+                  <span className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold ${row.tone}`}>{row.chip}</span>
                 </div>
               ))}
             </div>

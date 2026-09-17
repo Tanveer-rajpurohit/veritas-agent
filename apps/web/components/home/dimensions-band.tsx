@@ -18,9 +18,9 @@ export function DimensionsBand() {
         />
         <div className="-mt-4 flex flex-wrap items-center justify-center gap-2.5">
           {DIMENSIONS.map((dimension) => (
-            <span key={dimension.name} className="inline-flex items-center gap-2 rounded-full border border-border bg-white px-4 py-2 text-[13px] font-medium text-ink shadow-sm">
+            <span key={dimension.name} className="inline-flex items-center gap-2 rounded-md border border-border bg-white px-4 py-2 text-[13px] font-medium text-ink shadow-sm">
               {dimension.name}
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${dimension.tone}`}>{dimension.chip}</span>
+              <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${dimension.tone}`}>{dimension.chip}</span>
             </span>
           ))}
         </div>

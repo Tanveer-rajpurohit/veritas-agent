@@ -21,13 +21,12 @@ export function RegisterForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [fieldErrors, setFieldErrors] = useState<AuthFieldErrors>({});
   const [pending, setPending] = useState(false);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    const failures = validateRegisterForm({ name, email, password, confirmPassword });
+    const failures = validateRegisterForm({ name, email, password });
     setFieldErrors(failures);
     if (Object.keys(failures).length > 0) {
       return;
@@ -37,12 +36,12 @@ export function RegisterForm() {
   }
 
   return (
-    <div className="flex flex-col gap-5 py-6">
+    <div className="flex flex-col gap-5 py-2">
       <div className="flex flex-col gap-2 pb-1">
-        <h1 className="m-0 font-sans font-bold text-3xl sm:text-4xl tracking-tight text-stone-900">
+        <h1 className="m-0 font-sans font-bold text-2xl sm:text-3xl tracking-tight text-stone-900">
           Create Account
         </h1>
-        <p className="m-0 text-sm leading-relaxed text-stone-600 font-sans">
+        <p className="m-0 text-xs sm:text-sm leading-relaxed text-stone-600 font-sans">
           Set up your workspace and draft your first brief with evidence beside you.
         </p>
       </div>
@@ -52,7 +51,7 @@ export function RegisterForm() {
         <AuthDivider text="or register with email" />
       </div>
 
-      <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
+      <form className="flex flex-col gap-3.5" onSubmit={handleSubmit} noValidate>
         <AuthField
           label="Full name"
           name="name"
@@ -85,17 +84,6 @@ export function RegisterForm() {
           onChange={(event) => setPassword(event.target.value)}
           error={fieldErrors.password}
           hint="Use 8 or more characters with a number or symbol."
-          required
-        />
-
-        <AuthPasswordField
-          label="Confirm password"
-          name="confirm-password"
-          autoComplete="new-password"
-          placeholder="Confirm password"
-          value={confirmPassword}
-          onChange={(event) => setConfirmPassword(event.target.value)}
-          error={fieldErrors.confirmPassword}
           required
         />
 

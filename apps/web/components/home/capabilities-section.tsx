@@ -114,7 +114,7 @@ export function CapabilitiesSection() {
     >
       <div className="w-full max-w-6xl lg:max-w-7xl mx-auto border-x border-stone-200">
         <div className="px-6 sm:px-10 lg:px-12 py-16 sm:py-20 border-b border-stone-200">
-          <div className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-50/80 px-3.5 py-1.5 shadow-xs mb-5">
+          <div className="inline-flex items-center gap-2 rounded-md border border-stone-200 bg-stone-50/80 px-3.5 py-1.5 shadow-xs mb-5">
             <svg
               width="13"
               height="13"
@@ -187,7 +187,7 @@ export function CapabilitiesSection() {
                       {index < workflow.length - 1 && (
                         <span className="absolute left-[15px] top-7 h-[calc(100%-6px)] border-l border-dashed border-stone-300" />
                       )}
-                      <div className="relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-stone-200 bg-white text-[#487aa8] shadow-xs">
+                      <div className="relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-stone-200 bg-white text-[#487aa8] shadow-xs">
                         {step.icon}
                       </div>
                       <div className="pt-0.5">
@@ -203,7 +203,7 @@ export function CapabilitiesSection() {
                 })}
               </div>
             </div>
-            <div className="rounded-2xl border border-stone-200 bg-white p-4 sm:p-5 shadow-xs">
+            <div className="rounded-lg border border-stone-200 bg-white p-4 sm:p-5 shadow-xs">
               <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-[#487aa8] font-semibold">
                 Designed for courtroom credibility
               </p>

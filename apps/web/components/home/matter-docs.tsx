@@ -54,10 +54,10 @@ export function MatterDocs() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {DOCS.map((doc, index) => (
           <Reveal key={doc.name} delay={Math.min(index * 0.06, 0.18)}>
-            <article className="flex h-full flex-col rounded-2xl border border-border bg-white p-5 shadow-[0_1px_2px_rgb(23_23_23/6%),0_4px_12px_rgb(23_23_23/8%)] transition-all hover:-translate-y-0.5 hover:border-line-strong">
+            <article className="flex h-full flex-col rounded-lg border border-border bg-white p-5 shadow-[0_1px_2px_rgb(23_23_23/6%),0_4px_12px_rgb(23_23_23/8%)] transition-all hover:-translate-y-0.5 hover:border-line-strong">
               <div className="flex items-start justify-between gap-2 pb-3">
                 <DocIcon />
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${doc.tagTone}`}>{doc.tag}</span>
+                <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${doc.tagTone}`}>{doc.tag}</span>
               </div>
               <h3 className="m-0 pb-1 text-[15px] font-semibold text-foreground">{doc.name}</h3>
               <p className="m-0 pb-3 font-mono text-[11px] text-ink-muted">{doc.meta} · Ready</p>

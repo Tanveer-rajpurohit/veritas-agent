@@ -35,14 +35,16 @@ export function validateLoginForm(values: LoginRequest): AuthFieldErrors {
   return errors;
 }
 
-export function validateRegisterForm(values: RegisterRequest & { confirmPassword: string }): AuthFieldErrors {
+export function validateRegisterForm(values: RegisterRequest & { confirmPassword?: string }): AuthFieldErrors {
   const errors: AuthFieldErrors = {};
   if (values.name.trim().length === 0) errors.name = "Enter your full name";
   const emailError = validateEmail(values.email);
   if (emailError) errors.email = emailError;
   const passwordError = validateNewPassword(values.password);
   if (passwordError) errors.password = passwordError;
-  if (values.confirmPassword !== values.password) errors.confirmPassword = "Passwords do not match";
+  if (values.confirmPassword !== undefined && values.confirmPassword !== values.password) {
+    errors.confirmPassword = "Passwords do not match";
+  }
   return errors;
 }
 

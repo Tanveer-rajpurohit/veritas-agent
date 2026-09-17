@@ -118,15 +118,14 @@ export function BigPicture() {
 
   return (
     <section id="overview" className="mx-auto w-full max-w-6xl px-5 pt-28 sm:px-8">
-      {/* Floating Frosted Pill Nav */}
       <div className="flex justify-center pb-12">
-        <div className="inline-flex items-center gap-1 rounded-full border border-stone-200/90 bg-white/85 p-1.5 shadow-xs backdrop-blur-md">
+        <div className="inline-flex items-center gap-1 rounded-md border border-stone-200/90 bg-white/85 p-1.5 shadow-xs backdrop-blur-md">
           {PILL_TABS.map((tab) => (
             <button
               key={tab.id}
               type="button"
               onClick={() => setActivePill(tab.id)}
-              className={`rounded-full px-4 sm:px-5 py-1.5 text-xs sm:text-[13px] font-medium transition-all ${
+              className={`rounded-md px-4 sm:px-5 py-1.5 text-xs sm:text-[13px] font-medium transition-all ${
                 activePill === tab.id
                   ? "bg-[#487aa8] text-white shadow-xs"
                   : "text-stone-600 hover:text-stone-950"
@@ -138,7 +137,6 @@ export function BigPicture() {
         </div>
       </div>
 
-      {/* Main Narrative Header */}
       <Reveal className="max-w-3xl">
         <h2 className="font-display text-4xl sm:text-5xl font-normal tracking-tight text-stone-900">
           See the Big Picture
@@ -148,13 +146,12 @@ export function BigPicture() {
         </p>
       </Reveal>
 
-      {/* Numbered Narrative Rows (01, 02, 03, 04) */}
       <div className="divide-y divide-stone-200 border-t border-b border-stone-200">
         {NARRATIVE_STEPS.map((step, idx) => (
           <Reveal
             key={step.num}
             delay={idx * 0.05}
-            className="grid py-6 sm:py-7 sm:grid-cols-[60px_1fr] md:grid-cols-[80px_240px_1fr] items-baseline gap-2 sm:gap-6 group hover:bg-[#f5f9fc]/70 transition-colors rounded-xl px-2 sm:px-4"
+            className="grid py-6 sm:py-7 sm:grid-cols-[60px_1fr] md:grid-cols-[80px_240px_1fr] items-baseline gap-2 sm:gap-6 group hover:bg-[#f5f9fc]/70 transition-colors rounded-lg px-2 sm:px-4"
           >
             <span className="font-mono text-xs sm:text-sm font-semibold text-[#6292c1] group-hover:text-[#487aa8] transition-colors">
               {step.num}
@@ -169,15 +166,14 @@ export function BigPicture() {
         ))}
       </div>
 
-      {/* 4 Feature Cards with Clean Minimal Icons */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 pt-16 pb-12">
         {FEATURE_GRID.map((feat, idx) => (
           <Reveal
             key={feat.title}
             delay={idx * 0.06}
-            className="flex flex-col rounded-3xl border border-stone-200/80 bg-[#f8fbfe] p-6 transition-all hover:-translate-y-1 hover:border-[#bed7ec] hover:bg-white hover:shadow-md"
+            className="flex flex-col rounded-lg border border-stone-200/80 bg-[#f8fbfe] p-6 transition-all hover:-translate-y-1 hover:border-[#bed7ec] hover:bg-white hover:shadow-md"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-[#487aa8] shadow-xs border border-stone-200/60 mb-5">
+            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-white text-[#487aa8] shadow-xs border border-stone-200/60 mb-5">
               {feat.icon}
             </div>
             <h4 className="text-base font-semibold text-stone-900 pb-2 tracking-tight">

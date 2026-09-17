@@ -48,7 +48,7 @@ export function FAQSection() {
     <section id="faq" className="w-full border-b border-stone-200 bg-white">
       <div className="w-full max-w-6xl lg:max-w-7xl mx-auto border-x border-stone-200 px-6 sm:px-10 lg:px-12 py-16 sm:py-24 flex flex-col lg:flex-row gap-10 lg:gap-16">
         <div className="w-full lg:w-1/3 flex flex-col gap-3">
-          <div className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-semibold text-stone-700 w-fit">
+          <div className="inline-flex items-center gap-2 rounded-md border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-semibold text-stone-700 w-fit">
             <span>FAQ</span>
           </div>
           <h2 className="text-stone-900 font-bold text-2xl sm:text-3xl md:text-4xl font-sans tracking-tight leading-[1.12] text-balance">
