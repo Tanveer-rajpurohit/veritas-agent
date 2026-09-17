@@ -22,6 +22,14 @@ Do not expand the MVP with translation, broad jurisdiction support, autonomous f
 
 Use the canonical roles and terms from the documentation: Main Agent, Writer, Citation Reviewer, Fact Reviewer; supported, contradicted, unresolved, needs review, stale, and resolved.
 
+## Locked MVP stack
+
+`docs/build plan/tech.md` owns technology decisions. For the MVP, use Next.js and TypeScript for the web application, Tiptap for canonical document editing, FastAPI and Pydantic for the Python API, Strands Agents SDK for orchestration, PostgreSQL for application state and jobs, and S3-compatible object storage with MinIO locally.
+
+Do not substitute another backend framework, agent SDK, primary database, editor model, or state architecture without an explicit documented decision. The inference provider is intentionally replaceable behind configuration; provider-specific behavior must not leak into domain services.
+
+The Build It track lists several eligible open-source AWS technologies; it does not require all of them. Strands is the required and demo-visible baseline for Veritas. Cedar, SAM/LocalStack, and OpenSearch are optional additions only after the P0 flow is stable and only when they power a real visible feature. PartyRock is not part of this architecture. Do not add AWS services merely to increase the service count.
+
 ## Non-negotiable engineering invariants
 
 - A matter is the authorization boundary. Every read, search, object URL, event stream, and export must enforce matter access.

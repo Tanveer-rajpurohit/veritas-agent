@@ -26,6 +26,8 @@ Veritas supports legal work; it does not replace professional judgment, determin
 
 The application—not a model—owns authorization, state transitions, finding invalidation, approval, and export eligibility.
 
+The Build It baseline uses Strands directly and visibly. The event also permits Cedar, SAM/LocalStack, OpenSearch, PartyRock, and other AWS open-source technologies, but Veritas does not need to use every option. Cedar and OpenSearch remain optional until the core review workflow is complete and they support a real feature. The binding stack and substitution policy live in [the technical architecture](docs/build%20plan/tech.md).
+
 ## Current status
 
 The repository currently contains the monorepo scaffold, planning documents, the Next.js starter, and a basic FastAPI backend with root and health endpoints. Product features are not implemented yet.
