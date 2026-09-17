@@ -64,7 +64,7 @@ export function AuthDemo() {
           {step.answer.rows.map((row) => (
             <div key={row.text} className="flex items-center justify-between gap-2 rounded-md bg-stone-50 px-3 py-2 border border-stone-100">
               <span className="text-xs text-stone-800">{row.text}</span>
-              <span className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold ${row.tone}`}>{row.chip}</span>
+              <span className={`shrink-0 rounded-sm px-2 py-0.5 text-[10px] font-semibold ${row.tone}`}>{row.chip}</span>
             </div>
           ))}
           <p className="m-0 text-[11px] text-stone-500">{step.answer.foot}</p>

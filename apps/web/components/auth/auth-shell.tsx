@@ -40,14 +40,16 @@ export function AuthShell({ children }: { children: ReactNode }) {
           }}
         />
 
-        <div className="relative z-10 self-start">
-          <div className="relative flex items-center gap-2.5 rounded-md bg-white px-3.5 py-1.5 text-xs font-semibold tracking-tight text-stone-900 ring-1 ring-white/90 shadow-sm">
-            <span className="relative flex size-2">
-              <span className="absolute inline-flex size-full animate-ping rounded-full bg-brand-strong opacity-75" />
-              <span className="relative inline-flex size-2 rounded-full bg-brand-strong" />
-            </span>
-            Live Evidence Preview
-          </div>
+        <div className="relative z-10 flex flex-col gap-1.5">
+          <span className="font-mono text-[10.5px] font-semibold tracking-widest text-sky-100 uppercase">
+            Courtroom Verification Room
+          </span>
+          <h2 className="font-display text-2xl lg:text-[26px] font-normal leading-snug tracking-tight text-white m-0">
+            Draft with authentic court records beside you
+          </h2>
+          <p className="text-xs text-sky-50/90 m-0 leading-relaxed max-w-sm">
+            Automatic discrepancy flagging between loan schedules, certified default certificates, and precedents.
+          </p>
         </div>
 
         <div className="relative z-10 my-auto">
