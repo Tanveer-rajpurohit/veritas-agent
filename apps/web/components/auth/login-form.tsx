@@ -43,7 +43,7 @@ export function LoginForm() {
     <div className="flex flex-col gap-5 py-6">
       <div className="flex flex-col gap-2 pb-1">
         <h1 className="m-0 font-sans font-bold text-3xl sm:text-4xl tracking-tight text-stone-900">
-          Log in to Chamber
+          Log in to Veritas
         </h1>
         <p className="m-0 text-sm leading-relaxed text-stone-600 font-sans">
           Your court matters, client files, and verified draft notes are ready.

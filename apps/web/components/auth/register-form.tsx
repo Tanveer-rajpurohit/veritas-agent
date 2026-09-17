@@ -43,7 +43,7 @@ export function RegisterForm() {
           Create Account
         </h1>
         <p className="m-0 text-sm leading-relaxed text-stone-600 font-sans">
-          Set up your chamber and draft your first brief with evidence beside you.
+          Set up your workspace and draft your first brief with evidence beside you.
         </p>
       </div>
 
