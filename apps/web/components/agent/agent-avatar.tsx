@@ -73,23 +73,23 @@ export function AgentAvatar({
             animationDelay,
           }}
         >
-          <rect
-            x="14.2"
-            y="14.8"
-            width="3.3"
-            height="10.2"
-            rx="1.65"
+          <ellipse
+            className="agent-avatar__eye agent-avatar__eye--left"
+            cx="15.8"
+            cy="19.4"
+            rx="2.2"
+            ry="4.8"
             fill="white"
-            transform="rotate(-10 15.85 19.9)"
+            style={{ animationDelay }}
           />
-          <rect
-            x="22.1"
-            y="14.8"
-            width="3.3"
-            height="10.2"
-            rx="1.65"
+          <ellipse
+            className="agent-avatar__eye agent-avatar__eye--right"
+            cx="24.2"
+            cy="19.4"
+            rx="2.2"
+            ry="4.8"
             fill="white"
-            transform="rotate(-10 23.75 19.9)"
+            style={{ animationDelay }}
           />
         </g>
       </svg>

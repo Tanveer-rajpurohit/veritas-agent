@@ -120,15 +120,49 @@ body {
   }
 }
 
-@keyframes agent-avatar-blink {
+@keyframes agent-avatar-eye-left {
   0%,
-  44%,
-  48%,
+  28%,
   100% {
-    scale: 1 1;
+    transform: translateX(0) scaleY(1);
   }
-  46% {
-    scale: 1 0.08;
+  40% {
+    transform: translateX(-1px) scaleY(0.46);
+  }
+  52% {
+    transform: translateX(1px) scaleY(0.46);
+  }
+  70% {
+    transform: translateX(0) scaleY(1);
+  }
+  72% {
+    transform: translateX(0) scaleY(0.06);
+  }
+  75% {
+    transform: translateX(0) scaleY(1);
+  }
+}
+
+@keyframes agent-avatar-eye-right {
+  0%,
+  28%,
+  100% {
+    transform: translateX(0) scaleY(1);
+  }
+  40% {
+    transform: translateX(1px) scaleY(0.46);
+  }
+  52% {
+    transform: translateX(-1px) scaleY(0.46);
+  }
+  70% {
+    transform: translateX(0) scaleY(1);
+  }
+  72% {
+    transform: translateX(0) scaleY(0.06);
+  }
+  75% {
+    transform: translateX(0) scaleY(1);
   }
 }
 
@@ -137,13 +171,25 @@ body {
 }
 
 .agent-avatar__eyes {
-  animation: agent-avatar-blink 5.2s ease-in-out infinite;
   transition: transform 120ms ease-out;
+}
+
+.agent-avatar__eye {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.agent-avatar__eye--left {
+  animation: agent-avatar-eye-left 5.2s ease-in-out infinite;
+}
+
+.agent-avatar__eye--right {
+  animation: agent-avatar-eye-right 5.2s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .agent-avatar,
-  .agent-avatar__eyes {
+  .agent-avatar__eye {
     animation: none;
   }
 
