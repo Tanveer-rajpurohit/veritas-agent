@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     ALLOWED_ORIGINS: list[str] = ["http://localhost:3000"]
 
+    DATABASE_URL: str = "sqlite:///./veritas.db"
+
     BEDROCK_AGENT_ENABLED: bool = False
     AGENT_MAX_TOKENS: int = 2048
     AGENT_TEMPERATURE: float = 0.1
