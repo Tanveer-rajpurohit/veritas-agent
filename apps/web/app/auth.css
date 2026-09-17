@@ -1,0 +1,9 @@
+/* Minimal browser autofill reset */
+.auth-input:-webkit-autofill,
+.auth-input:-webkit-autofill:hover,
+.auth-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--foreground);
+  -webkit-box-shadow: 0 0 0 100px var(--vt-surface) inset;
+  caret-color: var(--foreground);
+  transition: background-color 5000s ease-in-out 0s;
+}

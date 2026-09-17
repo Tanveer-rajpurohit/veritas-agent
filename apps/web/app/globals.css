@@ -1,7 +1,10 @@
 @import "tailwindcss";
 @import "@repo/tailwind-config";
+@import "@fontsource-variable/figtree";
+@import "@fontsource/newsreader/400.css";
+@import "@fontsource/newsreader/400-italic.css";
+@import "@fontsource/newsreader/500-italic.css";
 @import "./design-tokens.css";
-@import "./auth.css";
 
 @theme inline {
   --font-sans: var(--font-sans);
@@ -25,10 +28,65 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-ink: var(--vt-ink);
+  --color-ink-muted: var(--vt-ink-muted);
+  --color-ink-subtle: var(--vt-ink-subtle);
+  --color-ink-accent: var(--vt-ink-accent);
+  --color-brand-strong: var(--vt-brand-strong);
+  --color-brand-bright: var(--vt-brand-bright);
+  --color-brand-soft: var(--vt-brand-soft);
+  --color-surface: var(--vt-surface);
+  --color-canvas: var(--vt-canvas);
+  --color-panel: var(--vt-panel);
+  --color-ok-ink: var(--vt-success);
+  --color-ok-wash: var(--vt-success-surface);
+  --color-warn-ink: var(--vt-warning);
+  --color-warn-wash: var(--vt-warning-surface);
+  --color-bad-ink: var(--vt-danger);
+  --color-bad-wash: var(--vt-danger-surface);
+  --color-info-ink: var(--vt-info);
+  --color-info-wash: var(--vt-info-surface);
+  --color-idle-ink: var(--vt-idle-ink);
+  --color-idle-wash: var(--vt-idle-surface);
   --radius-sm: var(--vt-radius-sm);
   --radius-md: var(--vt-radius-md);
   --radius-lg: var(--vt-radius-lg);
   --radius-xl: var(--vt-radius-xl);
+}
+
+/* Custom Scrollbar - matches the serene sky theme and completely hides default Windows arrows */
+html {
+  font-size: 90%;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(120, 160, 200, 0.45) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(120, 160, 200, 0.45);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(85, 135, 185, 0.75);
+}
+
+::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 body {
