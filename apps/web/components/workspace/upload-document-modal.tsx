@@ -132,7 +132,7 @@ export function UploadDocumentModal({
               Upload Evidentiary Document
             </h2>
             <p className="text-xs text-stone-500 m-0 pt-1 leading-relaxed">
-              Ingest primary PDF records, banking ledgers, and agreements for automated OCR span indexing.
+              Add primary PDF records, agreements, and pleadings to this matter&apos;s evidentiary vault.
             </p>
           </div>
           <button
@@ -221,7 +221,7 @@ export function UploadDocumentModal({
                       {selectedFile.name}
                     </p>
                     <p className="m-0 text-[11px] text-stone-500 font-mono pt-0.5">
-                      {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB · Ready for OCR
+                      {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB · Ready to upload
                     </p>
                   </div>
                   <button
@@ -255,7 +255,7 @@ export function UploadDocumentModal({
           <div className="flex items-start gap-2.5 rounded-lg border border-[#cbe0f2] bg-[#f8fbfe] p-3 text-[11px] text-stone-600 leading-relaxed">
             <ShieldCheckIcon size={15} className="shrink-0 text-[#487aa8] mt-0.5" />
             <span>
-              Uploaded files are stored as immutable evidentiary source records. Veritas OCR performs character-level indexing to produce verifiable candidate spans without modifying your original document.
+              Uploaded files are stored as immutable evidentiary source records in the matter vault. Evidence remains preserved and tamper-proof without modifying your original documents.
             </span>
           </div>
 
@@ -272,7 +272,7 @@ export function UploadDocumentModal({
               className="inline-flex h-9.5 items-center gap-1.5 rounded-lg bg-[#487aa8] px-5 text-xs font-semibold text-white shadow-2xs hover:bg-[#3b668e] transition-all cursor-pointer"
             >
               <UploadIcon size={13} />
-              <span>Upload & Index Spans</span>
+              <span>Upload Document</span>
             </button>
           </div>
         </form>
