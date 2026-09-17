@@ -3,8 +3,6 @@
 import { useState, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppSidebar } from "../../components/workspace/app-sidebar";
-import { WorkspaceDashboard } from "../../components/workspace/workspace-dashboard";
-import { MatterDetailView } from "../../components/workspace/matter-detail-view";
 import { CreateMatterModal } from "../../components/workspace/create-matter-modal";
 import {
   UploadDocumentModal,
@@ -13,49 +11,31 @@ import {
 import { SEED_MATTERS } from "../../lib/workspace-data";
 import type { Matter } from "../../types/workspace/types";
 import { PanelLeftIcon } from "../../components/workspace/workspace-icons";
+import { AgentChatView } from "../../components/agent/agent-chat-view";
 
-function WorkspaceContent() {
+const SESSIONS_MAP = [
+  { id: "chat-1", title: "IBC Sec 7 Financial Debt Claim" },
+  { id: "chat-2", title: "Verify Annexure B Default Date" },
+  { id: "chat-3", title: "Draft Section 9 Relief Petition" },
+  { id: "chat-4", title: "Citation Scan: Innoventive Industries" },
+  { id: "chat-5", title: "Fact Check: Ledger Discrepancy" },
+];
+
+function AgentClientContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const matterIdParam = searchParams.get("matterId");
+  const sessionParam = searchParams.get("c");
 
   const [collapsed, setCollapsed] = useState<boolean>(false);
   const [matters, setMatters] = useState<Matter[]>(SEED_MATTERS);
-  const [selectedMatter, setSelectedMatter] = useState<Matter | null>(() => {
-    if (matterIdParam) {
-      return SEED_MATTERS.find((m) => m.id === matterIdParam) || null;
-    }
-    return null;
-  });
-  const [prevParam, setPrevParam] = useState<string | null>(matterIdParam);
   const [createOpen, setCreateOpen] = useState<boolean>(false);
   const [uploadOpen, setUploadOpen] = useState<boolean>(false);
-  const [activeNav, setActiveNav] = useState<string>("home");
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
-
-  if (matterIdParam !== prevParam) {
-    setPrevParam(matterIdParam);
-    if (matterIdParam) {
-      const match = matters.find((m) => m.id === matterIdParam);
-      if (match) {
-        setSelectedMatter(match);
-      }
-    }
-  }
+  const [mobileNavOpen, setMobileNavOpen] = useState<boolean>(false);
 
   const handleCreateMatter = useCallback((newMatter: Matter) => {
     setMatters((prev) => [newMatter, ...prev]);
     setCreateOpen(false);
-  }, []);
-
-  const handleDeleteMatter = useCallback((id: string) => {
-    setMatters((prev) => prev.filter((m) => m.id !== id));
-    setSelectedMatter((curr: Matter | null) => (curr?.id === id ? null : curr));
-  }, []);
-
-  const handleSelectMatter = useCallback((matter: Matter) => {
-    setSelectedMatter(matter);
-    setMobileNavOpen(false);
   }, []);
 
   const handleToggleSidebar = useCallback(() => {
@@ -98,37 +78,34 @@ function WorkspaceContent() {
   const handleSelectNav = useCallback(
     (nav: string) => {
       setMobileNavOpen(false);
-      if (nav === "agent") {
-        router.push("/agent");
-        return;
-      }
-
-      setActiveNav(nav);
       if (nav === "home") {
-        setSelectedMatter(null);
+        router.push("/workspace");
       }
     },
     [router],
   );
 
-  const handleSendToAgent = useCallback(
-    (item?: { title: string; type: "document" | "draft" }) => {
-      if (selectedMatter) {
-        const query = item
-          ? `?matterId=${selectedMatter.id}&refTitle=${encodeURIComponent(item.title)}&refType=${item.type}`
-          : `?matterId=${selectedMatter.id}`;
-        router.push(`/agent${query}`);
-      } else {
-        router.push("/agent");
-      }
+  const handleOpenMatter = useCallback(
+    (id: string) => {
+      router.push(`/workspace?matterId=${id}`);
     },
-    [router, selectedMatter],
+    [router],
   );
 
-  const handleOpenMobileNav = useCallback(() => {
-    if (collapsed) setCollapsed(false);
-    setMobileNavOpen(true);
-  }, [collapsed]);
+  const handleSelectChatSession = useCallback(
+    (titleOrId: string) => {
+      const match = SESSIONS_MAP.find(
+        (s) => s.id === titleOrId || s.title === titleOrId,
+      );
+      const targetId = match ? match.id : titleOrId;
+      router.push(`/agent?c=${targetId}`);
+    },
+    [router],
+  );
+
+  const handleNewChat = useCallback(() => {
+    router.push("/agent");
+  }, [router]);
 
   return (
     <div className="flex h-screen w-full gap-1 overflow-hidden bg-[#eaf0f6] p-1 font-sans text-stone-900 antialiased sm:gap-1.5 sm:p-1.5 select-none">
@@ -137,15 +114,16 @@ function WorkspaceContent() {
         onToggleCollapse={handleToggleSidebar}
         onOpenCreateMatter={handleOpenCreate}
         onOpenUpload={handleOpenUpload}
-        activeNav={activeNav}
+        activeNav="agent"
         onSelectNav={handleSelectNav}
+        onSelectChatSession={handleSelectChatSession}
         mobileOpen={mobileNavOpen}
         onCloseMobile={() => setMobileNavOpen(false)}
       />
 
       <button
         type="button"
-        onClick={handleOpenMobileNav}
+        onClick={() => setMobileNavOpen(true)}
         aria-label="Open workspace navigation"
         className="fixed top-3 left-3 z-40 flex h-9 w-9 items-center justify-center rounded-md border border-[#cbe0f2] bg-white text-[#487aa8] shadow-sm transition-colors hover:bg-[#edf4fa] focus-visible:ring-2 focus-visible:ring-[#487aa8] focus-visible:outline-none md:hidden"
       >
@@ -153,21 +131,14 @@ function WorkspaceContent() {
       </button>
 
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-stone-200/90 bg-white pt-11 shadow-2xs md:pt-0">
-        {selectedMatter ? (
-          <MatterDetailView
-            matter={selectedMatter}
-            onBack={() => setSelectedMatter(null)}
-            onSendToAgent={handleSendToAgent}
-          />
-        ) : (
-          <WorkspaceDashboard
-            matters={matters}
-            onSelectMatter={handleSelectMatter}
-            onOpenCreateMatter={handleOpenCreate}
-            onOpenUpload={handleOpenUpload}
-            onDeleteMatter={handleDeleteMatter}
-          />
-        )}
+        <AgentChatView
+          key={sessionParam || "new"}
+          initialMatterId={matterIdParam}
+          sessionId={sessionParam}
+          onOpenMatter={handleOpenMatter}
+          onSelectChatSession={handleSelectChatSession}
+          onNewChat={handleNewChat}
+        />
       </main>
 
       <CreateMatterModal
@@ -186,7 +157,7 @@ function WorkspaceContent() {
   );
 }
 
-export default function WorkspacePage() {
+export function AgentClientPage() {
   return (
     <Suspense
       fallback={
@@ -195,7 +166,7 @@ export default function WorkspacePage() {
         </div>
       }
     >
-      <WorkspaceContent />
+      <AgentClientContent />
     </Suspense>
   );
 }

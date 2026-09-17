@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AgentClientPage } from "./agent-client-page";
 
 export const metadata: Metadata = {
   title: "Agent",
@@ -10,5 +11,5 @@ export const metadata: Metadata = {
 };
 
 export default function AgentPage() {
-  return <div className="min-h-screen w-full bg-white" />;
+  return <AgentClientPage />;
 }
