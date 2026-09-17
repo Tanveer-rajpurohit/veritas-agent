@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.matter import Matter
 from app.repositories.matter_repository import MatterRepository
-from app.schemas.matter import MatterCreateRequest, MatterResponse
+from app.schemas.matter import MatterCreateRequest, MatterResponse, MatterUpdateRequest
 
 router = APIRouter(
     prefix="/api/v1/matters",
@@ -45,3 +45,30 @@ async def get_matter(
     if not matter:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Matter not found")
     return matter
+
+
+@router.patch("/{matter_id}", response_model=MatterResponse)
+async def update_matter(
+    matter_id: UUID,
+    payload: MatterUpdateRequest,
+    db: DbSession,
+) -> Matter:
+    """Update fields of an existing matter."""
+    repo = MatterRepository(db)
+    matter = repo.get_by_id(matter_id)
+    if not matter:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Matter not found")
+    return repo.update(matter, payload)
+
+
+@router.delete("/{matter_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_matter(
+    matter_id: UUID,
+    db: DbSession,
+) -> None:
+    """Delete an existing matter."""
+    repo = MatterRepository(db)
+    matter = repo.get_by_id(matter_id)
+    if not matter:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Matter not found")
+    repo.delete(matter)

@@ -4,7 +4,7 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-from app.schemas.matter import MatterCreateRequest, MatterResponse
+from app.schemas.matter import MatterCreateRequest, MatterResponse, MatterUpdateRequest
 
 
 def test_matter_create_valid() -> None:
@@ -31,6 +31,17 @@ def test_matter_create_rejects_extra_fields() -> None:
     with pytest.raises(ValidationError) as exc:
         MatterCreateRequest(title="Valid Title", malicious_extra="injected")
     assert "Extra inputs are not permitted" in str(exc.value)
+
+
+def test_matter_update_valid_and_rejects_blank() -> None:
+    req = MatterUpdateRequest(title="  New Title  ", stage="Filed")
+    assert req.title == "New Title"
+    assert req.stage == "Filed"
+    assert req.description is None
+
+    with pytest.raises(ValidationError) as exc:
+        MatterUpdateRequest(title="   ")
+    assert "title must not be empty" in str(exc.value)
 
 
 def test_matter_response_serialization() -> None:

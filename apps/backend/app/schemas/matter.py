@@ -33,6 +33,37 @@ class MatterCreateRequest(BaseModel):
         return cleaned
 
 
+class MatterUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str | None = Field(
+        default=None, min_length=1, max_length=255, description="Short title of the legal matter"
+    )
+    description: str | None = Field(
+        default=None, max_length=2000, description="Brief synopsis of the dispute"
+    )
+    case_number: str | None = Field(
+        default=None, max_length=100, description="Court or tribunal case filing number"
+    )
+    court: str | None = Field(
+        default=None, max_length=255, description="Court or tribunal jurisdiction"
+    )
+    matter_type: str | None = Field(
+        default=None, max_length=100, description="Practice area or matter category"
+    )
+    stage: str | None = Field(default=None, max_length=100, description="Current workflow stage")
+
+    @field_validator("title")
+    @classmethod
+    def validate_title_not_blank(cls, value: str | None) -> str | None:
+        if value is not None:
+            cleaned = value.strip()
+            if not cleaned:
+                raise ValueError("title must not be empty or whitespace only")
+            return cleaned
+        return value
+
+
 class MatterResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

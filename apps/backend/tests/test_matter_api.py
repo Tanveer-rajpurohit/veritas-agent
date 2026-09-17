@@ -11,7 +11,6 @@ from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
 
-# Create in-memory SQLite engine for API tests
 test_engine = create_engine(
     "sqlite:///:memory:",
     connect_args={"check_same_thread": False},
@@ -95,3 +94,61 @@ def test_list_matters(client: TestClient) -> None:
     titles = [item["title"] for item in items]
     assert "Matter One" in titles
     assert "Matter Two" in titles
+
+
+def test_update_matter_success(client: TestClient) -> None:
+    create_res = client.post(
+        "/api/v1/matters/",
+        json={
+            "title": "Original Title",
+            "court": "Delhi High Court",
+            "stage": "Drafting",
+        },
+    )
+    matter_id = create_res.json()["id"]
+
+    update_res = client.patch(
+        f"/api/v1/matters/{matter_id}",
+        json={"title": "Updated Title", "stage": "Filed"},
+    )
+    assert update_res.status_code == 200
+    updated_data = update_res.json()
+    assert updated_data["title"] == "Updated Title"
+    assert updated_data["stage"] == "Filed"
+    assert updated_data["court"] == "Delhi High Court"
+
+
+def test_update_matter_not_found(client: TestClient) -> None:
+    response = client.patch(f"/api/v1/matters/{uuid4()}", json={"title": "New Title"})
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Matter not found"}
+
+
+def test_update_matter_validation_failure(client: TestClient) -> None:
+    create_res = client.post("/api/v1/matters/", json={"title": "Valid Matter"})
+    matter_id = create_res.json()["id"]
+
+    # Reject blank string
+    response = client.patch(f"/api/v1/matters/{matter_id}", json={"title": "   "})
+    assert response.status_code == 422
+
+    # Reject extra unknown fields
+    response_extra = client.patch(f"/api/v1/matters/{matter_id}", json={"malicious": "value"})
+    assert response_extra.status_code == 422
+
+
+def test_delete_matter_success(client: TestClient) -> None:
+    create_res = client.post("/api/v1/matters/", json={"title": "To Delete"})
+    matter_id = create_res.json()["id"]
+
+    delete_res = client.delete(f"/api/v1/matters/{matter_id}")
+    assert delete_res.status_code == 204
+
+    get_res = client.get(f"/api/v1/matters/{matter_id}")
+    assert get_res.status_code == 404
+
+
+def test_delete_matter_not_found(client: TestClient) -> None:
+    response = client.delete(f"/api/v1/matters/{uuid4()}")
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Matter not found"}

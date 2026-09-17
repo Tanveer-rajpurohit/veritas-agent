@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.matter import Matter
-from app.schemas.matter import MatterCreateRequest
+from app.schemas.matter import MatterCreateRequest, MatterUpdateRequest
 
 
 class MatterRepository:
@@ -33,3 +33,15 @@ class MatterRepository:
     def list_all(self) -> list[Matter]:
         stmt = select(Matter).order_by(Matter.created_at.desc())
         return list(self.db.scalars(stmt).all())
+
+    def update(self, matter: Matter, payload: MatterUpdateRequest) -> Matter:
+        update_data = payload.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(matter, field, value)
+        self.db.commit()
+        self.db.refresh(matter)
+        return matter
+
+    def delete(self, matter: Matter) -> None:
+        self.db.delete(matter)
+        self.db.commit()
