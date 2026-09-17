@@ -20,14 +20,11 @@ import {
   PaperclipIcon,
   SearchIcon,
   PlusIcon,
-  BotIcon,
-  BookOpenIcon,
-  ShieldCheckIcon,
   StreamlineFileTextIcon,
-  StreamlineFileEditIcon,
 } from "../workspace/workspace-icons";
 import { ThinkingOrb } from "./thinking-orb";
 import { AgentSideViewer, type SideViewerDocument } from "./agent-side-viewer";
+import { AgentAvatar } from "./agent-avatar";
 import { MarkdownContent } from "./markdown-content";
 
 export type AgentRoleType =
@@ -37,6 +34,8 @@ interface AgentConfig {
   id: AgentRoleType;
   name: string;
   description: string;
+  color: string;
+  glow: string;
 }
 
 const AGENTS: AgentConfig[] = [
@@ -44,53 +43,52 @@ const AGENTS: AgentConfig[] = [
     id: "orchestrator",
     name: "Veritas Orchestrator",
     description: "Coordinates research, drafting, and review",
+    color: "#7c5ce5",
+    glow: "#eee9ff",
   },
   {
     id: "writer",
     name: "Writer Agent",
     description: "Drafts pleadings and legal documents",
+    color: "#2f82bd",
+    glow: "#e5f3fc",
   },
   {
     id: "citation_reviewer",
     name: "Citation Reviewer",
     description: "Checks authorities and quotations",
+    color: "#5c6fd8",
+    glow: "#e9ecff",
   },
   {
     id: "fact_reviewer",
     name: "Fact Reviewer",
     description: "Checks dates, amounts, and records",
+    color: "#26a875",
+    glow: "#e2f7ee",
   },
 ];
 
-function AgentIcon({
+function AgentMark({
   agentId,
-  size = 14,
+  compact = false,
+  interactive = false,
 }: {
   agentId: AgentRoleType;
-  size?: number;
+  compact?: boolean;
+  interactive?: boolean;
 }) {
-  const className = "text-[#487aa8]";
+  const agent = AGENTS.find((item) => item.id === agentId) ?? AGENTS[0]!;
+  const animationDelay = `${AGENTS.findIndex((item) => item.id === agentId) * -0.7}s`;
 
-  if (agentId === "writer") {
-    return <StreamlineFileEditIcon size={size} className={className} />;
-  }
-
-  if (agentId === "citation_reviewer") {
-    return <BookOpenIcon size={size} className={className} />;
-  }
-
-  if (agentId === "fact_reviewer") {
-    return <ShieldCheckIcon size={size} className={className} />;
-  }
-
-  return <BotIcon size={size} className={className} />;
-}
-
-function AgentIconBadge({ agentId }: { agentId: AgentRoleType }) {
   return (
-    <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-[#cbe0f2] bg-[#edf4fa]">
-      <AgentIcon agentId={agentId} />
-    </span>
+    <AgentAvatar
+      color={agent.color}
+      glow={agent.glow}
+      size={compact ? 19 : 30}
+      interactive={interactive}
+      animationDelay={animationDelay}
+    />
   );
 }
 
@@ -824,11 +822,11 @@ export function AgentChatView({
           <button
             type="button"
             onClick={() => setAgentDropdownOpen(!agentDropdownOpen)}
-            className="inline-flex h-9 items-center gap-2 rounded-md border border-[#cbe0f2] bg-white px-2 text-xs font-semibold text-stone-800 shadow-2xs transition-colors hover:bg-[#f7fbfe] focus-visible:ring-2 focus-visible:ring-[#487aa8]/30 focus-visible:outline-none"
+            className="inline-flex h-9 items-center gap-2 rounded-full border border-stone-200/80 bg-[#f4f4f5] px-3 text-xs font-semibold text-stone-800 shadow-2xs transition-colors hover:bg-[#ececef] focus-visible:ring-2 focus-visible:ring-[#487aa8]/30 focus-visible:outline-none"
             aria-label="Select active specialized agent"
             aria-expanded={agentDropdownOpen}
           >
-            <AgentIconBadge agentId={currentAgent.id} />
+            <AgentMark agentId={currentAgent.id} compact interactive />
             <span>{currentAgent.name}</span>
             <ChevronDownIcon size={11} className="text-stone-400" />
           </button>
@@ -850,7 +848,7 @@ export function AgentChatView({
                   }`}
                 >
                   <div className="flex min-w-0 items-center gap-2.5">
-                    <AgentIconBadge agentId={ag.id} />
+                    <AgentMark agentId={ag.id} />
                     <span className="min-w-0">
                       <span className="block text-xs font-semibold">
                         {ag.name}
@@ -946,7 +944,7 @@ export function AgentChatView({
                         ) : (
                           <div className="w-full text-[#2c2c33]">
                             <div className="flex items-center gap-2 mb-2 select-none">
-                              <AgentIconBadge
+                              <AgentMark
                                 agentId={msg.agentId ?? "orchestrator"}
                               />
                               <span className="text-[13px] font-semibold text-stone-900">
@@ -1011,9 +1009,9 @@ export function AgentChatView({
 
                             {msg.draftArtifact && (
                               <div className="mt-4 flex items-center gap-3 rounded-lg border border-[#cbe0f2] bg-[#f7fbfe] px-3.5 py-3 transition-colors hover:border-[#9fc2df]">
-                                <div className="shrink-0 flex items-center justify-center">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-[#cbe0f2] bg-white">
                                   <StreamlineFileTextIcon
-                                    size={24}
+                                    size={22}
                                     className="text-[#487aa8]"
                                   />
                                 </div>
@@ -1021,10 +1019,9 @@ export function AgentChatView({
                                   <strong className="text-[13px] font-semibold text-stone-900 block truncate">
                                     {msg.draftArtifact.title}
                                   </strong>
-                                  <span className="text-[11px] text-[#85858d] font-mono">
-                                    Document ·{" "}
-                                    {msg.draftArtifact.currentVersion.toUpperCase()}{" "}
-                                    Verified
+                                  <span className="mt-0.5 block text-[11px] text-stone-500">
+                                    Draft, version{" "}
+                                    {msg.draftArtifact.currentVersion.slice(1)}
                                   </span>
                                 </div>
                                 <button
@@ -1035,7 +1032,7 @@ export function AgentChatView({
                                   }}
                                   className="h-7 shrink-0 rounded-md border border-[#cbe0f2] bg-white px-3.5 text-xs font-semibold text-[#2c5478] transition-colors hover:bg-[#edf4fa]"
                                 >
-                                  Open
+                                  Preview
                                 </button>
                                 <button
                                   type="button"
@@ -1085,7 +1082,7 @@ export function AgentChatView({
                                   className="inline-flex items-center gap-1.5 h-6 px-2 rounded text-[11px] font-medium text-[#2c5478] hover:bg-[#edf4fa] transition-colors cursor-pointer"
                                 >
                                   <StreamlineFileTextIcon size={13} />
-                                  <span>View Draft</span>
+                                  <span>Preview draft</span>
                                 </button>
                               )}
                             </div>

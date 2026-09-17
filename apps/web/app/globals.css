@@ -54,7 +54,11 @@
 }
 
 /* Custom Scrollbar - matches the serene sky theme across all containers */
-html, body, *, *::before, *::after {
+html,
+body,
+*,
+*::before,
+*::after {
   scrollbar-width: thin;
   scrollbar-color: rgba(120, 160, 200, 0.4) transparent;
 }
@@ -103,5 +107,47 @@ body {
   button {
     font: inherit;
     cursor: pointer;
+  }
+}
+
+@keyframes agent-avatar-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1deg);
+  }
+  50% {
+    transform: translateY(-1px) rotate(1deg);
+  }
+}
+
+@keyframes agent-avatar-blink {
+  0%,
+  44%,
+  48%,
+  100% {
+    scale: 1 1;
+  }
+  46% {
+    scale: 1 0.08;
+  }
+}
+
+.agent-avatar {
+  animation: agent-avatar-float 3.6s ease-in-out infinite;
+}
+
+.agent-avatar__eyes {
+  animation: agent-avatar-blink 5.2s ease-in-out infinite;
+  transition: transform 120ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-avatar,
+  .agent-avatar__eyes {
+    animation: none;
+  }
+
+  .agent-avatar__eyes {
+    transition: none;
   }
 }

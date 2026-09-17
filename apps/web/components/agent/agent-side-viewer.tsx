@@ -248,30 +248,6 @@ export function AgentSideViewer({
                       <p className="text-[13px] leading-[1.7] text-stone-700 whitespace-pre-line">
                         {sec.content}
                       </p>
-
-                      {sec.citations && sec.citations.length > 0 && (
-                        <div className="mt-2.5 space-y-1.5 font-sans">
-                          {sec.citations.map((cite, cIdx) => (
-                            <div
-                              key={cIdx}
-                              className="flex items-center justify-between rounded border border-[#e7e5e1] bg-[#faf8f5] p-2 text-xs"
-                            >
-                              <div>
-                                <strong className="text-stone-900 block font-medium">
-                                  {cite.title}
-                                </strong>
-                                <span className="text-[10.5px] text-stone-500 font-mono">
-                                  {cite.citation} · {cite.court}
-                                </span>
-                              </div>
-                              <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200">
-                                <CheckIcon size={10} />
-                                {cite.status}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   ))}
                 </div>
