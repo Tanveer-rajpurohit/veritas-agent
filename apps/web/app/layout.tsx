@@ -4,7 +4,7 @@ import { fontMono, fontSans, fontSerif } from "./fonts";
 
 export const metadata: Metadata = {
   title: {
-    default: "Veritas — Draft with the evidence beside you",
+    default: "Veritas - Draft with the evidence beside you",
     template: "%s · Veritas",
   },
   description: "Evidence-first legal drafting and review workspace for Indian lawyers.",
