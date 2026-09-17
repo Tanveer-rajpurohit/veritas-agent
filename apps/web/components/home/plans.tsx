@@ -8,9 +8,9 @@ export function Plans() {
   const [billing, setBilling] = useState<"annual" | "monthly">("annual");
 
   return (
-    <section id="plans" className="mx-auto w-full max-w-6xl scroll-mt-24 px-5 pt-28 sm:px-8">
+    <section id="plans" className="mx-auto w-full max-w-6xl lg:max-w-7xl scroll-mt-24 px-4 sm:px-6 lg:px-8 pt-24 pb-8">
       {/* Outer Atmospheric Card with Serene Sky Gradient */}
-      <div className="relative overflow-hidden rounded-[2.5rem] bg-[linear-gradient(180deg,#7aa0c6_0%,#96b7d7_45%,#d2e3f0_85%,#ecf3f9_100%)] px-6 py-16 sm:px-12 sm:py-20 shadow-[0_20px_60px_-15px_rgba(25,45,75,0.15)]">
+      <div className="relative overflow-hidden rounded-[2.5rem] bg-[linear-gradient(180deg,#7aa0c6_0%,#96b7d7_45%,#d2e3f0_85%,#ecf3f9_100%)] px-5 py-14 sm:px-10 md:px-12 sm:py-18 shadow-[0_20px_60px_-15px_rgba(25,45,75,0.15)]">
         {/* Atmospheric ambient glow */}
         <div
           className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 h-[450px] w-[650px] rounded-full opacity-40 blur-3xl"
