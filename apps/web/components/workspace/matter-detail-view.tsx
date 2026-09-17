@@ -118,7 +118,7 @@ export function MatterDetailView({
   onSendToAgent,
 }: MatterDetailViewProps) {
   const [activeTab, setActiveTab] = useState<
-    "documents" | "drafts" | "overview" | "forensics"
+    "documents" | "drafts" | "forensics"
   >("documents");
   const [docSearchQuery, setDocSearchQuery] = useState("");
   const [docCategoryFilter, setDocCategoryFilter] = useState<string>("all");
@@ -328,7 +328,6 @@ export function MatterDetailView({
     () => [
       { id: "documents", label: `Documents (${documents.length})` },
       { id: "drafts", label: `Drafts (${drafts.length})` },
-      { id: "overview", label: "Overview" },
       { id: "forensics", label: "Review Findings" },
     ],
     [documents.length, drafts.length],
@@ -523,9 +522,7 @@ export function MatterDetailView({
                 role="tab"
                 aria-selected={isActive}
                 onClick={() =>
-                  setActiveTab(
-                    tab.id as "documents" | "drafts" | "overview" | "forensics",
-                  )
+                  setActiveTab(tab.id as "documents" | "drafts" | "forensics")
                 }
                 className={`pb-2.5 pt-1 text-[13.5px] sm:text-sm font-medium transition-colors cursor-pointer shrink-0 ${
                   isActive
@@ -769,119 +766,6 @@ export function MatterDetailView({
             </div>
           </div>
         )}
-
-        {activeTab === "overview" && (
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.75fr)]">
-            <div className="flex flex-col gap-5">
-              <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-2xs">
-                <h2 className="m-0 text-sm font-semibold text-stone-950">
-                  Matter Details
-                </h2>
-                <dl className="mt-4 grid gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
-                  {[
-                    ["Petitioner or claimant", matter.petitioner],
-                    ["Respondent", matter.respondent],
-                    ["Forum or court", matter.court],
-                    ["Case number", matter.caseNumber],
-                    ["Practice area", matter.matterType],
-                    ["Current stage", matter.stage],
-                  ].map(([label, value]) => (
-                    <div
-                      key={label}
-                      className="min-w-0 border-t border-stone-100 pt-3"
-                    >
-                      <dt className="text-xs text-stone-400">{label}</dt>
-                      <dd className="m-0 break-words pt-1 font-medium text-stone-800">
-                        {value}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              </section>
-
-              <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-2xs">
-                <div className="flex items-center justify-between gap-3">
-                  <h2 className="m-0 text-sm font-semibold text-stone-950">
-                    Recent Documents
-                  </h2>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("documents")}
-                    className="text-xs font-semibold text-[#487aa8] hover:text-[#315f88] focus-visible:ring-2 focus-visible:ring-[#487aa8]/30 focus-visible:outline-none"
-                  >
-                    View All
-                  </button>
-                </div>
-                <div className="mt-3 divide-y divide-stone-100">
-                  {documents.slice(0, 3).map((document) => (
-                    <div
-                      key={document.id}
-                      className="flex items-center gap-3 py-3"
-                    >
-                      <FileTextIcon
-                        size={15}
-                        className="shrink-0 text-[#487aa8]"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="m-0 truncate text-xs font-semibold text-stone-800">
-                          {document.name}
-                        </p>
-                        <p className="m-0 pt-1 text-[11px] text-stone-400">
-                          {document.type} · {document.pages} pages ·{" "}
-                          {document.uploadedAt}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            </div>
-
-            <aside className="flex flex-col gap-4">
-              <section className="rounded-lg border border-[#cbe0f2] bg-[#f8fbfe] p-5">
-                <h2 className="m-0 text-sm font-semibold text-stone-950">
-                  Review Summary
-                </h2>
-                <dl className="mt-4 grid grid-cols-2 gap-3">
-                  {[
-                    ["Documents", documents.length],
-                    ["Drafts", drafts.length],
-                    ["Findings", findings.length],
-                    ["Discrepancies", matter.discrepanciesCount ?? 0],
-                  ].map(([label, value]) => (
-                    <div
-                      key={label}
-                      className="rounded-md border border-[#dce9f4] bg-white p-3"
-                    >
-                      <dt className="text-[11px] text-stone-500">{label}</dt>
-                      <dd className="m-0 pt-1 text-xl font-semibold tabular-nums text-stone-900">
-                        {value}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              </section>
-
-              <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-2xs">
-                <h2 className="m-0 text-sm font-semibold text-stone-950">
-                  Continue Review
-                </h2>
-                <p className="m-0 pt-2 text-xs leading-5 text-stone-500">
-                  Inspect citation and fact findings attached to the current
-                  working draft.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("forensics")}
-                  className="mt-4 h-9 w-full rounded-md bg-[#487aa8] px-3 text-xs font-semibold text-white transition-colors hover:bg-[#3d6991] focus-visible:ring-2 focus-visible:ring-[#487aa8] focus-visible:ring-offset-2 focus-visible:outline-none"
-                >
-                  Open Review Findings
-                </button>
-              </section>
-            </aside>
-          </div>
-        )}
-
         {activeTab === "forensics" && (
           <div className="flex flex-col gap-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

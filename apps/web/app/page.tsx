@@ -11,9 +11,11 @@ import { SiteNav } from "../components/home/site-nav";
 import { SmoothScroll } from "../components/SmoothScroll";
 
 export const metadata: Metadata = {
-  title: "Veritas — Draft with the evidence beside you",
+  title: {
+    absolute: "Veritas legal drafting workspace",
+  },
   description:
-    "Evidence-linked legal drafting and verification workspace for Indian advocates and litigation practices.",
+    "Draft legal documents and verify every claim against its source in a workspace built for Indian lawyers.",
   alternates: { canonical: "/" },
 };
 
@@ -28,7 +30,6 @@ export default function HomePage() {
           {/* Full-width edge-to-edge Sky Hero banner with GSAP word reveal & open envelope */}
           <Hero />
 
-          {/* Scroll-based 2-paragraph Platform Overview with GSAP ScrollTrigger word scrub */}
           <InfoSection />
 
           {/* 3-tab auto-progressing feature carousel matching SIH */}
@@ -53,5 +54,3 @@ export default function HomePage() {
     </SmoothScroll>
   );
 }
-
-

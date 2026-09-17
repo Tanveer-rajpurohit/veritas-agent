@@ -4,7 +4,7 @@ import { LoginForm } from "../../../components/auth/login-form";
 
 export const metadata: Metadata = {
   title: "Log in",
-  description: "Log in to your Veritas workspace to draft and review with evidence beside you.",
+  description: "Sign in to continue working on your matters in Veritas.",
   alternates: { canonical: "/login" },
 };
 

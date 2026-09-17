@@ -1,13 +1,25 @@
 import "./globals.css";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { fontMono, fontSans, fontSerif } from "./fonts";
 
 export const metadata: Metadata = {
+  applicationName: "Veritas",
   title: {
-    default: "Veritas - Draft with the evidence beside you",
+    default: "Veritas legal drafting workspace",
     template: "%s · Veritas",
   },
-  description: "Evidence-first legal drafting and review workspace for Indian lawyers.",
+  description:
+    "Draft legal documents and verify every claim against its source in a workspace built for Indian lawyers.",
+  category: "legal technology",
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
+export const viewport: Viewport = {
+  colorScheme: "light",
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({
@@ -20,8 +32,9 @@ export default function RootLayout({
       lang="en"
       className={`${fontSans.variable} ${fontSerif.variable} ${fontMono.variable} overflow-x-hidden`}
     >
-      <body className="font-sans antialiased overflow-x-hidden">{children}</body>
+      <body className="font-sans antialiased overflow-x-hidden">
+        {children}
+      </body>
     </html>
   );
 }
-
