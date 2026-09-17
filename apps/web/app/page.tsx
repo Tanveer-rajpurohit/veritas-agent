@@ -1,64 +1,57 @@
 import type { Metadata } from "next";
-import { BigPicture } from "../components/home/big-picture";
-import { ChamberSteps } from "../components/home/chamber-steps";
+import { CapabilitiesSection } from "../components/home/capabilities-section";
 import { Closing } from "../components/home/closing";
-import { DimensionsBand } from "../components/home/dimensions-band";
 import { DraftReviewCards } from "../components/home/draft-review-cards";
+import { FAQSection } from "../components/home/faq-section";
+import { FeatureCarousel } from "../components/home/feature-carousel";
 import { Hero } from "../components/home/hero";
-import { HowItWorks } from "../components/home/how-it-works";
-import { MatterDocs } from "../components/home/matter-docs";
-import { Reveal } from "../components/home/motion";
+import { InfoSection } from "../components/home/info-section";
 import { Plans } from "../components/home/plans";
 import { SiteNav } from "../components/home/site-nav";
+import { SmoothScroll } from "../components/SmoothScroll";
 
 export const metadata: Metadata = {
   title: "Veritas — Draft with the evidence beside you",
   description:
-    "Evidence-linked legal drafting and verification workspace for Indian advocates and litigation chambers.",
+    "Evidence-linked legal drafting and verification workspace for Indian advocates and litigation practices.",
   alternates: { canonical: "/" },
 };
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-white text-foreground selection:bg-[#487aa8] selection:text-white">
-      {/* Floating unified pill navbar */}
-      <SiteNav />
+    <SmoothScroll>
+      <div className="min-h-screen bg-white text-foreground selection:bg-[#487aa8] selection:text-white">
+        {/* Floating unified pill navbar */}
+        <SiteNav />
 
-      <main className="overflow-x-clip">
-        {/* Full-width edge-to-edge Sky Hero banner with interactive Before/After docket */}
-        <Hero />
+        <main className="overflow-x-clip">
+          {/* Full-width edge-to-edge Sky Hero banner with GSAP word reveal & open envelope */}
+          <Hero />
 
-        {/* See the Big Picture (01-04 numbered narrative + 4 feature cards) */}
-        <BigPicture />
+          {/* Scroll-based 2-paragraph Platform Overview with GSAP ScrollTrigger word scrub */}
+          <InfoSection />
 
-        {/* Side-by-side Bento Cards: 4-Axis Citation Check & Document Discrepancies */}
-        <DraftReviewCards />
+          {/* 3-tab auto-progressing feature carousel matching SIH */}
+          <FeatureCarousel />
 
-        {/* Matter intake documents showcase */}
-        <MatterDocs />
+          {/* 01-04 Numbered Platform Capabilities & Workflow Pipeline */}
+          <CapabilitiesSection />
 
-        {/* 4-Axis Verification Dimension Chips */}
-        <DimensionsBand />
+          {/* Side-by-side Bento Cards: 4-Axis Citation Check & Document Discrepancies */}
+          <DraftReviewCards />
 
-        {/* Workflow Steps */}
-        <section
-          id="workflow"
-          className="mx-auto w-full max-w-6xl scroll-mt-28 px-5 pt-24 sm:px-8"
-        >
-          <Reveal>
-            <HowItWorks />
-          </Reveal>
-        </section>
+          {/* Simple Honest Pricing in Rupees (Free, ₹399, ₹899) */}
+          <Plans />
 
-        {/* Chamber Steps */}
-        <ChamberSteps />
+          {/* Frequently Asked Questions */}
+          <FAQSection />
 
-        {/* Simple Honest Pricing in Rupees (Free, ₹399, ₹899) */}
-        <Plans />
-
-        {/* Professional Closing & Monochromatic Footer */}
-        <Closing />
-      </main>
-    </div>
+          {/* Professional Closing & Monochromatic Footer */}
+          <Closing />
+        </main>
+      </div>
+    </SmoothScroll>
   );
 }
+
+
