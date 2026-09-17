@@ -43,9 +43,17 @@ export function AuthShell({ children }: { children: ReactNode }) {
           }}
         />
 
-        <div className="relative z-10 flex items-center gap-2 self-start rounded-full border border-white/70 bg-white/30 px-3.5 py-1.5 text-xs font-semibold text-stone-900 shadow-xs backdrop-blur-md">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#1e466a]" />
-          Live Evidence Preview
+        {/* Solid white pill on a mid-blue gradient: the old bg-white/30 blended
+            into the panel and read as grey-blue rather than a live indicator. */}
+        <div className="relative z-10 self-start">
+          <span className="absolute -inset-3 rounded-full bg-white/40 blur-xl" />
+          <div className="relative flex items-center gap-2.5 rounded-full bg-white px-4 py-2 text-xs font-semibold tracking-tight text-stone-900 ring-1 ring-white/90 shadow-[0_1px_2px_rgba(16,40,70,0.10),0_10px_28px_-8px_rgba(16,40,70,0.35)]">
+            <span className="relative flex size-2">
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-brand-strong opacity-75" />
+              <span className="relative inline-flex size-2 rounded-full bg-brand-strong" />
+            </span>
+            Live Evidence Preview
+          </div>
         </div>
 
         <div className="relative z-10 my-auto">

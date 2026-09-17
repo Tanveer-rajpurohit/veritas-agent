@@ -1,115 +1,223 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { VeritasOrb } from "../brand/veritas-orb";
 
+const NAV_LINKS = [
+  { href: "#overview", label: "Product" },
+  { href: "#evidence", label: "Evidence" },
+  { href: "#workflow", label: "Workflow" },
+  { href: "#plans", label: "Pricing" },
+] as const;
+
+const SCROLL_START = 40;
+const SCROLL_RANGE = 460;
+
+/**
+ * Per-frame lerp factor. 0.12 settles in ~20 frames (~330ms @60fps).
+ * The smoothing lives here rather than in a CSS `transition` because
+ * transitioning a value that is *also* rewritten every frame double-smooths it,
+ * which is what made the shrink feel rubbery.
+ */
+const LERP = 0.12;
+
 export function SiteNav() {
-  const [progress, setProgress] = useState(0);
+  const navRef = useRef<HTMLElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    let animationFrameId: number;
+    const nav = navRef.current;
+    if (!nav) return;
 
-    const handleScroll = () => {
-      animationFrameId = window.requestAnimationFrame(() => {
-        const scrollY = window.scrollY;
-        const startThreshold = 40;
-        const scrollRange = 460;
-        const effectiveScroll = Math.max(0, scrollY - startThreshold);
-        const p = Math.min(1, Math.max(0, effectiveScroll / scrollRange));
-        setProgress(p);
-      });
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    let current = 0;
+    let target = 0;
+    let frame = 0;
+
+    const readTarget = () => {
+      const travelled = Math.max(0, window.scrollY - SCROLL_START);
+      target = Math.min(1, travelled / SCROLL_RANGE);
     };
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll();
+    // One custom property per frame. Every derived value (width, padding,
+    // alpha, shadow) interpolates in CSS from it, so scrolling never triggers a
+    // React render — the previous version called setState on every rAF tick,
+    // which re-rendered the whole nav at Lenis' ~120Hz.
+    const write = (value: number) => nav.style.setProperty("--p", value.toFixed(4));
+
+    const tick = () => {
+      current += (target - current) * LERP;
+
+      if (Math.abs(target - current) < 0.0005) {
+        current = target;
+        write(current);
+        frame = 0; // settled — stop burning frames until the next scroll
+        return;
+      }
+
+      write(current);
+      frame = requestAnimationFrame(tick);
+    };
+
+    const onScroll = () => {
+      readTarget();
+
+      if (reduceMotion) {
+        current = target;
+        write(current);
+        return;
+      }
+
+      // Guard against queueing a second loop: the old code called rAF on every
+      // scroll event and only ever cancelled the last id.
+      if (!frame) frame = requestAnimationFrame(tick);
+    };
+
+    readTarget();
+    current = target;
+    write(current);
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
 
     return () => {
-      window.removeEventListener("scroll", handleScroll);
-      window.cancelAnimationFrame(animationFrameId);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (frame) cancelAnimationFrame(frame);
     };
   }, []);
 
-  const navMaxWidth = 1140 - progress * 500;
-  const navMarginTop = 16 - progress * 4;
-  const navPaddingY = 12 - progress * 4;
-  const navPaddingX = 24 - progress * 6;
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [menuOpen]);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 pointer-events-none">
+    <header className="pointer-events-none fixed top-0 right-0 left-0 z-40">
       <div className="mx-auto px-4 sm:px-6">
         <nav
-          className="pointer-events-auto mx-auto flex items-center justify-between rounded-lg border transition-[max-width,margin,padding,box-shadow,border-color,background-color,backdrop-filter] duration-200 ease-out"
-          style={{
-            maxWidth: `min(calc(100vw - 2rem), ${navMaxWidth}px)`,
-            marginTop: `${navMarginTop}px`,
-            paddingTop: `${navPaddingY}px`,
-            paddingBottom: `${navPaddingY}px`,
-            paddingLeft: `${navPaddingX}px`,
-            paddingRight: `${navPaddingX}px`,
-            backgroundColor: `rgba(255, 255, 255, ${0.88 + progress * 0.1})`,
-            borderColor: `rgba(215, 228, 240, ${0.5 + progress * 0.4})`,
-            boxShadow:
-              progress > 0.05
-                ? `0px 4px 20px -2px rgba(46, 95, 163, ${progress * 0.12}), 0px 0px 0px 1px rgba(255, 255, 255, 0.8)`
-                : "none",
-            backdropFilter: "blur(14px)",
-            WebkitBackdropFilter: "blur(14px)",
-          }}
+          ref={navRef}
+          style={
+            {
+              "--p": 0,
+              maxWidth: "min(calc(100vw - 2rem), calc(1140px - var(--p) * 500px))",
+              marginTop: "calc(16px - var(--p) * 4px)",
+              paddingBlock: "calc(12px - var(--p) * 4px)",
+              paddingInline: "calc(24px - var(--p) * 6px)",
+              backgroundColor: "rgb(255 255 255 / calc(0.88 + var(--p) * 0.1))",
+              borderColor: "rgb(215 228 240 / calc(0.5 + var(--p) * 0.4))",
+              boxShadow:
+                "0 4px 20px -2px rgb(46 95 163 / calc(var(--p) * 0.12)), 0 0 0 1px rgb(255 255 255 / calc(var(--p) * 0.8))",
+              backdropFilter: "blur(14px)",
+              WebkitBackdropFilter: "blur(14px)",
+            } as CSSProperties
+          }
+          className="pointer-events-auto mx-auto flex flex-col rounded-lg border"
         >
-          <div className="flex items-center gap-6 sm:gap-8">
-            {/* Direct icon with proper visible colors: NO box, NO circle around it */}
-            <Link
-              href="/"
-              className="flex items-center gap-2.5 text-stone-900 font-display italic text-xl sm:text-2xl font-normal tracking-tight hover:opacity-85 transition-opacity"
-            >
-              <VeritasOrb size={22} className="not-italic text-[#487aa8]" />
-              <span className="not-italic font-display font-medium text-stone-900 text-xl tracking-tight">
-                Veritas
-              </span>
-            </Link>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-6 sm:gap-8">
+              <Link
+                href="/"
+                className="flex shrink-0 items-center gap-2.5 transition-opacity hover:opacity-85"
+              >
+                <VeritasOrb size={22} className="text-brand-strong" />
+                <span className="font-display text-xl font-medium tracking-tight text-stone-900">
+                  Veritas
+                </span>
+              </Link>
 
-            <div className="hidden md:flex items-center gap-6 text-xs md:text-[13px] font-medium text-stone-600">
+              <div className="hidden items-center gap-6 text-[13px] font-medium text-stone-600 md:flex">
+                {NAV_LINKS.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className="rounded-sm transition-colors hover:text-stone-900"
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-2 sm:gap-3">
               <Link
-                href="#overview"
-                className="rounded-sm transition-colors hover:text-stone-900"
+                href="/login"
+                className="hidden text-[13px] font-medium text-stone-600 transition-colors hover:text-stone-900 sm:block"
               >
-                Product
+                Login
               </Link>
+
               <Link
-                href="#evidence"
-                className="rounded-sm transition-colors hover:text-stone-900"
+                href="/login"
+                className="flex items-center justify-center rounded-md bg-brand-strong px-4 py-1.5 text-xs font-medium whitespace-nowrap text-white shadow-xs transition-colors hover:bg-[#3d6991] active:scale-95 md:text-[13px]"
               >
-                Evidence
+                Launch Workspace
               </Link>
-              <Link
-                href="#workflow"
-                className="rounded-sm transition-colors hover:text-stone-900"
+
+              <button
+                type="button"
+                onClick={() => setMenuOpen((open) => !open)}
+                aria-expanded={menuOpen}
+                aria-controls="site-nav-mobile"
+                aria-label={menuOpen ? "Close menu" : "Open menu"}
+                className="-mr-1.5 flex size-9 items-center justify-center rounded-md text-stone-700 transition-colors hover:bg-stone-100 md:hidden"
               >
-                Workflow
-              </Link>
-              <Link
-                href="#plans"
-                className="rounded-sm transition-colors hover:text-stone-900"
-              >
-                Pricing
-              </Link>
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  aria-hidden="true"
+                >
+                  {menuOpen ? (
+                    <>
+                      <path d="M6 6 18 18" />
+                      <path d="M18 6 6 18" />
+                    </>
+                  ) : (
+                    <>
+                      <path d="M3.5 7h17" />
+                      <path d="M3.5 12h17" />
+                      <path d="M3.5 17h17" />
+                    </>
+                  )}
+                </svg>
+              </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div
+            id="site-nav-mobile"
+            hidden={!menuOpen}
+            className="grid gap-0.5 border-t border-stone-200/80 pt-3 pb-1 md:hidden"
+          >
+            {NAV_LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setMenuOpen(false)}
+                className="rounded-md px-2 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100 hover:text-stone-900"
+              >
+                {link.label}
+              </Link>
+            ))}
             <Link
               href="/login"
-              className="hidden text-xs md:text-[13px] font-medium text-stone-600 transition-colors hover:text-stone-900 sm:block"
+              onClick={() => setMenuOpen(false)}
+              className="rounded-md px-2 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100 hover:text-stone-900 sm:hidden"
             >
               Login
-            </Link>
-
-            <Link
-              href="/login"
-              className="flex items-center justify-center rounded-md bg-[#487aa8] px-4 py-1.5 text-xs font-medium text-white shadow-xs transition-all hover:bg-[#3d6991] active:scale-95 md:text-[13px]"
-            >
-              Launch Workspace
             </Link>
           </div>
         </nav>
