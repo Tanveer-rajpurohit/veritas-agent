@@ -1,55 +1,76 @@
-# Turborepo Tailwind CSS starter
+# Veritas Agent
 
-This Turborepo starter is maintained by the Turborepo core team.
+Veritas is an evidence-first legal drafting and review workspace for Indian lawyers. It helps a lawyer prepare an English IBC Section 7 working brief, connect important claims to records and legal authorities, inspect citation and factual conflicts, and keep review status aligned with the current document version.
 
-## Using this example
+Veritas supports legal work; it does not replace professional judgment, determine legal truth, or autonomously file, sign, email, or approve documents.
 
-Run the following command:
+## Product workflow
 
-```sh
-npx create-turbo@latest -e with-tailwind
+1. Create a matter and upload client records.
+2. Extract page-aware evidence from those records.
+3. Ask the Main Agent to plan a bounded drafting or review task.
+4. Let the Writer propose an editable working brief.
+5. Run Citation Reviewer and Fact Reviewer checks.
+6. Inspect exact evidence, resolve conflicts, and record human decisions.
+7. Mark affected findings stale whenever relevant text or evidence changes.
+8. Export the current version as a clearly labelled draft PDF and JSON package.
+
+## Planned architecture
+
+- **Web:** Next.js, TypeScript, Tailwind CSS, and Tiptap
+- **API:** FastAPI and Pydantic
+- **Agent workflow:** AWS Strands with a Main Agent, Writer, Citation Reviewer, and Fact Reviewer
+- **Data:** PostgreSQL for application state and immutable document versions
+- **Files:** S3-compatible object storage
+- **Jobs:** PostgreSQL-backed background worker
+
+The application—not a model—owns authorization, state transitions, finding invalidation, approval, and export eligibility.
+
+## Current status
+
+The repository currently contains the monorepo scaffold, planning documents, the Next.js starter, and a basic FastAPI backend with root and health endpoints. Product features are not implemented yet.
+
+## Repository structure
+
+```text
+veritas-agent/
+|-- apps/
+|   |-- backend/        # FastAPI service
+|   `-- web/            # Next.js application
+|-- docs/
+|   |-- build plan/     # Binding product and engineering specification
+|   `-- idea/           # Earlier product research and drafts
+|-- packages/           # Shared frontend configuration
+`-- README.md
 ```
 
-## What's inside?
+## Run the backend
 
-This Turborepo includes the following packages/apps:
-
-### Apps and Packages
-
-- `docs`: a [Next.js](https://nextjs.org/) app with [Tailwind CSS](https://tailwindcss.com/)
-- `web`: another [Next.js](https://nextjs.org/) app with [Tailwind CSS](https://tailwindcss.com/)
-- `ui`: a stub React component library with [Tailwind CSS](https://tailwindcss.com/) shared by both `web` and `docs` applications
-- `@repo/tailwind-config`: shared Tailwind CSS theme and PostCSS configuration
-- `@repo/eslint-config`: `eslint` flat configurations (includes `@next/eslint-plugin-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Building packages/ui
-
-This example is set up to produce compiled styles for `ui` components into the `dist` directory. The component `.tsx` files are consumed by the Next.js apps directly using `transpilePackages` in `next.config.ts`. This was chosen for several reasons:
-
-- Make sharing one theme from `packages/tailwind-config/shared-styles.css` to apps and packages as easy as possible.
-- Make package compilation simple by only depending on the Next.js Compiler and `tailwindcss`.
-- Ensure Tailwind classes do not overwrite each other. The `ui` package uses a `ui-` prefix for its classes via `@import "tailwindcss" prefix(ui);` in [packages/ui/src/styles.css](packages/ui/src/styles.css).
-- Maintain clear package export boundaries.
-
-Another option is to consume `packages/ui` directly from source without building. Tailwind CSS v4 automatically detects class names in your source files, but it does not scan other packages in `node_modules`. If you use this option, add [`@source` directives](https://tailwindcss.com/docs/functions-and-directives#source-directive) to the CSS entry point in your apps so Tailwind can find the class names used in the `ui` package:
-
-```css
-@import "tailwindcss";
-@import "@repo/tailwind-config";
-
-@source "../../../packages/ui/src";
+```powershell
+cd apps/backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+Copy-Item .env.example .env
+python -m uvicorn app.main:app --reload --port 8000
 ```
 
-If you choose this strategy, you can remove the `tailwindcss` dependency and the `build:styles` script from the `ui` package.
+Open:
 
-### Utilities
+- API root: http://localhost:8000/
+- Health check: http://localhost:8000/health
+- Swagger UI: http://localhost:8000/docs
 
-This Turborepo has some additional tools already setup for you:
+The backend also participates in the Turborepo development command, so `pnpm dev` at the repository root starts all configured development apps after Python dependencies are installed.
 
-- [Tailwind CSS](https://tailwindcss.com/) for styles
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
+## Documentation
+
+Start with [the build-plan index](docs/build%20plan/README.md), then read the [master specification](docs/build%20plan/veritas-master-doc.md), [MVP plan](docs/build%20plan/mvp.md), and [AI implementation brief](docs/build%20plan/main.md).
+
+## Hackathon scope
+
+The target demo is one English IBC matter, two synthetic records containing a deliberate factual conflict, one editable brief, citation and fact findings linked to exact evidence, stale-on-edit behavior, and draft PDF/JSON export. The planned submission track is AWS Build It with Best UI consideration.
+
+## Safety and data
+
+Use only synthetic or properly redacted demo records. Never commit secrets, private client data, paid-source content, or unrestricted object-storage credentials.
