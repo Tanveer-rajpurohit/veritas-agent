@@ -4,6 +4,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.models.drafts.document_version import DocumentVersion
+from app.models.drafts.draft import Draft
 from app.repositories.drafts import draft_repository
 from app.schemas.agents.writer import DocumentOperation
 from app.services.sources.retrieval import retrieval_service
@@ -32,6 +33,62 @@ class DraftService:
                 f"Document version {version_id} not found or not authorized for matter {matter_id}"
             )
         return version
+
+    def create_draft(
+        self,
+        db: Session,
+        matter_id: UUID,
+        title: str,
+        kind: str = "brief",
+        operations: list[DocumentOperation] | None = None,
+        change_summary: str | None = None,
+        created_by_id: str = "writer_agent",
+    ) -> DocumentVersion:
+        """
+        Creates a new Draft aggregate and its initial version 1 DocumentVersion,
+        optionally applying initial document operations.
+        """
+        all_span_ids: list[UUID] = []
+        if operations:
+            for op in operations:
+                all_span_ids.extend(op.evidence_span_ids)
+
+        if all_span_ids:
+            retrieval_service.get_evidence_spans(
+                db=db,
+                matter_id=matter_id,
+                span_ids=list(set(all_span_ids)),
+            )
+
+        initial_content = self._apply_operations(
+            base_content={"type": "doc", "content": []},
+            operations=operations or [],
+        )
+
+        draft = Draft(
+            matter_id=matter_id,
+            title=title,
+            kind=kind,
+            content_json=initial_content,
+            version_no=1,
+        )
+
+        draft = draft_repository.create_draft(
+            db=db,
+            draft=draft,
+            created_by_id=created_by_id,
+        )
+
+        latest = draft_repository.get_latest_version(db=db, draft_id=draft.id)
+        if latest is None:
+            raise RuntimeError("Failed to retrieve initial document version")
+
+        if change_summary:
+            latest.change_summary = change_summary
+            db.commit()
+            db.refresh(latest)
+
+        return latest
 
     def propose_document_ops(
         self,
@@ -79,6 +136,27 @@ class DraftService:
             else {"type": "doc", "content": []}
         )
 
+        mutated_content = self._apply_operations(
+            base_content=base_content,
+            operations=operations,
+        )
+
+        return draft_repository.create_new_version(
+            db=db,
+            draft=draft,
+            content_json=mutated_content,
+            base_version_id=base_version_id,
+            created_by_type="agent" if created_by_id == "writer_agent" else "human",
+            created_by_id=created_by_id,
+            change_summary=change_summary or f"Applied {len(operations)} document operations",
+        )
+
+    @staticmethod
+    def _apply_operations(
+        base_content: dict,
+        operations: list[DocumentOperation],
+    ) -> dict:
+        """Applies atomic operations onto structured Tiptap content blocks."""
         content_blocks = base_content.get("content", [])
         if not isinstance(content_blocks, list):
             content_blocks = []
@@ -125,16 +203,7 @@ class DraftService:
                 ]
 
         base_content["content"] = content_blocks
-
-        return draft_repository.create_new_version(
-            db=db,
-            draft=draft,
-            content_json=base_content,
-            base_version_id=base_version_id,
-            created_by_type="agent" if created_by_id == "writer_agent" else "human",
-            created_by_id=created_by_id,
-            change_summary=change_summary or f"Applied {len(operations)} document operations",
-        )
+        return base_content
 
 
 draft_service = DraftService()

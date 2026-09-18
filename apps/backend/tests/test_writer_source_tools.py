@@ -16,6 +16,8 @@ def test_writer_tools_do_not_expose_matter_id_to_model() -> None:
         "create_evidence_span",
         "get_evidence_spans",
         "get_document_version",
+        "create_draft",
+        "propose_document_ops",
     ]
     for writer_tool in tools:
         properties = writer_tool.tool_spec["inputSchema"]["json"]["properties"]

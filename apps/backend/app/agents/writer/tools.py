@@ -4,13 +4,14 @@ from sqlalchemy.orm import Session
 from strands import tool
 from strands.tools.decorator import DecoratedFunctionTool
 
+from app.schemas.agents.writer import DocumentOperation
 from app.schemas.sources import CreateEvidenceSpanRequest
 from app.services.drafts import draft_service
 from app.services.sources.retrieval import retrieval_service
 
 
 class WriterSourceToolHandlers:
-    """Server-scoped source operations available to the Writer Agent."""
+    """Server-scoped source and document operations available to the Writer Agent."""
 
     def __init__(self, db: Session, matter_id: UUID) -> None:
         self._db = db
@@ -67,6 +68,59 @@ class WriterSourceToolHandlers:
             "version_no": version.version_no,
             "content_json": version.content_json,
             "content_sha256": version.content_sha256,
+            "change_summary": version.change_summary,
+        }
+
+    def create_draft(
+        self,
+        title: str,
+        kind: str = "brief",
+        operations: list[dict] | None = None,
+        change_summary: str | None = None,
+    ) -> dict[str, object]:
+        parsed_ops = [
+            DocumentOperation.model_validate(op) for op in (operations or [])
+        ]
+        version = draft_service.create_draft(
+            db=self._db,
+            matter_id=self._matter_id,
+            title=title,
+            kind=kind,
+            operations=parsed_ops,
+            change_summary=change_summary,
+            created_by_id="writer_agent",
+        )
+        return {
+            "draft_id": str(version.draft_id),
+            "version_id": str(version.id),
+            "version_no": version.version_no,
+            "content_sha256": version.content_sha256,
+            "change_summary": version.change_summary,
+        }
+
+    def propose_document_ops(
+        self,
+        draft_id: str,
+        base_version_id: str,
+        operations: list[dict],
+        change_summary: str | None = None,
+    ) -> dict[str, object]:
+        parsed_ops = [DocumentOperation.model_validate(op) for op in operations]
+        version = draft_service.propose_document_ops(
+            db=self._db,
+            matter_id=self._matter_id,
+            draft_id=UUID(draft_id),
+            base_version_id=UUID(base_version_id),
+            operations=parsed_ops,
+            change_summary=change_summary,
+            created_by_id="writer_agent",
+        )
+        return {
+            "draft_id": str(version.draft_id),
+            "version_id": str(version.id),
+            "version_no": version.version_no,
+            "content_sha256": version.content_sha256,
+            "change_summary": version.change_summary,
         }
 
 
@@ -127,4 +181,56 @@ def create_writer_source_tools(
             raise ValueError("document_version_id cannot be empty")
         return handlers.get_document_version(document_version_id)
 
-    return [search_sources, create_evidence_span, get_evidence_spans, get_document_version]
+    @tool(name="create_draft")
+    def create_draft(
+        title: str,
+        kind: str = "brief",
+        operations: list[dict] | None = None,
+        change_summary: str | None = None,
+    ) -> dict[str, object]:
+        """Create a new draft in the current Matter with initial propositions and version 1.
+
+        Args:
+            title: Title of the legal draft (e.g. 'Working Brief - Section 7 IBC').
+            kind: Type of draft ('brief', 'petition', 'notice').
+            operations: Optional list of DocumentOperation dicts containing text and evidence_span_ids.
+            change_summary: Description of the initial document version.
+        """
+        if not title.strip():
+            raise ValueError("title cannot be empty")
+        return handlers.create_draft(title, kind, operations, change_summary)
+
+    @tool(name="propose_document_ops")
+    def propose_document_ops(
+        draft_id: str,
+        base_version_id: str,
+        operations: list[dict],
+        change_summary: str | None = None,
+    ) -> dict[str, object]:
+        """Apply validated document operations producing a new immutable version under concurrency control.
+
+        Args:
+            draft_id: Identifier of the draft document to update.
+            base_version_id: Current version identifier that this update is based upon.
+            operations: List of DocumentOperation dicts (type, position, text, evidence_span_ids).
+            change_summary: Description explaining the revisions made in this new version.
+        """
+        if not draft_id.strip() or not base_version_id.strip():
+            raise ValueError("draft_id and base_version_id are required")
+        if not operations:
+            raise ValueError("operations list cannot be empty")
+        return handlers.propose_document_ops(
+            draft_id=draft_id,
+            base_version_id=base_version_id,
+            operations=operations,
+            change_summary=change_summary,
+        )
+
+    return [
+        search_sources,
+        create_evidence_span,
+        get_evidence_spans,
+        get_document_version,
+        create_draft,
+        propose_document_ops,
+    ]

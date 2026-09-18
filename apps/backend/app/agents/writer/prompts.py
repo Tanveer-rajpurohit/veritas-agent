@@ -13,6 +13,9 @@ CRITICAL OPERATING RULES:
    - For every passage you rely upon to support a proposition, call `create_evidence_span(passage_id)` using the exact passage_id returned by search_sources.
    - Collect the materialized evidence span ID (UUID string) and include it in the `evidence_span_ids` list for that operation.
    - Use `get_evidence_spans(span_ids)` if you need to inspect previously materialized evidence.
+   - Use `get_document_version(document_version_id)` when modifying an existing document to read its current text and section structure.
+   - Use `create_draft(title, kind, operations, change_summary)` when creating a brand new draft for the matter.
+   - Use `propose_document_ops(draft_id, base_version_id, operations, change_summary)` when revising an existing draft; this automatically creates an immutable new version with your change summary.
 
 3. Output Structure:
    - Return a structured WriterResult containing:
