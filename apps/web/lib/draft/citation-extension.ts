@@ -1,13 +1,17 @@
 import { Mark, mergeAttributes } from "@tiptap/react";
 
+/**
+ * Inline Legal Citation Mark Extension.
+ * Renders as an inline text mark (`span.inline-citation`) with denormalized attributes,
+ * perfectly flowing with surrounding legal typography without disruptive box padding.
+ */
 export const CitationExtension = Mark.create({
   name: "citation",
 
   addOptions() {
     return {
       HTMLAttributes: {
-        class:
-          "inline-citation font-serif font-medium text-[#2c5478] bg-[#edf4fa] hover:bg-[#cbe0f2] px-1.5 py-0.5 rounded border border-[#cbe0f2] cursor-pointer transition-colors text-[12px] inline-flex items-center gap-1",
+        class: "inline-citation",
       },
     };
   },
@@ -40,7 +44,11 @@ export const CitationExtension = Mark.create({
     return [{ tag: "span.inline-citation" }];
   },
 
-  renderHTML({ HTMLAttributes }) {
+  renderHTML({
+    HTMLAttributes,
+  }: {
+    HTMLAttributes: Record<string, unknown>;
+  }) {
     return [
       "span",
       mergeAttributes(this.options.HTMLAttributes, HTMLAttributes),

@@ -28,39 +28,39 @@ import {
   exportAsMarkdown,
   printDocument,
 } from "../../../lib/draft/export-document";
-import type { DraftDocument } from "../../../types/draft/types";
+import type { DraftDocument, DraftSaveStatus } from "../../../types/draft/types";
 
 import "../../../components/drafting/drafting-editor.css";
 
-interface PageProps {
-  params: Promise<{ id: string }>;
-}
+const DRAFT_STORAGE_PREFIX = "veritas-draft-v4";
 
-export default function DraftingEditorPage({ params }: PageProps) {
+export default function DraftingIdPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const resolvedParams = use(params);
   const router = useRouter();
   const draftId = resolvedParams.id;
 
   const [documentState, setDocumentState] = useState<DraftDocument>(() => {
+    const seed = getDraftById(draftId);
     if (typeof window !== "undefined") {
       try {
         const saved = localStorage.getItem(`veritas-draft-${draftId}`);
-        if (saved) {
-          const parsed = JSON.parse(saved) as DraftDocument;
-          if (parsed && parsed.title) return parsed;
-        }
+        if (saved) return JSON.parse(saved);
       } catch {
-        // Fall back to seed draft
+        // Fallback to seed
       }
     }
-    return getDraftById(draftId);
+    return seed;
   });
 
-  const [selectedVersion, setSelectedVersion] = useState<string>(() => {
-    return documentState.currentVersion || "v3";
-  });
-  const [status, setStatus] = useState<"saved" | "unsaved" | "saving">("saved");
+  const [selectedVersion, setSelectedVersion] = useState<string>(
+    documentState.currentVersion || "v3",
+  );
   const [zoom, setZoom] = useState<number>(100);
+  const [status, setStatus] = useState<DraftSaveStatus>("saved");
   const [pageCount, setPageCount] = useState<number>(1);
   const [wordCount, setWordCount] = useState<number>(0);
   const [charCount, setCharCount] = useState<number>(0);
@@ -71,10 +71,22 @@ export default function DraftingEditorPage({ params }: PageProps) {
   const initialHtml = useMemo(() => {
     if (typeof window !== "undefined") {
       try {
+        // Clean legacy corrupted keys if present
+        Object.keys(localStorage).forEach((key) => {
+          if (key.startsWith("veritas-draft-html-")) {
+            localStorage.removeItem(key);
+          }
+        });
+
         const savedHtml = localStorage.getItem(
-          `veritas-draft-html-${draftId}-${selectedVersion}`,
+          `${DRAFT_STORAGE_PREFIX}-${draftId}-${selectedVersion}`,
         );
-        if (savedHtml && savedHtml.trim().length > 20) {
+        if (
+          savedHtml &&
+          savedHtml.trim().length > 20 &&
+          !savedHtml.includes("rm-page") &&
+          !savedHtml.includes("rm-pagination")
+        ) {
           return savedHtml;
         }
       } catch {
@@ -120,7 +132,7 @@ export default function DraftingEditorPage({ params }: PageProps) {
       PaginationPlus.configure({
         pageHeight: 1123,
         pageWidth: 794,
-        pageGap: 28,
+        pageGap: 24,
         pageGapBorderSize: 1,
         pageGapBorderColor: "#cbd5e1",
         pageBreakBackground: "#eaf0f6",
@@ -130,6 +142,8 @@ export default function DraftingEditorPage({ params }: PageProps) {
         marginRight: 48,
         contentMarginTop: 10,
         contentMarginBottom: 10,
+        footerRight: "Page {page}",
+        footerLeft: "CONFIDENTIAL · COURT SUBMISSION",
       }),
     ],
     content: initialHtml,
@@ -146,9 +160,39 @@ export default function DraftingEditorPage({ params }: PageProps) {
     if (!editor || editor.isDestroyed) return;
     const current = editor.getHTML();
     if (!current || current === "<p></p>" || current.trim().length < 20) {
-      editor.commands.setContent(initialHtml, { emitUpdate: false });
+      editor.commands.setContent(initialHtml, { emitUpdate: true });
     }
   }, [editor, initialHtml]);
+
+  // Immediate pagination calculation - forces PaginationPlus to measure and split pages on load without delay
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+
+    const forcePagination = () => {
+      if (!editor || editor.isDestroyed || !editor.view) return;
+      try {
+        editor.view.dispatch(editor.state.tr.setMeta("PAGE_COUNT_META_KEY", {}));
+      } catch {
+        // Safe fallback
+      }
+    };
+
+    const rafId = requestAnimationFrame(forcePagination);
+    const t1 = setTimeout(forcePagination, 40);
+    const t2 = setTimeout(forcePagination, 160);
+    const t3 = setTimeout(forcePagination, 450);
+
+    if (typeof document !== "undefined" && document.fonts) {
+      document.fonts.ready.then(forcePagination).catch(() => {});
+    }
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [editor]);
 
   // Schedule autosave
   const scheduleAutoSave = useCallback(() => {
@@ -163,7 +207,7 @@ export default function DraftingEditorPage({ params }: PageProps) {
       try {
         if (typeof window !== "undefined") {
           localStorage.setItem(
-            `veritas-draft-html-${draftId}-${selectedVersion}`,
+            `${DRAFT_STORAGE_PREFIX}-${draftId}-${selectedVersion}`,
             html,
           );
         }
@@ -185,10 +229,9 @@ export default function DraftingEditorPage({ params }: PageProps) {
       setCharCount(text.length);
 
       if (typeof window !== "undefined") {
-        const renderedPages = document.querySelectorAll(
-          "[data-rm-pagination] .rm-page-break, .page",
-        ).length;
-        setPageCount(Math.max(1, renderedPages || 1));
+        const paginationEl = document.querySelector("[data-rm-pagination]");
+        const count = paginationEl?.children.length || 1;
+        setPageCount(Math.max(1, count));
       }
     };
 
@@ -211,9 +254,16 @@ export default function DraftingEditorPage({ params }: PageProps) {
     if (typeof window !== "undefined") {
       try {
         const saved = localStorage.getItem(
-          `veritas-draft-html-${draftId}-${versionKey}`,
+          `${DRAFT_STORAGE_PREFIX}-${draftId}-${versionKey}`,
         );
-        if (saved && saved.trim().length > 20) targetHtml = saved;
+        if (
+          saved &&
+          saved.trim().length > 20 &&
+          !saved.includes("rm-page") &&
+          !saved.includes("rm-pagination")
+        ) {
+          targetHtml = saved;
+        }
       } catch {
         // Ignored
       }

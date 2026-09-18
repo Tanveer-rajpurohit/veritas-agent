@@ -203,16 +203,15 @@ export function draftToTipTapHtml(doc: DraftDocument, version?: string): string 
       }
 
       if (section.citations && section.citations.length > 0) {
-        htmlParts.push("<blockquote>");
-        htmlParts.push("<p><strong>Precedent Citations & Authorities:</strong></p>");
-        htmlParts.push("<ul>");
+        htmlParts.push('<p style="margin-top: 14px; margin-bottom: 4px;"><strong>Precedents Relied Upon:</strong></p>');
         for (const cit of section.citations) {
+          const url =
+            (cit as unknown as { url?: string }).url ||
+            `https://indiankanoon.org/search/?formInput=${encodeURIComponent(cit.title + " " + cit.citation)}`;
           htmlParts.push(
-            `<li><em>${cit.title}</em>, ${cit.citation} — <strong>${cit.court}</strong> [${cit.status}]</li>`,
+            `<p style="margin-bottom: 6px;"><span class="inline-citation cursor-pointer" data-citation-title="${cit.title}" data-citation="${cit.citation}" data-court="${cit.court}" data-citation-link="${url}"><u class="underline decoration-[#487aa8] underline-offset-[3px] font-medium text-[#2c5478]">${cit.title}</u>; ${cit.citation}</span></p>`,
           );
         }
-        htmlParts.push("</ul>");
-        htmlParts.push("</blockquote>");
       }
     }
   }

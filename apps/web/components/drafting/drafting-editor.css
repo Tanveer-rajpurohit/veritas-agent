@@ -3,13 +3,21 @@
  * Scoped strictly to contenteditable elements to counter Tailwind preflight resets.
  */
 
-/* ProseMirror Base Typography */
+/* ProseMirror Base Typography & Sheet Styling */
 .ProseMirror {
   font-family: "Newsreader", Georgia, "Times New Roman", serif;
   font-size: 13.5px;
   line-height: 1.7;
   color: #1a1a1a;
   outline: none;
+  background-color: #ffffff !important;
+  box-shadow:
+    0 4px 20px -2px rgba(15, 23, 42, 0.1),
+    0 2px 6px -1px rgba(15, 23, 42, 0.06) !important;
+  border-radius: 4px;
+  box-sizing: border-box !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
 }
 
 .ProseMirror:focus {
@@ -100,25 +108,46 @@
   margin-bottom: 0 !important;
 }
 
-/* Inline Legal Citations */
-.ProseMirror .inline-citation {
-  color: #2c5478 !important;
-  background-color: #edf4fa !important;
-  border: 1px solid #cbe0f2 !important;
-  padding: 1px 6px !important;
-  border-radius: 4px !important;
-  font-family: "Figtree", sans-serif !important;
-  font-size: 11.5px !important;
-  font-weight: 600 !important;
+/* Inline Legal Citations - Indian Legal Digital Citation Standard */
+.ProseMirror .inline-citation,
+.inline-citation {
+  display: inline;
   cursor: pointer !important;
-  text-decoration: underline !important;
-  text-underline-offset: 2px !important;
-  display: inline-block !important;
-  margin: 0 2px !important;
+  transition: background-color 0.15s ease !important;
+  border-radius: 2px !important;
+  padding: 0 2px !important;
 }
 
-.ProseMirror .inline-citation:hover {
-  background-color: #cbe0f2 !important;
+.ProseMirror .inline-citation:hover,
+.inline-citation:hover {
+  background-color: #edf4fa !important;
+}
+
+.ProseMirror .inline-citation u,
+.inline-citation u,
+.ProseMirror u {
+  color: #2c5478 !important;
+  text-decoration: underline !important;
+  text-underline-offset: 3px !important;
+  text-decoration-color: #487aa8 !important;
+  font-weight: 500 !important;
+  transition: color 0.15s ease !important;
+}
+
+.ProseMirror .inline-citation:hover u,
+.inline-citation:hover u,
+.ProseMirror u:hover {
+  color: #1a3c5e !important;
+}
+
+.ProseMirror a.legal-citation-link {
+  color: #2c5478 !important;
+  text-decoration: none !important;
+  cursor: pointer !important;
+}
+
+.ProseMirror a.legal-citation-link u {
+  color: #2c5478 !important;
 }
 
 /* Code */
@@ -151,7 +180,7 @@
 }
 
 /* ==========================================================
-   PaginationPlus Decorator Overrides for Pure White A4 Sheets
+   PaginationPlus Decorator Overrides
    ========================================================== */
 
 [data-rm-pagination],
@@ -160,57 +189,49 @@
   margin-right: auto !important;
 }
 
-/* Pure White A4 Sheet with Professional Drop Shadow */
-.page,
-.rm-page-break > .page {
-  background-color: #ffffff !important;
-  border-radius: 4px !important;
-  box-shadow:
-    0 4px 20px -2px rgba(15, 23, 42, 0.1),
-    0 2px 6px -1px rgba(15, 23, 42, 0.06) !important;
-  border: 1px solid #e2e8f0 !important;
-  box-sizing: border-box !important;
+/* Ensure the internal float element has no visible box model or layout disruption */
+.rm-page-break > .page,
+.page {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
 }
 
-/* Page Gap background matching workspace #eaf0f6 */
+/* Page Gap matching canvas background #eaf0f6 */
+.rm-pagination-gap,
 .tiptap-pagination-gap {
   background-color: #eaf0f6 !important;
-  border-color: #eaf0f6 !important;
+  border-top: 1px solid #cbd5e1 !important;
+  border-bottom: 1px solid #cbd5e1 !important;
+  border-left-color: #eaf0f6 !important;
+  border-right-color: #eaf0f6 !important;
 }
 
-/* Footer layout */
+/* Clean Header & Footer Typography */
 .tiptap-page-footer,
 .tiptap-page-header,
 .rm-page-footer,
 .rm-page-header {
-  font-family: "Figtree", sans-serif !important;
-  font-size: 10px !important;
+  font-family: "Figtree", -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-size: 11px !important;
   color: #64748b !important;
   user-select: none !important;
-  pointer-events: none !important;
 }
 
-.rm-page-footer-content {
-  height: 40px !important;
-  min-height: 40px !important;
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  box-sizing: border-box !important;
-  border-top: 1px solid #e2e8f0 !important;
-  margin-top: 12px !important;
-  padding: 0 4px !important;
-}
-
-.rm-page-footer-left {
+.rm-page-footer-left,
+.rm-page-header-left {
   font-size: 10px !important;
   color: #64748b !important;
   letter-spacing: 0.04em !important;
   text-transform: uppercase !important;
 }
 
-.rm-page-footer-right {
+.rm-page-footer-right,
+.rm-page-header-right {
   font-size: 10px !important;
   color: #475569 !important;
   font-weight: 500 !important;
@@ -218,11 +239,13 @@
 
 /* Print Overrides */
 @media print {
-  .page,
-  .rm-page-break > .page {
+  .ProseMirror {
     box-shadow: none !important;
     border: none !important;
-    page-break-after: always !important;
-    break-after: page !important;
+    background: #ffffff !important;
+  }
+  .rm-pagination-gap,
+  .tiptap-pagination-gap {
+    display: none !important;
   }
 }

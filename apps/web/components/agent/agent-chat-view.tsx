@@ -1010,41 +1010,49 @@ export function AgentChatView({
                             </div>
 
                             {msg.draftArtifact && (
-                              <div className="mt-4 flex items-center gap-3 rounded-lg border border-[#cbe0f2] bg-[#f7fbfe] px-3.5 py-3 transition-colors hover:border-[#9fc2df]">
-                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-[#cbe0f2] bg-white">
-                                  <StreamlineFileTextIcon
-                                    size={22}
-                                    className="text-[#487aa8]"
-                                  />
+                              <div
+                                onClick={() => {
+                                  setSideViewerDoc(msg.draftArtifact!);
+                                  setSideViewerOpen(true);
+                                }}
+                                className="mt-3.5 flex items-center gap-3.5 rounded-xl border border-stone-200 bg-white p-3 shadow-2xs hover:border-[#cbe0f2] hover:shadow-xs transition-all cursor-pointer group"
+                              >
+                                <div className="w-[38px] h-[44px] shrink-0 flex items-center justify-center rounded-[7px] border border-[#dedee1] bg-[#f7f7f8] text-[#52525b] group-hover:border-[#cbe0f2] group-hover:bg-[#f2f7fc] group-hover:text-[#2c5478] transition-colors">
+                                  <StreamlineFileTextIcon size={20} />
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                  <strong className="text-[13px] font-semibold text-stone-900 block truncate">
+                                  <strong className="text-[13px] font-semibold text-stone-900 block truncate group-hover:text-[#2c5478] transition-colors">
                                     {msg.draftArtifact.title}
                                   </strong>
-                                  <span className="mt-0.5 block text-[11px] text-stone-500">
-                                    Draft, version{" "}
-                                    {msg.draftArtifact.currentVersion.slice(1)}
+                                  <span className="mt-0.5 block text-[11px] text-stone-500 font-mono">
+                                    Document · PDF / DOCX
                                   </span>
                                 </div>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSideViewerDoc(msg.draftArtifact!);
-                                    setSideViewerOpen(true);
-                                  }}
-                                  className="h-7 shrink-0 rounded-md border border-[#cbe0f2] bg-white px-3.5 text-xs font-semibold text-[#2c5478] transition-colors hover:bg-[#edf4fa]"
+                                <div
+                                  className="flex items-center gap-1.5 shrink-0"
+                                  onClick={(e) => e.stopPropagation()}
                                 >
-                                  Preview
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={handleDownloadDraft}
-                                  className="h-7 w-7 flex items-center justify-center rounded-md text-stone-500 hover:bg-[#f7f5f1] cursor-pointer transition-colors shrink-0"
-                                  aria-label="Download draft"
-                                  title="Download draft"
-                                >
-                                  <DownloadIcon size={13} />
-                                </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      router.push(
+                                        `/drafting/${msg.draftArtifact!.id}`,
+                                      )
+                                    }
+                                    className="h-7.5 px-3 rounded-md border border-stone-200 bg-white text-xs font-semibold text-stone-700 hover:border-[#cbe0f2] hover:bg-[#edf4fa] hover:text-[#2c5478] cursor-pointer transition-colors shadow-2xs"
+                                  >
+                                    Open in editor
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={handleDownloadDraft}
+                                    className="h-7.5 w-7.5 flex items-center justify-center rounded-md border border-transparent text-stone-400 hover:text-stone-700 hover:bg-stone-100 cursor-pointer transition-colors"
+                                    aria-label="Download document"
+                                    title="Download document"
+                                  >
+                                    <DownloadIcon size={14} />
+                                  </button>
+                                </div>
                               </div>
                             )}
 

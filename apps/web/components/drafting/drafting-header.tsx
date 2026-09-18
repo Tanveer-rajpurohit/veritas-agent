@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { FileText } from "lucide-react";
 import type { DraftVersion } from "../../types/draft/types";
 import {
   ArrowUpIcon,
@@ -75,8 +76,8 @@ export function DraftingHeader({
         <div className="h-4 w-px bg-stone-200" />
 
         <div className="flex items-center gap-2 min-w-0">
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-[#edf4fa] text-[#487aa8] font-mono text-[11px] font-semibold border border-[#cbe0f2]">
-            §
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-[#edf4fa] text-[#487aa8] border border-[#cbe0f2]">
+            <FileText className="h-3.5 w-3.5" />
           </span>
 
           {isEditingTitle ? (

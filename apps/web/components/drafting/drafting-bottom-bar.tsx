@@ -1,5 +1,3 @@
-"use client";
-
 interface DraftingBottomBarProps {
   pageCount: number;
   wordCount: number;

@@ -22,7 +22,8 @@ import {
   Paintbrush,
   Highlighter,
   Type,
-  BookmarkPlus,
+  AtSign,
+  X,
 } from "lucide-react";
 
 interface DraftingToolbarProps {
@@ -86,11 +87,9 @@ export function DraftingToolbar({
   const [textColorOpen, setTextColorOpen] = useState(false);
   const [highlightOpen, setHighlightOpen] = useState(false);
   const [citationModalOpen, setCitationModalOpen] = useState(false);
-  const [citationTitle, setCitationTitle] = useState(
-    "Innoventive Industries Ltd. v. ICICI Bank",
-  );
-  const [citationRef, setCitationRef] = useState("(2018) 1 SCC 407");
-  const [citationCourt, setCitationCourt] = useState("Supreme Court of India");
+  const [citationTitle, setCitationTitle] = useState("");
+  const [citationRef, setCitationRef] = useState("");
+  const [citationUrl, setCitationUrl] = useState("");
   const [currentFontSize, setCurrentFontSize] = useState(13);
 
   const headingRef = useRef<HTMLDivElement>(null);
@@ -166,29 +165,54 @@ export function DraftingToolbar({
       .chain()
       .focus()
       .insertContent(
-        `<blockquote><p><strong>Precedent Citation:</strong> <em>Innoventive Industries Ltd. v. ICICI Bank</em>, (2018) 1 SCC 407 — <strong>Supreme Court of India</strong> [Supported]</p></blockquote><p></p>`,
+        `<blockquote><p><strong>Precedent Citation:</strong> <em>Innoventive Industries Ltd. Vs. ICICI Bank</em>, (2018) 1 SCC 407 — <strong>Supreme Court of India</strong> [Supported]</p></blockquote><p></p>`,
       )
       .run();
   }, [editor]);
 
+  const handleOpenCitationModal = useCallback(() => {
+    if (editor) {
+      const { from, to } = editor.state.selection;
+      if (from !== to) {
+        const selected = editor.state.doc.textBetween(from, to, " ").trim();
+        if (selected) {
+          if (selected.includes(";")) {
+            const parts = selected.split(";");
+            setCitationTitle(parts[0]?.trim() || "");
+            setCitationRef(parts[1]?.trim() || "");
+          } else if (selected.includes(",")) {
+            const idx = selected.indexOf(",");
+            setCitationTitle(selected.substring(0, idx).trim());
+            setCitationRef(selected.substring(idx + 1).trim());
+          } else {
+            setCitationTitle(selected);
+            setCitationRef("");
+          }
+        }
+      } else {
+        setCitationTitle("");
+        setCitationRef("");
+        setCitationUrl("");
+      }
+    }
+    setCitationModalOpen((prev) => !prev);
+  }, [editor]);
+
   const insertInlineCitation = useCallback(() => {
     if (!editor) return;
-    const { from, to } = editor.state.selection;
-    const hasSelection = from !== to;
-    const selectedText = hasSelection
-      ? editor.state.doc.textBetween(from, to, " ").trim()
-      : `${citationTitle} (${citationRef})`;
 
-    editor
-      .chain()
-      .focus()
-      .insertContent(
-        `<span class="inline-citation" data-citation-title="${citationTitle}" data-citation="${citationRef}" data-court="${citationCourt}" data-status="Supported">${selectedText}</span> `,
-      )
-      .run();
+    const title = citationTitle.trim() || "Case Name v. Opposing Party";
+    const ref = citationRef.trim() || "AIR 1973 SC 1461";
+    const url = citationUrl.trim();
 
+    // Standard Indian Legal Digital Citation:
+    // <u>Case Name</u>; Citation Details
+    // Wrapped in .inline-citation for hover detection and editing
+    const contentHtml = `<span class="inline-citation cursor-pointer" data-citation-title="${title}" data-citation="${ref}" ${url ? `data-citation-link="${url}"` : ""}><u class="underline decoration-[#487aa8] underline-offset-[3px] font-medium text-[#2c5478] hover:text-[#1a3c5e]">${title}</u>; ${ref}</span>&nbsp;`;
+
+    editor.chain().focus().insertContent(contentHtml).run();
     setCitationModalOpen(false);
-  }, [editor, citationTitle, citationRef, citationCourt]);
+  }, [editor, citationTitle, citationRef, citationUrl]);
 
   if (!editor) {
     return (
@@ -644,76 +668,107 @@ export function DraftingToolbar({
         <div ref={citationRefEl} className="relative shrink-0">
           <button
             type="button"
-            onClick={() => setCitationModalOpen(!citationModalOpen)}
-            title="Insert Inline Citation Marker"
-            className="flex h-7 items-center gap-1 rounded border border-[#487aa8] bg-[#edf4fa] px-2 text-[11px] font-medium text-[#2c5478] hover:bg-[#cbe0f2] cursor-pointer transition-colors"
+            onClick={handleOpenCitationModal}
+            title="Insert Legal Precedent Citation (@)"
+            className="flex h-7 items-center gap-1.5 rounded border border-[#cbe0f2] bg-[#edf4fa] px-2 text-[11px] font-medium text-[#2c5478] hover:bg-[#dbe9f6] cursor-pointer transition-colors"
           >
-            <BookmarkPlus className="h-3 w-3 text-[#487aa8]" />
-            <span>+ Inline Citation</span>
+            <AtSign className="h-3.5 w-3.5 text-[#487aa8]" />
+            <span>Citation</span>
           </button>
 
           {citationModalOpen && (
-            <div className="absolute left-0 top-full mt-1.5 w-72 rounded-lg border border-stone-200 bg-white p-3 shadow-xl z-50 text-xs">
-              <div className="mb-2 flex items-center justify-between border-b border-stone-100 pb-1.5 font-semibold text-stone-800">
-                <span>Add Legal Precedent</span>
-                <span className="text-[10px] font-mono text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
-                  Supported
-                </span>
+            <div className="absolute right-0 top-full mt-1.5 w-[330px] max-w-[calc(100vw-24px)] rounded-xl border border-stone-200 bg-white p-3.5 shadow-2xl z-50 text-xs select-none">
+              {/* Minimal Clean Header */}
+              <div className="flex items-center justify-between border-b border-stone-100 pb-2">
+                <div className="flex items-center gap-1.5 font-semibold text-stone-900 text-xs">
+                  <AtSign className="h-3.5 w-3.5 text-[#487aa8]" />
+                  <span>Insert Citation</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCitationModalOpen(false)}
+                  className="rounded p-1 text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors cursor-pointer"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
               </div>
-              <div className="space-y-2">
+
+              <div className="space-y-2.5 pt-2.5">
+                {/* Case Name */}
                 <div>
-                  <label className="block text-[10px] font-mono text-stone-500 uppercase">
-                    Precedent / Title
+                  <label className="block text-[11px] font-medium text-stone-700 mb-1">
+                    Case Name
                   </label>
                   <input
                     type="text"
                     value={citationTitle}
                     onChange={(e) => setCitationTitle(e.target.value)}
-                    className="w-full rounded border border-stone-200 px-2 py-1 text-xs text-stone-800 focus:border-[#487aa8] focus:outline-none"
-                    placeholder="Case title..."
+                    className="w-full rounded border border-stone-200 bg-white px-2.5 py-1.5 text-xs text-stone-900 placeholder:text-stone-400 focus:border-[#487aa8] focus:ring-1 focus:ring-[#487aa8] focus:outline-none transition-colors"
+                    placeholder="e.g. Innoventive Industries Ltd. v. ICICI Bank"
+                    autoFocus
                   />
                 </div>
+
+                {/* Citation Details */}
                 <div>
-                  <label className="block text-[10px] font-mono text-stone-500 uppercase">
-                    Citation Ref
+                  <label className="block text-[11px] font-medium text-stone-700 mb-1">
+                    Citation Details
                   </label>
                   <input
                     type="text"
                     value={citationRef}
                     onChange={(e) => setCitationRef(e.target.value)}
-                    className="w-full rounded border border-stone-200 px-2 py-1 text-xs text-stone-800 focus:border-[#487aa8] focus:outline-none"
-                    placeholder="(2018) 1 SCC 407"
+                    className="w-full rounded border border-stone-200 bg-white px-2.5 py-1.5 text-xs text-stone-900 placeholder:text-stone-400 focus:border-[#487aa8] focus:ring-1 focus:ring-[#487aa8] focus:outline-none transition-colors"
+                    placeholder="e.g. (2018) 1 SCC 407 or 2023 INSC 54"
                   />
                 </div>
+
+                {/* Judgment URL */}
                 <div>
-                  <label className="block text-[10px] font-mono text-stone-500 uppercase">
-                    Court / Forum
+                  <label className="block text-[11px] font-medium text-stone-700 mb-1">
+                    Judgment URL <span className="text-stone-400 font-normal">(optional)</span>
                   </label>
                   <input
-                    type="text"
-                    value={citationCourt}
-                    onChange={(e) => setCitationCourt(e.target.value)}
-                    className="w-full rounded border border-stone-200 px-2 py-1 text-xs text-stone-800 focus:border-[#487aa8] focus:outline-none"
-                    placeholder="Supreme Court of India"
+                    type="url"
+                    value={citationUrl}
+                    onChange={(e) => setCitationUrl(e.target.value)}
+                    className="w-full rounded border border-stone-200 bg-white px-2.5 py-1.5 text-[11px] text-stone-800 font-mono placeholder:text-stone-400 focus:border-[#487aa8] focus:ring-1 focus:ring-[#487aa8] focus:outline-none transition-colors"
+                    placeholder="https://indiankanoon.org/doc/..."
                   />
                 </div>
-                <button
-                  type="button"
-                  onClick={insertInlineCitation}
-                  className="w-full mt-2 rounded bg-[#487aa8] py-1.5 text-center font-medium text-white hover:bg-[#38648c] cursor-pointer transition-colors shadow-2xs"
-                >
-                  Insert Citation Chip
-                </button>
+
+                {/* Minimal Single-Line Preview */}
+                <div className="rounded border border-stone-100 bg-stone-50/80 px-2.5 py-2 text-xs font-serif text-stone-800">
+                  <span className="text-[9.5px] uppercase font-sans font-medium text-stone-400 block mb-0.5 tracking-wider">
+                    Format Preview
+                  </span>
+                  <u className="underline decoration-[#487aa8] underline-offset-[3px] font-medium text-[#2c5478]">
+                    {citationTitle.trim() || "Case Name v. Opposing Party"}
+                  </u>
+                  ; {citationRef.trim() || "AIR 1973 SC 1461"}
+                </div>
+
+                {/* Buttons */}
+                <div className="flex items-center justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setCitationModalOpen(false)}
+                    className="rounded border border-stone-200 px-3 py-1.5 text-xs font-medium text-stone-600 hover:bg-stone-50 transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={insertInlineCitation}
+                    className="rounded bg-[#487aa8] hover:bg-[#38648c] px-3.5 py-1.5 text-xs font-medium text-white transition-colors cursor-pointer shadow-xs"
+                  >
+                    Insert Citation
+                  </button>
+                </div>
               </div>
             </div>
           )}
         </div>
-      </div>
-
-      <div className="hidden lg:flex items-center gap-2 text-[11px] font-mono text-stone-400 shrink-0">
-        <span className="rounded bg-[#edf4fa] px-2 py-0.5 text-[#2c5478] font-medium border border-[#cbe0f2]">
-          A4 Standard · 794px × 1123px
-        </span>
       </div>
     </div>
   );
