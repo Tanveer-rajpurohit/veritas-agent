@@ -8,6 +8,7 @@ import app.models  # noqa: F401
 from app.core.config import settings
 from app.db.init_db import init_db
 from app.routers.agent.router import router as agent_router
+from app.routers.agent_runs import router as agent_runs_router
 from app.routers.auth import router as auth_router
 from app.routers.conversations import router as conversations_router
 from app.routers.documents import router as documents_router
@@ -50,6 +51,7 @@ app.include_router(documents_router)
 app.include_router(reviews_router)
 app.include_router(exports_router)
 app.include_router(conversations_router)
+app.include_router(agent_runs_router)
 
 
 @app.get("/", tags=["Health"])

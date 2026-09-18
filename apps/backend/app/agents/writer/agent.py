@@ -52,12 +52,15 @@ def create_writer_agent(
     db: Session,
     matter_id: UUID,
     model: Any | None = None,
+    allow_document_writes: bool = True,
 ) -> Agent:
     """
     Constructs a scoped Strands Writer Agent restricted to the specified Matter boundary.
     Enforces structured output adhering to WriterResult schema.
     """
-    source_tools = create_writer_source_tools(db=db, matter_id=matter_id)
+    source_tools = create_writer_source_tools(
+        db=db, matter_id=matter_id, allow_document_writes=allow_document_writes
+    )
     selected_model = model if model is not None else _build_default_model()
 
     return Agent(

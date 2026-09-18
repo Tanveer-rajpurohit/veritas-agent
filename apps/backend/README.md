@@ -2,7 +2,7 @@
 
 FastAPI service for Veritas, an evidence-first legal drafting and review workspace for Indian lawyers.
 
-The backend currently includes the application shell, health endpoints, and a Strands Main Agent demo with Server-Sent Events streaming. Matter storage, document ingestion, specialist agents, review findings, and export workflows will be added as later vertical slices.
+The backend supports authenticated matters, source uploads and extraction, versioned working briefs, conservative review findings, draft exports, persistent conversations, and queued Main Agent and Writer runs.
 
 ## Setup
 
@@ -17,6 +17,8 @@ Copy-Item .env.example .env
 # Replace AUTH_SECRET in .env with a random value of at least 32 characters.
 python -m uvicorn app.main:app --reload --port 8000
 ```
+
+In a second terminal, run `python -m app.workers.agent_runs` from `apps/backend` to process queued runs after API restarts. The API also starts runs in a background task when a request succeeds. Set either Groq or Bedrock credentials before running an agent.
 
 For macOS or Linux, activate the environment with `source .venv/bin/activate` and copy the environment file with `cp .env.example .env`.
 
@@ -45,6 +47,8 @@ while its test suite is small.
 - `GET /api/v1/matters/{id}/sources` and `GET /api/v1/sources/{id}/pages/{page}` return scoped evidence.
 - `GET /api/v1/sources/{id}/download` returns the authorized original file.
 - `POST /api/v1/matters/{id}/threads` and `/api/v1/threads/{id}/messages` persist scoped conversations.
+- `POST /api/v1/matters/{id}/agent-runs` starts a Main Agent answer or Writer brief run with an `Idempotency-Key` header.
+- `GET /api/v1/agent-runs/{id}` returns run status and output; `/events` replays persisted SSE events using `Last-Event-ID`.
 - `POST /api/v1/matters/{id}/documents` creates an empty working brief.
 - `POST /api/v1/documents/{id}/versions` saves Tiptap JSON with a base version and `Idempotency-Key` header.
 - `GET /api/v1/documents/{id}` and `GET /api/v1/document-versions/{id}` return owned saved content.

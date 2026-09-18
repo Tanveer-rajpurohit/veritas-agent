@@ -274,6 +274,7 @@ def create_writer_source_tools(
     db: Session,
     matter_id: UUID,
     max_tool_calls: int = 20,
+    allow_document_writes: bool = True,
 ) -> list[DecoratedFunctionTool]:
     """Create tools whose Matter boundary cannot be changed by model arguments."""
     handlers = WriterSourceToolHandlers(
@@ -489,13 +490,11 @@ def create_writer_source_tools(
             raise ValueError("query must be at most 500 characters")
         return handlers.fetch_case(candidate_id, query)
 
-    return [
+    tools = [
         search_sources,
         create_evidence_span,
         get_evidence_spans,
         get_document_version,
-        create_draft,
-        propose_document_ops,
         list_draft_templates,
         get_draft_template,
         search_statutes,
@@ -503,3 +502,6 @@ def create_writer_source_tools(
         search_cases,
         fetch_case,
     ]
+    if allow_document_writes:
+        tools[4:4] = [create_draft, propose_document_ops]
+    return tools

@@ -401,3 +401,116 @@ def test_threads_and_messages_are_persistent_and_scoped(client: TestClient) -> N
         ).status_code
         == 404
     )
+
+
+def test_writer_run_persists_artifact_and_replayable_events(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from types import SimpleNamespace
+
+    import app.workers.agent_runs as worker
+    from app.schemas.agents.writer import DocumentOperation, WriterResult
+
+    monkeypatch.setattr(worker, "SessionLocal", TestingSessionLocal)
+
+    class FakeWriter:
+        def __call__(self, prompt):
+            return SimpleNamespace(
+                structured_output=WriterResult(
+                    operations=[
+                        DocumentOperation(
+                            type="insert_paragraph", position="facts", text="A working claim"
+                        )
+                    ]
+                )
+            )
+
+    monkeypatch.setattr(
+        worker, "create_writer_agent", lambda db, matter_id, allow_document_writes: FakeWriter()
+    )
+    matter_id = client.post("/api/v1/matters/", json={"title": "Agent"}).json()["id"]
+    thread_id = client.post(f"/api/v1/matters/{matter_id}/threads", json={}).json()["id"]
+    message_id = client.post(
+        f"/api/v1/threads/{thread_id}/messages", json={"content": "Draft facts"}
+    ).json()["id"]
+    payload = {
+        "thread_id": thread_id,
+        "message_id": message_id,
+        "agent": "writer",
+        "requested_action": "prepare_working_brief",
+    }
+    created = client.post(
+        f"/api/v1/matters/{matter_id}/agent-runs",
+        headers={"Idempotency-Key": "writer-run-1"},
+        json=payload,
+    )
+    assert created.status_code == 202, created.text
+    run_id = created.json()["run_id"]
+    state = client.get(f"/api/v1/agent-runs/{run_id}").json()
+    assert state["status"] == "completed"
+    assert state["result"]["document_version_id"]
+    replay = client.get(
+        f"/api/v1/agent-runs/{run_id}/events", headers={"Last-Event-ID": f"{run_id}:2"}
+    )
+    assert "event: artifact.ready" in replay.text
+    assert "event: task.completed" in replay.text
+    assert "event: task.queued" not in replay.text
+    repeated = client.post(
+        f"/api/v1/matters/{matter_id}/agent-runs",
+        headers={"Idempotency-Key": "writer-run-1"},
+        json=payload,
+    )
+    assert repeated.json()["run_id"] == run_id
+    conflicting = client.post(
+        f"/api/v1/matters/{matter_id}/agent-runs",
+        headers={"Idempotency-Key": "writer-run-1"},
+        json={**payload, "agent": "main", "requested_action": "answer"},
+    )
+    assert conflicting.status_code == 409
+
+    other = client.post(
+        "/api/v1/auth/register",
+        json={"email": "run-reader@example.com", "password": "another-correct-password"},
+    )
+    client.headers["Authorization"] = f"Bearer {other.json()['access_token']}"
+    assert client.get(f"/api/v1/agent-runs/{run_id}/events").status_code == 404
+
+
+def test_writer_run_without_operations_does_not_create_a_document(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from types import SimpleNamespace
+
+    import app.workers.agent_runs as worker
+    from app.schemas.agents.writer import WriterResult
+
+    monkeypatch.setattr(worker, "SessionLocal", TestingSessionLocal)
+    monkeypatch.setattr(
+        worker,
+        "create_writer_agent",
+        lambda db, matter_id, allow_document_writes: (
+            lambda prompt: SimpleNamespace(
+                structured_output=WriterResult(unresolved_questions=["Which amount is correct?"])
+            )
+        ),
+    )
+    matter_id = client.post("/api/v1/matters/", json={"title": "Incomplete"}).json()["id"]
+    thread_id = client.post(f"/api/v1/matters/{matter_id}/threads", json={}).json()["id"]
+    message_id = client.post(
+        f"/api/v1/threads/{thread_id}/messages", json={"content": "Draft facts"}
+    ).json()["id"]
+    created = client.post(
+        f"/api/v1/matters/{matter_id}/agent-runs",
+        headers={"Idempotency-Key": "no-operations"},
+        json={
+            "thread_id": thread_id,
+            "message_id": message_id,
+            "agent": "writer",
+            "requested_action": "prepare_working_brief",
+        },
+    )
+    assert created.status_code == 202, created.text
+    state = client.get(f"/api/v1/agent-runs/{created.json()['run_id']}").json()
+    assert state["status"] == "completed"
+    assert state["result"]["document_id"] is None
+    assert state["result"]["unresolved_questions"] == ["Which amount is correct?"]
