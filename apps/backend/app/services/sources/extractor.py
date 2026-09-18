@@ -1,6 +1,8 @@
 import hashlib
 from pathlib import Path
 
+import fitz
+
 from app.schemas.sources import ExtractedDocument, ExtractedPage
 
 
@@ -19,8 +21,6 @@ class ExtractorService:
         filename: str = "document.pdf",
     ) -> ExtractedDocument:
         """Extracts text, checksums, and dimensions directly from in-memory bytes."""
-        import fitz
-
         ext = Path(filename).suffix.lower()
         if ext in (".txt", ".md"):
             return self._extract_plain_text(file_bytes)
@@ -30,8 +30,6 @@ class ExtractorService:
 
     def extract_from_file(self, file_path: str | Path) -> ExtractedDocument:
         """Extracts text, checksums, and dimensions from a local file path."""
-        import fitz
-
         path = Path(file_path)
         if path.suffix.lower() in (".txt", ".md"):
             return self._extract_plain_text(path.read_bytes())
