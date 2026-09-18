@@ -2,6 +2,7 @@ import hashlib
 import re
 from datetime import UTC, datetime
 from decimal import Decimal
+from difflib import SequenceMatcher
 from uuid import UUID
 
 from sqlalchemy import select, update
@@ -22,22 +23,67 @@ def _amounts(text: str) -> set[Decimal]:
     }
 
 
-def _paragraphs(content: dict) -> list[tuple[int, str, list[str]]]:
+def _paragraphs(content: dict) -> list[tuple[int, str, list[tuple[str, str | None]]]]:
     result = []
     for index, block in enumerate(content.get("content", [])):
         if block.get("type") not in {"paragraph", "heading"}:
             continue
-        text = "".join(child.get("text", "") for child in block.get("content", []))
+        text_parts = []
+        for child in block.get("content", []):
+            if child.get("type") == "text":
+                text_parts.append(child.get("text", ""))
+            elif child.get("type") == "citationRef":
+                text_parts.append(child.get("attrs", {}).get("display", ""))
+        text = "".join(text_parts)
         citations = []
         for child in block.get("content", []):
             for mark in child.get("marks", []):
                 if mark.get("type") == "citation":
-                    citations.append(child.get("text", ""))
+                    citations.append((child.get("text", ""), mark.get("attrs", {}).get("quote")))
             if child.get("type") == "citationRef":
-                citations.append(child.get("attrs", {}).get("display", ""))
+                attrs = child.get("attrs", {})
+                citations.append((attrs.get("display", ""), attrs.get("quote")))
         if text.strip():
             result.append((index, text.strip(), citations))
     return result
+
+
+def _normalized(text: str) -> str:
+    return " ".join(text.split()).casefold()
+
+
+def _legal_citation(db: Session, display: str) -> tuple[Source | None, EvidenceSpan | None]:
+    if not display.strip():
+        return None, None
+    sources = db.scalars(
+        select(Source).where(
+            Source.matter_id.is_(None),
+            Source.source_type.in_(["judgment", "statute"]),
+            Source.authority_level.in_(["official_primary", "curated_primary"]),
+        )
+    ).all()
+    for source in sources:
+        names = [source.canonical_title, source.neutral_citation]
+        if _normalized(display) not in {_normalized(name) for name in names if name}:
+            continue
+        if source.versions:
+            latest = max(source.versions, key=lambda item: item.version_number)
+            if latest.evidence_spans:
+                return source, latest.evidence_spans[0]
+    return None, None
+
+
+def _quote_status(quote: str, source_text: str) -> tuple[str, str]:
+    wanted = _normalized(quote)
+    if wanted in _normalized(source_text):
+        return "supported", "Quote matches the stored source passage"
+    sentences = re.split(r"(?<=[.!?])\s+", source_text)
+    if len(wanted) >= 20 and any(
+        SequenceMatcher(None, wanted, _normalized(sentence)).ratio() >= 0.9
+        for sentence in sentences
+    ):
+        return "contradicted", "A close stored passage uses different wording"
+    return "unresolved", "Quote was not located in the selected source passage"
 
 
 def check_version(db: Session, version, matter_id: UUID) -> list[Finding]:
@@ -118,19 +164,63 @@ def check_version(db: Session, version, matter_id: UUID) -> list[Finding]:
                     )
                 )
         findings.append(finding)
-        for citation in citations:
+        for citation, quote in citations:
+            source, legal_span = _legal_citation(db, citation)
+            identified = source is not None and legal_span is not None
             citation_finding = Finding(
                 document_version_id=version.id,
                 block_index=block_index,
                 claim_text=citation,
                 claim_sha256=hashlib.sha256(citation.encode()).hexdigest(),
                 dimension="identity",
-                status="unresolved",
-                method="retrieval",
-                reason="Citation identity has not been checked against an authoritative source",
-                limitations=["No authoritative citation lookup was completed"],
+                status="supported" if identified else "unresolved",
+                method="exact" if identified else "retrieval",
+                reason="Citation matches stored legal source metadata"
+                if identified
+                else "Citation identity was not found in the curated legal sources",
+                limitations=["Current legal treatment was not checked"],
             )
             db.add(citation_finding)
+            db.flush()
+            if identified:
+                db.add(
+                    FindingEvidence(
+                        finding_id=citation_finding.id,
+                        evidence_span_id=legal_span.id,
+                        relation="source",
+                    )
+                )
             findings.append(citation_finding)
+            if isinstance(quote, str) and quote.strip():
+                status, reason = (
+                    _quote_status(quote, legal_span.quoted_text)
+                    if identified
+                    else (
+                        "unresolved",
+                        "Citation identity is unresolved, so the quote cannot be checked",
+                    )
+                )
+                quote_finding = Finding(
+                    document_version_id=version.id,
+                    block_index=block_index,
+                    claim_text=quote,
+                    claim_sha256=hashlib.sha256(quote.encode()).hexdigest(),
+                    dimension="quotation",
+                    status=status,
+                    method="normalized" if identified else "retrieval",
+                    reason=reason,
+                    limitations=["Only the selected stored source passage was compared"],
+                )
+                db.add(quote_finding)
+                db.flush()
+                if identified:
+                    db.add(
+                        FindingEvidence(
+                            finding_id=quote_finding.id,
+                            evidence_span_id=legal_span.id,
+                            relation="source",
+                        )
+                    )
+                findings.append(quote_finding)
     db.commit()
     return findings

@@ -101,6 +101,15 @@ def _validate_content(content: dict) -> list[UUID]:
         attrs = node.get("attrs", {})
         if not isinstance(attrs, dict):
             raise HTTPException(status_code=422, detail="Invalid document attributes")
+        if node.get("type") == "citationRef" and (
+            not isinstance(attrs.get("display"), str)
+            or not 1 <= len(attrs["display"].strip()) <= 512
+        ):
+            raise HTTPException(status_code=422, detail="Invalid citation display")
+        if "quote" in attrs and (
+            not isinstance(attrs["quote"], str) or not 1 <= len(attrs["quote"].strip()) <= 2000
+        ):
+            raise HTTPException(status_code=422, detail="Invalid citation quote")
         for raw_id in attrs.get("evidence_span_ids", []):
             try:
                 span_ids.append(UUID(str(raw_id)))
@@ -112,6 +121,11 @@ def _validate_content(content: dict) -> list[UUID]:
             mark_attrs = mark.get("attrs", {})
             if not isinstance(mark_attrs, dict):
                 raise HTTPException(status_code=422, detail="Invalid mark attributes")
+            if "quote" in mark_attrs and (
+                not isinstance(mark_attrs["quote"], str)
+                or not 1 <= len(mark_attrs["quote"].strip()) <= 2000
+            ):
+                raise HTTPException(status_code=422, detail="Invalid citation quote")
             href = mark_attrs.get("href")
             if href is not None and (
                 not isinstance(href, str) or not href.startswith(("https://", "http://"))

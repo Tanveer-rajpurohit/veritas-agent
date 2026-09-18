@@ -56,7 +56,7 @@ class LegalSourceMaterializer:
         text: str,
         source_type: Literal["statute", "judgment"],
         official_url: str | None = None,
-        authority_level: str = "curated_primary",
+        authority_level: str = "discovery_only",
         heading_path: list[str] | None = None,
         evidence_query: str | None = None,
     ) -> tuple[EvidenceSpan, Source, SourceVersion]:

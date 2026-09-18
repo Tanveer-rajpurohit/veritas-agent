@@ -375,6 +375,83 @@ def test_conflicting_records_create_stale_findings_after_edit(
     assert previous.json()[0]["status"] == "stale"
 
 
+def test_citation_identity_and_quote_checks_use_stored_legal_text(client: TestClient) -> None:
+    from app.services.legal_sources.materializer import legal_materializer
+
+    source_text = "The tribunal must examine the record before admitting the petition."
+    with TestingSessionLocal() as db:
+        _, source, _ = legal_materializer.materialize_legal_text(
+            db,
+            title="Synthetic Tribunal v. Example Bank",
+            text=source_text,
+            source_type="judgment",
+            authority_level="curated_primary",
+        )
+        source.is_synthetic = True
+        db.commit()
+        legal_materializer.materialize_legal_text(
+            db,
+            title="Discovery Only v. Example",
+            text="A provider result that has not been curated.",
+            source_type="judgment",
+        )
+
+    matter_id = client.post("/api/v1/matters/", json={"title": "Citation review"}).json()["id"]
+    document = client.post(
+        f"/api/v1/matters/{matter_id}/documents", json={"title": "Working brief"}
+    ).json()
+    citations = [
+        ("Synthetic Tribunal v. Example Bank", source_text),
+        (
+            "Synthetic Tribunal v. Example Bank",
+            "The tribunal must ignore the record before admitting the petition.",
+        ),
+        ("Invented Tribunal v. Nowhere", "An unsupported quotation."),
+        ("Discovery Only v. Example", "A provider result that has not been curated."),
+    ]
+    content = {
+        "type": "doc",
+        "content": [
+            {
+                "type": "paragraph",
+                "content": [
+                    {"type": "text", "text": "Citation review: "},
+                    *[
+                        {"type": "citationRef", "attrs": {"display": title, "quote": quote}}
+                        for title, quote in citations
+                    ],
+                ],
+            }
+        ],
+    }
+    saved = client.post(
+        f"/api/v1/documents/{document['id']}/versions",
+        headers={"Idempotency-Key": "citations-1"},
+        json={
+            "base_version_id": document["current_version_id"],
+            "schema_version": 1,
+            "content": content,
+        },
+    )
+    assert saved.status_code == 201, saved.text
+    response = client.post(f"/api/v1/document-versions/{saved.json()['id']}/checks")
+    assert response.status_code == 200, response.text
+    findings = response.json()
+    assert [item["status"] for item in findings if item["dimension"] == "identity"] == [
+        "supported",
+        "supported",
+        "unresolved",
+        "unresolved",
+    ]
+    assert [item["status"] for item in findings if item["dimension"] == "quotation"] == [
+        "supported",
+        "contradicted",
+        "unresolved",
+        "unresolved",
+    ]
+    assert all(item["evidence"] for item in findings if item["status"] == "supported")
+
+
 def test_threads_and_messages_are_persistent_and_scoped(client: TestClient) -> None:
     matter_id = client.post("/api/v1/matters/", json={"title": "Chat"}).json()["id"]
     thread = client.post(f"/api/v1/matters/{matter_id}/threads", json={"title": "Section 7"})
