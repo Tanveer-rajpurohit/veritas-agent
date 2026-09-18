@@ -1,13 +1,15 @@
 import hashlib
 import json
+from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.models.drafts.document_command import DocumentCommand
 from app.models.drafts.document_version import DocumentVersion
 from app.models.drafts.draft import Draft
+from app.models.reviews import Finding
 
 
 class DraftRepository:
@@ -136,6 +138,12 @@ class DraftRepository:
 
         db.add(version)
         db.add(draft)
+        if latest is not None:
+            db.execute(
+                update(Finding)
+                .where(Finding.document_version_id == latest.id, Finding.stale_at.is_(None))
+                .values(status="stale", stale_at=datetime.now(UTC))
+            )
         if user_id is not None and idempotency_key is not None and request_hash is not None:
             db.flush()
             db.add(

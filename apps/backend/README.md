@@ -45,6 +45,9 @@ while its test suite is small.
 - `POST /api/v1/matters/{id}/documents` creates an empty working brief.
 - `POST /api/v1/documents/{id}/versions` saves Tiptap JSON with a base version and `Idempotency-Key` header.
 - `GET /api/v1/documents/{id}` and `GET /api/v1/document-versions/{id}` return owned saved content.
+- `POST /api/v1/document-versions/{id}/checks` records conservative fact and citation findings.
+- `GET /api/v1/document-versions/{id}/findings` returns findings with exact source spans.
+- `POST /api/v1/findings/{id}/resolutions` records a reasoned human decision.
 - `POST /api/v1/agent/chat/stream` streams Main Agent events when enabled.
 - `GET /docs` opens the Swagger UI.
 - `GET /redoc` opens the ReDoc reference.

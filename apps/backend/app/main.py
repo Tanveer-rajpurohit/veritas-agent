@@ -12,6 +12,7 @@ from app.routers.auth import router as auth_router
 from app.routers.documents import router as documents_router
 from app.routers.health.router import router as health_router
 from app.routers.matters.router import router as matter_router
+from app.routers.reviews import router as reviews_router
 from app.routers.sources import router as sources_router
 
 
@@ -44,6 +45,7 @@ app.include_router(agent_router)
 app.include_router(matter_router)
 app.include_router(sources_router)
 app.include_router(documents_router)
+app.include_router(reviews_router)
 
 
 @app.get("/", tags=["Health"])

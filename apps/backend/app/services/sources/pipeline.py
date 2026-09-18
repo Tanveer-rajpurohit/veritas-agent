@@ -1,10 +1,13 @@
 import mimetypes
 import uuid
-from datetime import date
+from datetime import UTC, date, datetime
 
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.models.drafts import DocumentVersion, Draft
+from app.models.reviews import Finding
 from app.models.sources import Source, SourceChunk, SourcePage, SourceVersion
 from app.repositories.sources import source_repository
 from app.services.sources.chunker import chunker_service
@@ -141,6 +144,19 @@ class IngestionPipeline:
                 for index, chunk in enumerate(raw_chunks)
             ]
             source_repository.save_pages_and_chunks(db, [], chunk_records)
+            if matter_id is not None:
+                db.execute(
+                    update(Finding)
+                    .where(
+                        Finding.document_version_id.in_(
+                            select(DocumentVersion.id)
+                            .join(Draft, DocumentVersion.draft_id == Draft.id)
+                            .where(Draft.matter_id == matter_id)
+                        ),
+                        Finding.stale_at.is_(None),
+                    )
+                    .values(status="stale", stale_at=datetime.now(UTC))
+                )
             db.commit()
             db.refresh(source)
             db.refresh(version)

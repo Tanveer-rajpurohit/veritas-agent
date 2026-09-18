@@ -268,3 +268,78 @@ def test_delete_matter_not_found(client: TestClient) -> None:
     response = client.delete(f"/api/v1/matters/{uuid4()}")
     assert response.status_code == 404
     assert response.json() == {"detail": "Matter not found"}
+
+
+def test_conflicting_records_create_stale_findings_after_edit(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    monkeypatch.setattr(storage_service, "base_path", tmp_path)
+    monkeypatch.setattr(
+        embedding_service, "embed_chunks", lambda texts: [[0.1] * 384 for _ in texts]
+    )
+    matter_id = client.post("/api/v1/matters/", json={"title": "Conflict"}).json()["id"]
+    for name, amount in [("bank.txt", 12), ("ledger.txt", 15)]:
+        response = client.post(
+            f"/api/v1/matters/{matter_id}/uploads",
+            files={"file": (name, f"Default amount INR {amount} lakh.".encode(), "text/plain")},
+        )
+        assert response.status_code == 201, response.text
+    created = client.post(f"/api/v1/matters/{matter_id}/documents", json={"title": "Brief"}).json()
+    document_id = created["id"]
+    content = {
+        "type": "doc",
+        "content": [
+            {
+                "type": "paragraph",
+                "content": [{"type": "text", "text": "Default amount INR 12 lakh."}],
+            }
+        ],
+    }
+    saved = client.post(
+        f"/api/v1/documents/{document_id}/versions",
+        headers={"Idempotency-Key": "conflict-save-1"},
+        json={
+            "base_version_id": created["current_version_id"],
+            "schema_version": 1,
+            "content": content,
+        },
+    ).json()
+    checks = client.post(f"/api/v1/document-versions/{saved['id']}/checks")
+    assert checks.status_code == 200, checks.text
+    assert checks.json()[0]["status"] == "contradicted"
+    assert {item["relation"] for item in checks.json()[0]["evidence"]} == {
+        "supports",
+        "contradicts",
+    }
+    resolved = client.post(
+        f"/api/v1/findings/{checks.json()[0]['id']}/resolutions",
+        headers={"Idempotency-Key": "resolution-1"},
+        json={"action": "resolve", "reason": "Reviewed both amounts against the records"},
+    )
+    assert resolved.status_code == 200, resolved.text
+    assert resolved.json()["resolution"] == "resolve"
+
+    added = client.post(
+        f"/api/v1/matters/{matter_id}/uploads",
+        files={"file": ("new-record.txt", b"Default amount INR 12 lakh.", "text/plain")},
+    )
+    assert added.status_code == 201, added.text
+    assert (
+        client.get(f"/api/v1/document-versions/{saved['id']}/findings").json()[0]["status"]
+        == "stale"
+    )
+    refreshed = client.post(f"/api/v1/document-versions/{saved['id']}/checks")
+    assert refreshed.json()[0]["status"] == "contradicted"
+
+    edited = client.post(
+        f"/api/v1/documents/{document_id}/versions",
+        headers={"Idempotency-Key": "conflict-save-2"},
+        json={
+            "base_version_id": saved["id"],
+            "schema_version": 1,
+            "content": {"type": "doc", "content": []},
+        },
+    )
+    assert edited.status_code == 201, edited.text
+    previous = client.get(f"/api/v1/document-versions/{saved['id']}/findings")
+    assert previous.json()[0]["status"] == "stale"
