@@ -339,17 +339,34 @@ export function AppSidebar({
             {!collapsed && <span>Settings</span>}
           </button>
 
-          <div
-            className={`flex items-center gap-2 rounded-md p-1.5 hover:bg-[#edf4fa]/60 transition-colors ${
-              collapsed ? "justify-center p-0" : ""
-            }`}
+          <button
+            type="button"
+            onClick={() => onSelectNav("profile")}
+            title="View profile"
+            className={`flex w-full items-center gap-2 rounded-md p-1.5 transition-colors cursor-pointer text-left ${
+              activeNav === "profile"
+                ? "bg-[#edf4fa] text-[#2c5478]"
+                : "hover:bg-[#edf4fa]/60 text-stone-800"
+            } ${collapsed ? "justify-center p-0" : ""}`}
           >
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#edf4fa] text-[#2c5478] font-sans text-[11px] font-bold border border-[#cbe0f2]">
+            <div
+              className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full font-sans text-[11px] font-bold border transition-colors ${
+                activeNav === "profile"
+                  ? "bg-white text-[#2c5478] border-[#487aa8]"
+                  : "bg-[#edf4fa] text-[#2c5478] border-[#cbe0f2]"
+              }`}
+            >
               TS
             </div>
             {!collapsed && (
               <div className="min-w-0 flex-1 text-left">
-                <p className="m-0 text-xs font-semibold text-stone-800 truncate">
+                <p
+                  className={`m-0 text-xs font-semibold truncate ${
+                    activeNav === "profile"
+                      ? "text-[#2c5478]"
+                      : "text-stone-800"
+                  }`}
+                >
                   Tanveer Singh
                 </p>
                 <p className="m-0 text-[10px] text-stone-400 truncate">
@@ -357,7 +374,7 @@ export function AppSidebar({
                 </p>
               </div>
             )}
-          </div>
+          </button>
         </div>
       </aside>
     </>
