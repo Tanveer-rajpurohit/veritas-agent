@@ -1,5 +1,6 @@
 from html.parser import HTMLParser
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 
@@ -21,7 +22,6 @@ class LegalHTMLToTextParser(HTMLParser):
         super().__init__()
         self._ignore_depth = 0
         self._pieces: list[str] = []
-        self._in_list_item = False
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         tag_lower = tag.lower()
@@ -37,7 +37,6 @@ class LegalHTMLToTextParser(HTMLParser):
         elif tag_lower == "br":
             self._pieces.append("\n")
         elif tag_lower == "li":
-            self._in_list_item = True
             self._pieces.append("\n- ")
 
     def handle_endtag(self, tag: str) -> None:
@@ -52,8 +51,6 @@ class LegalHTMLToTextParser(HTMLParser):
 
         if tag_lower in self.BLOCK_TAGS:
             self._pieces.append("\n\n")
-        elif tag_lower == "li":
-            self._in_list_item = False
 
     def handle_data(self, data: str) -> None:
         if self._ignore_depth == 0 and data:
@@ -77,6 +74,7 @@ class IndianKanoonAdapter:
     """
 
     PROVIDER_NAME = "Indian Kanoon"
+    ALLOWLISTED_HOSTS = {"api.indiankanoon.org"}
 
     def __init__(self, client: httpx.Client | None = None) -> None:
         self._client = client
@@ -95,8 +93,7 @@ class IndianKanoonAdapter:
         token = settings.INDIAN_KANOON_API_TOKEN.strip()
         if not token:
             raise ValueError(
-                "INDIAN_KANOON_API_TOKEN is not configured. "
-                "Set the token or configure LEGAL_CASE_PROVIDER=ecourts_india."
+                "INDIAN_KANOON_API_TOKEN is required to retrieve citable judgment text"
             )
         return token
 
@@ -104,12 +101,28 @@ class IndianKanoonAdapter:
         if self._client is not None:
             return self._client
         token = self._ensure_token()
+        parsed = urlparse(settings.INDIAN_KANOON_BASE_URL)
+        if parsed.scheme != "https" or parsed.hostname not in self.ALLOWLISTED_HOSTS:
+            raise ValueError("Security violation: legal provider URL is not allowlisted")
         return httpx.Client(
             base_url=settings.INDIAN_KANOON_BASE_URL,
             headers={"Authorization": f"Token {token}"},
             timeout=settings.LEGAL_SOURCE_TIMEOUT_SECONDS,
             follow_redirects=False,
         )
+
+    @staticmethod
+    def _response_json(response: httpx.Response) -> dict[str, Any]:
+        content_length = response.headers.get("content-length")
+        if content_length and int(content_length) > settings.LEGAL_SOURCE_MAX_RESPONSE_BYTES:
+            raise ValueError("Legal provider response exceeded the configured size limit")
+        content = response.content
+        if isinstance(content, bytes) and len(content) > settings.LEGAL_SOURCE_MAX_RESPONSE_BYTES:
+            raise ValueError("Legal provider response exceeded the configured size limit")
+        data = response.json()
+        if not isinstance(data, dict):
+            raise ValueError("Legal provider returned an invalid response")
+        return data
 
     def search_cases(self, query: str, limit: int = 5) -> SearchCasesResponse:
         """Search judgments via Indian Kanoon API."""
@@ -121,11 +134,9 @@ class IndianKanoonAdapter:
         with self._get_client() as client:
             resp = client.post("/search/", params={"formInput": clean_q, "pagenum": 0})
             if resp.status_code != 200:
-                raise ValueError(
-                    f"Indian Kanoon provider returned HTTP {resp.status_code}: {resp.text[:200]}"
-                )
+                raise ValueError(f"Indian Kanoon provider returned HTTP {resp.status_code}")
 
-            data = resp.json()
+            data = self._response_json(resp)
             docs = data.get("docs", []) if isinstance(data, dict) else []
             for d in docs[:limit]:
                 doc_id = str(d.get("tid") or d.get("docid") or "")
@@ -160,7 +171,7 @@ class IndianKanoonAdapter:
                     f"Indian Kanoon provider returned HTTP {resp.status_code} for doc {clean_id}"
                 )
 
-            data = resp.json()
+            data = self._response_json(resp)
             raw_doc = str(data.get("doc") or "")
             clean_text = self._strip_html_tags(raw_doc)
             return {

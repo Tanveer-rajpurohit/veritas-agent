@@ -1,3 +1,4 @@
+import re
 from typing import Any
 from urllib.parse import urljoin, urlparse
 
@@ -193,6 +194,7 @@ class ECourtsIndiaAdapter:
     def _get_client(self) -> httpx.Client:
         if self._client is not None:
             return self._client
+        self._validate_url_host(settings.ECOURTS_INDIA_BASE_URL)
         return httpx.Client(
             base_url=settings.ECOURTS_INDIA_BASE_URL,
             timeout=settings.LEGAL_SOURCE_TIMEOUT_SECONDS,
@@ -201,10 +203,21 @@ class ECourtsIndiaAdapter:
 
     def _validate_url_host(self, url: str) -> None:
         parsed = urlparse(url)
-        if parsed.netloc and parsed.netloc not in self.ALLOWLISTED_HOSTS:
-            raise ValueError(
-                f"Security violation: Host '{parsed.netloc}' is not in allowlisted legal providers"
-            )
+        if parsed.scheme != "https" or parsed.hostname not in self.ALLOWLISTED_HOSTS:
+            raise ValueError("Security violation: legal provider URL is not allowlisted")
+
+    @staticmethod
+    def _response_json(response: httpx.Response) -> dict[str, Any]:
+        content_length = response.headers.get("content-length")
+        if content_length and int(content_length) > settings.LEGAL_SOURCE_MAX_RESPONSE_BYTES:
+            raise ValueError("Legal provider response exceeded the configured size limit")
+        content = response.content
+        if isinstance(content, bytes) and len(content) > settings.LEGAL_SOURCE_MAX_RESPONSE_BYTES:
+            raise ValueError("Legal provider response exceeded the configured size limit")
+        data = response.json()
+        if not isinstance(data, dict):
+            raise ValueError("Legal provider returned an invalid response")
+        return data
 
     def search_statutes(self, query: str, limit: int = 5) -> SearchStatutesResponse:
         """Search statutory candidates via eCourtsIndia."""
@@ -219,7 +232,7 @@ class ECourtsIndiaAdapter:
                     "/search", params={"q": clean_q, "kind": "section", "limit": limit}
                 )
                 if resp.status_code == 200:
-                    data = resp.json()
+                    data = self._response_json(resp)
                     raw_items = data.get("results", []) if isinstance(data, dict) else []
                     for item in raw_items[:limit]:
                         ref_prov = ""
@@ -263,7 +276,7 @@ class ECourtsIndiaAdapter:
             if not settings.LEGAL_SOURCE_FIXTURES_ENABLED:
                 if isinstance(e, ValueError):
                     raise
-                raise ValueError(f"Legal source unavailable from provider: {e}") from e
+                raise ValueError("Legal source provider is temporarily unavailable") from e
 
         if not candidates:
             if not settings.LEGAL_SOURCE_FIXTURES_ENABLED:
@@ -303,32 +316,45 @@ class ECourtsIndiaAdapter:
     ) -> dict[str, Any]:
         """Fetch exact provision content and metadata."""
         clean_act = self._normalize_act_key(act_key)
-        clean_prov = provision.strip().lower().lstrip("section ").lstrip("sec. ")
         clean_unit = unit.strip().lower()
 
         if clean_unit not in ["section", "article", "rule"]:
             raise ValueError(f"Invalid statutory unit '{unit}'. Must be section, article, or rule.")
+
+        clean_prov = provision.strip()
+        for prefix in (f"{clean_unit} ", "section ", "sec. ", "article ", "rule "):
+            if clean_prov.casefold().startswith(prefix):
+                clean_prov = clean_prov[len(prefix) :].strip()
+                break
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9().-]{0,31}", clean_prov):
+            raise ValueError("Invalid statutory provision identifier")
 
         endpoint = f"/{clean_act}/{clean_unit}/{clean_prov}"
         try:
             with self._get_client() as client:
                 resp = client.get(endpoint)
                 if resp.status_code == 200:
-                    data = resp.json()
-                    text = str(data.get("text") or data.get("content") or "")
+                    data = self._response_json(resp)
+                    provision_data = data.get(clean_unit) or data.get("section") or {}
+                    act_data = data.get("act") or {}
+                    if not isinstance(provision_data, dict) or not isinstance(act_data, dict):
+                        raise ValueError("Legal provider returned an invalid provision response")
+                    text = str(provision_data.get("text") or "")
                     if text.strip():
                         return {
                             "act_key": clean_act,
-                            "act_title": str(data.get("act_title") or clean_act.upper()),
+                            "act_title": str(act_data.get("short_title") or clean_act.upper()),
                             "provision": clean_prov,
                             "unit": clean_unit,
                             "heading": str(
-                                data.get("heading") or f"{clean_unit.capitalize()} {clean_prov}"
+                                provision_data.get("heading")
+                                or f"{clean_unit.capitalize()} {clean_prov}"
                             ),
                             "text": text.strip(),
                             "provider": self.PROVIDER_NAME,
-                            "provider_url": urljoin(settings.ECOURTS_INDIA_BASE_URL, endpoint),
-                            "official_source_url": data.get("official_url"),
+                            "provider_url": data.get("url")
+                            or urljoin(settings.ECOURTS_INDIA_BASE_URL, endpoint),
+                            "official_source_url": None,
                             "is_fixture": False,
                             "limitations": [
                                 "The immediate provider is a private service.",
@@ -355,7 +381,7 @@ class ECourtsIndiaAdapter:
         except Exception as e:
             if not settings.LEGAL_SOURCE_FIXTURES_ENABLED:
                 raise ValueError(
-                    f"Statute {clean_act} {clean_unit} {clean_prov} unavailable from provider: {e}"
+                    f"Statute {clean_act} {clean_unit} {clean_prov} is temporarily unavailable"
                 ) from e
 
         if settings.LEGAL_SOURCE_FIXTURES_ENABLED:
@@ -381,23 +407,33 @@ class ECourtsIndiaAdapter:
         candidates: list[CaseCandidate] = []
         try:
             with self._get_client() as client:
-                params: dict[str, Any] = {"q": query, "limit": limit}
-                if act_key:
-                    params["act"] = act_key
-                if provision:
-                    params["section"] = provision
+                if act_key or provision:
+                    params: dict[str, Any] = {"limit": limit}
+                    if act_key:
+                        params["act"] = self._normalize_act_key(act_key)
+                    if provision:
+                        params["section"] = provision
+                    if court:
+                        params["court"] = court
+                    endpoint = "/judgments"
+                else:
+                    params = {"q": query, "kind": "judgment", "limit": limit}
+                    endpoint = "/search"
 
-                resp = client.get("/judgments", params=params)
+                resp = client.get(endpoint, params=params)
                 if resp.status_code == 200:
-                    data = resp.json()
-                    raw_cases = data.get("results", []) if isinstance(data, dict) else []
+                    data = self._response_json(resp)
+                    raw_cases = data.get("judgments") or data.get("results") or []
                     for c in raw_cases[:limit]:
+                        candidate_id = str(c.get("cnr") or c.get("ref") or "").strip()
+                        if not candidate_id:
+                            continue
                         candidates.append(
                             CaseCandidate(
-                                candidate_id=str(c.get("id") or c.get("candidate_id") or ""),
+                                candidate_id=candidate_id,
                                 provider=self.PROVIDER_NAME,
                                 title=str(c.get("title") or "Case"),
-                                court=c.get("court") or court,
+                                court=c.get("court_name") or c.get("court") or court,
                                 date=c.get("date"),
                                 citation=c.get("citation"),
                                 source_url=c.get("url"),
@@ -414,7 +450,7 @@ class ECourtsIndiaAdapter:
             if not settings.LEGAL_SOURCE_FIXTURES_ENABLED:
                 if isinstance(e, ValueError):
                     raise
-                raise ValueError(f"Legal source unavailable from provider: {e}") from e
+                raise ValueError("Legal source provider is temporarily unavailable") from e
 
         if not candidates:
             if not settings.LEGAL_SOURCE_FIXTURES_ENABLED:
@@ -447,8 +483,13 @@ class ECourtsIndiaAdapter:
         )
 
     def fetch_case(self, candidate_id: str) -> dict[str, Any]:
-        """Fetch exact judgment passage and metadata."""
+        """Reject candidate-only records because this provider has no full-text fetch endpoint."""
         clean_id = candidate_id.strip()
+        if not settings.LEGAL_SOURCE_FIXTURES_ENABLED:
+            raise ValueError(
+                "This provider exposes case candidates, not full judgment text; "
+                "configure Indian Kanoon before citing the case"
+            )
         try:
             with self._get_client() as client:
                 resp = client.get(f"/judgments/{clean_id}")

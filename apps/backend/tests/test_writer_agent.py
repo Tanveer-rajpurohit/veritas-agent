@@ -67,10 +67,9 @@ def test_writer_result_empty_defaults() -> None:
 
 
 def test_writer_system_prompt_contains_crucial_invariants() -> None:
-    assert "search_sources" in WRITER_SYSTEM_PROMPT
-    assert "create_evidence_span" in WRITER_SYSTEM_PROMPT
-    assert "evidence_span_ids" in WRITER_SYSTEM_PROMPT
+    assert "Matter facts" in WRITER_SYSTEM_PROMPT
+    assert "stable evidence" in WRITER_SYSTEM_PROMPT
+    assert "untrusted quoted data" in WRITER_SYSTEM_PROMPT
+    assert "Never narrate tool calls" in WRITER_SYSTEM_PROMPT
     assert "unresolved_questions" in WRITER_SYSTEM_PROMPT
-    assert "get_draft_template" in WRITER_SYSTEM_PROMPT
-    assert "lookup_statute" in WRITER_SYSTEM_PROMPT
-    assert "fetch_case" in WRITER_SYSTEM_PROMPT
+    assert "Do not rely on model memory" in WRITER_SYSTEM_PROMPT

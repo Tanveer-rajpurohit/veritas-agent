@@ -34,10 +34,6 @@ class WriterSourceToolHandlers:
         self.max_tool_calls = max_tool_calls
         self.tool_call_count = 0
 
-    def reset_tool_call_count(self) -> None:
-        """Reset the execution tool call count for a new run."""
-        self.tool_call_count = 0
-
     def _record_tool_call(self) -> None:
         self.tool_call_count += 1
         if self.tool_call_count > self.max_tool_calls:
@@ -60,7 +56,6 @@ class WriterSourceToolHandlers:
             limit=limit,
         )
         return {
-            "matter_id": str(self._matter_id),
             "passages": [passage.model_dump(mode="json") for passage in passages],
         }
 
@@ -83,7 +78,6 @@ class WriterSourceToolHandlers:
             span_ids=[UUID(span_id) for span_id in span_ids],
         )
         return {
-            "matter_id": str(self._matter_id),
             "evidence_spans": [span.model_dump(mode="json") for span in evidence],
         }
 
@@ -252,6 +246,7 @@ class WriterSourceToolHandlers:
             source_type="judgment",
             official_url=case_data.get("source_url"),
             heading_path=["Judgment"],
+            evidence_query=query,
         )
 
         resp = FetchCaseResponse(
@@ -324,6 +319,8 @@ def create_writer_source_tools(
         """
         if not span_ids:
             raise ValueError("At least one evidence span id is required")
+        if len(span_ids) > 20:
+            raise ValueError("At most 20 evidence span ids may be loaded at once")
         return handlers.get_evidence_spans(span_ids)
 
     @tool(name="get_document_version")
@@ -354,6 +351,10 @@ def create_writer_source_tools(
         """
         if not title.strip():
             raise ValueError("title cannot be empty")
+        if len(title) > 200:
+            raise ValueError("title must be at most 200 characters")
+        if operations is not None and len(operations) > 100:
+            raise ValueError("at most 100 document operations are allowed")
         return handlers.create_draft(title, kind, operations, change_summary)
 
     @tool(name="propose_document_ops")
@@ -375,6 +376,8 @@ def create_writer_source_tools(
             raise ValueError("draft_id and base_version_id are required")
         if not operations:
             raise ValueError("operations list cannot be empty")
+        if len(operations) > 100:
+            raise ValueError("at most 100 document operations are allowed")
         return handlers.propose_document_ops(
             draft_id=draft_id,
             base_version_id=base_version_id,
@@ -397,6 +400,8 @@ def create_writer_source_tools(
             jurisdiction: Filter by jurisdiction (e.g. 'india').
             limit: Maximum templates to return (default 5).
         """
+        if not 1 <= limit <= 20:
+            raise ValueError("limit must be between 1 and 20")
         return handlers.list_draft_templates(query, document_type, jurisdiction, limit)
 
     @tool(name="get_draft_template")
@@ -420,6 +425,10 @@ def create_writer_source_tools(
         """
         if not query.strip():
             raise ValueError("query cannot be empty")
+        if len(query) > 500:
+            raise ValueError("query must be at most 500 characters")
+        if not 1 <= limit <= 10:
+            raise ValueError("limit must be between 1 and 10")
         return handlers.search_statutes(query, limit)
 
     @tool(name="lookup_statute")
@@ -458,6 +467,10 @@ def create_writer_source_tools(
         """
         if not query.strip():
             raise ValueError("query cannot be empty")
+        if len(query) > 500:
+            raise ValueError("query must be at most 500 characters")
+        if not 1 <= limit <= 10:
+            raise ValueError("limit must be between 1 and 10")
         return handlers.search_cases(query, act_key, provision, court, limit)
 
     @tool(name="fetch_case")
@@ -470,6 +483,10 @@ def create_writer_source_tools(
         """
         if not candidate_id.strip():
             raise ValueError("candidate_id cannot be empty")
+        if len(candidate_id) > 200:
+            raise ValueError("candidate_id must be at most 200 characters")
+        if query is not None and len(query) > 500:
+            raise ValueError("query must be at most 500 characters")
         return handlers.fetch_case(candidate_id, query)
 
     return [

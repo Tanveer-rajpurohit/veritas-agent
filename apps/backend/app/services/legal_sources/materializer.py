@@ -17,6 +17,38 @@ class LegalSourceMaterializer:
     Enforces matter_id = NULL for approved global legal sources and prevents duplicate storage.
     """
 
+    MAX_CHUNK_CHARS = 4_000
+
+    @classmethod
+    def _chunk_ranges(cls, text: str) -> list[tuple[int, int]]:
+        ranges: list[tuple[int, int]] = []
+        start = 0
+        while start < len(text):
+            end = min(start + cls.MAX_CHUNK_CHARS, len(text))
+            if end < len(text):
+                boundary = text.rfind("\n\n", start, end)
+                if boundary <= start:
+                    boundary = text.rfind(" ", start, end)
+                if boundary > start:
+                    end = boundary
+            ranges.append((start, end))
+            start = end
+            while start < len(text) and text[start].isspace():
+                start += 1
+        return ranges
+
+    @staticmethod
+    def _select_chunk(chunks: list[SourceChunk], query: str | None) -> SourceChunk:
+        if not query:
+            return chunks[0]
+        terms = {term.casefold() for term in query.split() if len(term) > 2}
+        if not terms:
+            return chunks[0]
+        return max(
+            chunks,
+            key=lambda chunk: sum(chunk.text.casefold().count(term) for term in terms),
+        )
+
     def materialize_legal_text(
         self,
         db: Session,
@@ -26,6 +58,7 @@ class LegalSourceMaterializer:
         official_url: str | None = None,
         authority_level: str = "curated_primary",
         heading_path: list[str] | None = None,
+        evidence_query: str | None = None,
     ) -> tuple[EvidenceSpan, Source, SourceVersion]:
         """
         Atomically persists external legal material into the database provenance chain.
@@ -43,14 +76,16 @@ class LegalSourceMaterializer:
         if existing_version is not None:
             source = source_repository.get_source_by_id(db=db, source_id=existing_version.source_id)
             if source is not None and source.matter_id is None:
-                first_chunk = (
+                existing_chunks = (
                     db.query(SourceChunk)
                     .filter(SourceChunk.source_version_id == existing_version.id)
-                    .first()
+                    .order_by(SourceChunk.chunk_index.asc())
+                    .all()
                 )
-                if first_chunk is not None:
+                if existing_chunks:
+                    selected_chunk = self._select_chunk(existing_chunks, evidence_query)
                     existing_span = source_repository.get_evidence_span_for_chunk(
-                        db, first_chunk.id
+                        db, selected_chunk.id
                     )
                     if existing_span is not None:
                         return existing_span, source, existing_version
@@ -65,11 +100,13 @@ class LegalSourceMaterializer:
                         span=EvidenceSpan(
                             source_version_id=existing_version.id,
                             page_id=page.id if page else None,
-                            chunk_id=first_chunk.id,
+                            chunk_id=selected_chunk.id,
                             start_offset=0,
-                            end_offset=len(clean_text),
-                            quoted_text=clean_text,
-                            quoted_text_sha256=content_hash,
+                            end_offset=len(selected_chunk.text),
+                            quoted_text=selected_chunk.text,
+                            quoted_text_sha256=hashlib.sha256(
+                                selected_chunk.text.encode("utf-8")
+                            ).hexdigest(),
                             created_by="legal_source_materializer",
                         ),
                     )
@@ -128,29 +165,36 @@ class LegalSourceMaterializer:
             db.add(page)
             db.flush()
 
-            chunk = SourceChunk(
-                source_version_id=version.id,
-                page_id=page.id,
-                chunk_index=0,
-                text=clean_text,
-                start_offset=0,
-                end_offset=len(clean_text),
-                token_count=max(1, len(clean_text.split())),
-                heading_path=heading_path or [],
-                embedding_model="none",
-                embedding=None,
-            )
-            db.add(chunk)
+            chunks: list[SourceChunk] = []
+            for index, (start, end) in enumerate(self._chunk_ranges(clean_text)):
+                chunk_text = clean_text[start:end]
+                chunk = SourceChunk(
+                    source_version_id=version.id,
+                    page_id=page.id,
+                    chunk_index=index,
+                    text=chunk_text,
+                    start_offset=start,
+                    end_offset=end,
+                    token_count=max(1, len(chunk_text.split())),
+                    heading_path=heading_path or [],
+                    embedding_model="none",
+                    embedding=None,
+                )
+                db.add(chunk)
+                chunks.append(chunk)
             db.flush()
+
+            selected_chunk = self._select_chunk(chunks, evidence_query)
+            selected_hash = hashlib.sha256(selected_chunk.text.encode("utf-8")).hexdigest()
 
             span = EvidenceSpan(
                 source_version_id=version.id,
                 page_id=page.id,
-                chunk_id=chunk.id,
+                chunk_id=selected_chunk.id,
                 start_offset=0,
-                end_offset=len(clean_text),
-                quoted_text=clean_text,
-                quoted_text_sha256=content_hash,
+                end_offset=len(selected_chunk.text),
+                quoted_text=selected_chunk.text,
+                quoted_text_sha256=selected_hash,
                 created_by="legal_source_materializer",
             )
             db.add(span)

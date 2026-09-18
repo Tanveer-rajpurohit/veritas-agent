@@ -7,7 +7,18 @@ from app.services.legal_sources.ecourts_india import ECourtsIndiaAdapter
 
 
 def test_statute_adapter_provision_numbers_are_strings() -> None:
-    adapter = ECourtsIndiaAdapter()
+    mock_client = MagicMock(spec=httpx.Client)
+    mock_resp = MagicMock(spec=httpx.Response)
+    mock_resp.status_code = 200
+    mock_resp.headers = {}
+    mock_resp.content = b"{}"
+    mock_resp.json.return_value = {
+        "act": {"id": "ibc", "short_title": "Insolvency and Bankruptcy Code, 2016"},
+        "section": {"number": "7", "heading": "Initiation", "text": "Provision text"},
+        "url": "https://indiacode.ecourtsindia.com/ibc/section/7/",
+    }
+    mock_client.__enter__.return_value.get.return_value = mock_resp
+    adapter = ECourtsIndiaAdapter(client=mock_client)
     provision = adapter.get_provision(act_key="ibc", provision="7", unit="section")
     assert isinstance(provision["provision"], str)
     assert provision["provision"] == "7"
@@ -22,7 +33,22 @@ def test_statute_adapter_unit_validation() -> None:
 
 
 def test_statute_search_returns_candidates_only() -> None:
-    adapter = ECourtsIndiaAdapter()
+    mock_client = MagicMock(spec=httpx.Client)
+    mock_resp = MagicMock(spec=httpx.Response)
+    mock_resp.status_code = 200
+    mock_resp.headers = {}
+    mock_resp.content = b"{}"
+    mock_resp.json.return_value = {
+        "results": [
+            {
+                "ref": "ibc/section/7",
+                "title": "Insolvency and Bankruptcy Code, 2016",
+                "heading": "Initiation by financial creditor",
+            }
+        ]
+    }
+    mock_client.__enter__.return_value.get.return_value = mock_resp
+    adapter = ECourtsIndiaAdapter(client=mock_client)
     results = adapter.search_statutes(query="financial creditor initiation")
     assert results.provider == ECourtsIndiaAdapter.PROVIDER_NAME
     assert len(results.candidates) >= 1

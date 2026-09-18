@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     WRITER_MAX_EVIDENCE_TOKENS: int = 6000
 
     LEGAL_STATUTE_PROVIDER: str = "ecourts_india"
-    LEGAL_CASE_PROVIDER: str = "ecourts_india"
+    LEGAL_CASE_PROVIDER: str = "indian_kanoon"
     ECOURTS_INDIA_BASE_URL: str = "https://indiacode.ecourtsindia.com/api/v1"
     INDIAN_KANOON_API_TOKEN: str = ""
     INDIAN_KANOON_BASE_URL: str = "https://api.indiankanoon.org"

@@ -85,6 +85,24 @@ def test_materialize_empty_text_raises_validation_error() -> None:
         )
 
 
+def test_long_judgment_creates_bounded_evidence_selected_by_query() -> None:
+    materializer = LegalSourceMaterializer()
+    mock_db = MagicMock()
+    mock_db.query.return_value.filter.return_value.first.return_value = None
+    text = ("background facts " * 400) + "\n\nThe decisive default test applies here."
+
+    span, _, _ = materializer.materialize_legal_text(
+        db=mock_db,
+        title="A v. B",
+        text=text,
+        source_type="judgment",
+        evidence_query="decisive default test",
+    )
+
+    assert len(span.quoted_text) <= materializer.MAX_CHUNK_CHARS
+    assert "decisive default test" in span.quoted_text
+
+
 def test_materialize_deduplication_reuses_existing_span(monkeypatch) -> None:
     materializer = LegalSourceMaterializer()
     mock_db = MagicMock()

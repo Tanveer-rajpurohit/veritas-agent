@@ -62,7 +62,9 @@ TEMPLATES_RAW: list[dict[str, Any]] = [
                 "heading": "Brief Synopsis of Financial Debt and Default",
                 "purpose": "Summarize the facility disbursed, repayment schedule, and occurrence of default exceeding threshold.",
                 "required": True,
-                "drafting_rules": ["Anchor default amount directly in bank records or NeSL certificate."],
+                "drafting_rules": [
+                    "Anchor default amount directly in bank records or NeSL certificate."
+                ],
             },
             {
                 "section_id": "facts",
@@ -76,7 +78,9 @@ TEMPLATES_RAW: list[dict[str, Any]] = [
                 "heading": "Statutory Ingredients under Section 7 of IBC",
                 "purpose": "Establish existence of financial debt and occurrence of default under Section 7(5)(a).",
                 "required": True,
-                "drafting_rules": ["Quote Section 7 provisions using verified statutory citations."],
+                "drafting_rules": [
+                    "Quote Section 7 provisions using verified statutory citations."
+                ],
             },
             {
                 "section_id": "grounds",
@@ -148,7 +152,9 @@ TEMPLATES_RAW: list[dict[str, Any]] = [
                 "heading": "Contractual Relationship and Invoicing",
                 "purpose": "Outline the commercial contract, purchase orders, delivery receipts, and invoices raised.",
                 "required": True,
-                "drafting_rules": ["Reference verified invoice numbers and delivery acknowledgments."],
+                "drafting_rules": [
+                    "Reference verified invoice numbers and delivery acknowledgments."
+                ],
             },
             {
                 "section_id": "default_particulars",
@@ -384,7 +390,9 @@ TEMPLATES_RAW: list[dict[str, Any]] = [
                 "heading": "Valuation and Court Fee",
                 "purpose": "State valuation for pecuniary jurisdiction and court fee payment per Court Fees Act.",
                 "required": True,
-                "drafting_rules": ["State court fees calculation under applicable State Court Fees Act."],
+                "drafting_rules": [
+                    "State court fees calculation under applicable State Court Fees Act."
+                ],
             },
             {
                 "section_id": "prayer",
@@ -453,7 +461,9 @@ TEMPLATES_RAW: list[dict[str, Any]] = [
                 "heading": "Parawise Reply on Merits",
                 "purpose": "Respond specifically to each paragraph of the plaint without general denials (Order VIII Rule 3 & 5).",
                 "required": True,
-                "drafting_rules": ["Deny specific allegations specifically; general denial is deemed admission."],
+                "drafting_rules": [
+                    "Deny specific allegations specifically; general denial is deemed admission."
+                ],
             },
             {
                 "section_id": "special_defence",
@@ -517,7 +527,9 @@ TEMPLATES_RAW: list[dict[str, Any]] = [
                 "heading": "Point-Wise Submissions with Evidence and Precedent",
                 "purpose": "Detailed legal and factual arguments grouped under each framed issue.",
                 "required": True,
-                "drafting_rules": ["Anchor arguments to exact witness depositions and precedent extracts."],
+                "drafting_rules": [
+                    "Anchor arguments to exact witness depositions and precedent extracts."
+                ],
             },
             {
                 "section_id": "precedent_distinction",
@@ -679,7 +691,9 @@ TEMPLATES_RAW: list[dict[str, Any]] = [
                 "heading": "Forum Header and Application Particulars",
                 "purpose": "Identify main suit/petition number and statutory provision invoked.",
                 "required": True,
-                "drafting_rules": ["Specify provision (Order XXXIX Rules 1 & 2 / Section 151 CPC)."],
+                "drafting_rules": [
+                    "Specify provision (Order XXXIX Rules 1 & 2 / Section 151 CPC)."
+                ],
             },
             {
                 "section_id": "urgency_and_threat",
@@ -760,7 +774,9 @@ TEMPLATES_RAW: list[dict[str, Any]] = [
                 "heading": "Limitation and Certified Copy Particulars",
                 "purpose": "Account for days taken in obtaining certified copy under Section 12 Limitation Act.",
                 "required": True,
-                "drafting_rules": ["Provide calculation of days excluding certified copy preparation."],
+                "drafting_rules": [
+                    "Provide calculation of days excluding certified copy preparation."
+                ],
             },
             {
                 "section_id": "grounds_of_appeal",
@@ -1052,7 +1068,9 @@ TEMPLATES_RAW: list[dict[str, Any]] = [
                 "heading": "Intellectual Property Ownership and Assignment",
                 "purpose": "Work-for-hire assignment of deliverables to client upon payment.",
                 "required": True,
-                "drafting_rules": ["Include explicit assignment complying with Section 19 Copyright Act."],
+                "drafting_rules": [
+                    "Include explicit assignment complying with Section 19 Copyright Act."
+                ],
             },
             {
                 "section_id": "limitation_of_liability",

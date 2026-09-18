@@ -9,7 +9,23 @@ from app.services.legal_sources.indian_kanoon import IndianKanoonAdapter
 
 
 def test_ecourts_case_search_returns_candidates() -> None:
-    adapter = ECourtsIndiaAdapter()
+    mock_client = MagicMock(spec=httpx.Client)
+    mock_resp = MagicMock(spec=httpx.Response)
+    mock_resp.status_code = 200
+    mock_resp.headers = {}
+    mock_resp.content = b"{}"
+    mock_resp.json.return_value = {
+        "results": [
+            {
+                "ref": "SCIN010125642009",
+                "title": "Innoventive Industries Ltd. v. ICICI Bank",
+                "court": "SC",
+                "url": "https://example.invalid/order.pdf",
+            }
+        ]
+    }
+    mock_client.__enter__.return_value.get.return_value = mock_resp
+    adapter = ECourtsIndiaAdapter(client=mock_client)
     results = adapter.search_cases(query="default under section 7 IBC")
     assert results.provider == ECourtsIndiaAdapter.PROVIDER_NAME
     assert len(results.candidates) >= 1
@@ -19,12 +35,11 @@ def test_ecourts_case_search_returns_candidates() -> None:
     )
 
 
-def test_ecourts_fetch_case_returns_passage() -> None:
+def test_ecourts_fetch_case_rejects_candidate_only_record(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "LEGAL_SOURCE_FIXTURES_ENABLED", False)
     adapter = ECourtsIndiaAdapter()
-    case = adapter.fetch_case(candidate_id="ecourts_sc_2017_innoventive")
-    assert "Innoventive" in case["title"]
-    assert "Section 7(5)" in case["text"]
-    assert case["court"] == "Supreme Court of India"
+    with pytest.raises(ValueError, match="not full judgment text"):
+        adapter.fetch_case(candidate_id="SCIN010125642009")
 
 
 def test_indian_kanoon_missing_token_raises_configuration_error(monkeypatch) -> None:
@@ -40,6 +55,8 @@ def test_indian_kanoon_search_with_mocked_client(monkeypatch) -> None:
     mock_client = MagicMock(spec=httpx.Client)
     mock_resp = MagicMock()
     mock_resp.status_code = 200
+    mock_resp.headers = {}
+    mock_resp.content = b"{}"
     mock_resp.json.return_value = {
         "docs": [
             {

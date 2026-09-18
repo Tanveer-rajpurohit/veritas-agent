@@ -38,7 +38,8 @@ def test_search_handler_always_uses_scoped_matter(monkeypatch) -> None:
 
     result = WriterSourceToolHandlers(MagicMock(), matter_id).search_sources("payment default")
 
-    assert result["matter_id"] == str(matter_id)
+    assert "matter_id" not in result
+    assert result["passages"] == [{"passage_id": "passage-1"}]
     search.assert_called_once()
     assert search.call_args.kwargs["matter_id"] == matter_id
 
