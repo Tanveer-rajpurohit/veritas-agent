@@ -23,6 +23,18 @@ class Settings(BaseSettings):
     AWS_SECRET_ACCESS_KEY: str = ""
     AWS_BEDROCK_MODEL_ID: str = "amazon.nova-lite-v1:0"
 
+    DATABASE_URL: str = "postgresql+psycopg://veritas:veritas_password@localhost:5432/veritas"
+    SOURCE_STORAGE_BACKEND: str = "local"
+    SOURCE_STORAGE_PATH: str = "./data/sources"
+    OCR_PROVIDER: str = "local"
+
+    EMBEDDING_PROVIDER: str = "local"
+    EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
+    EMBEDDING_DIMENSION: int = 384
+
+    WRITER_RETRIEVAL_LIMIT: int = 8
+    WRITER_MAX_EVIDENCE_TOKENS: int = 6000
+
     @field_validator("ALLOWED_ORIGINS", mode="before")
     @classmethod
     def parse_allowed_origins(cls, value: str | list[str]) -> list[str]:

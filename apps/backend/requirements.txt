@@ -4,3 +4,9 @@ pydantic-settings==2.15.0
 python-dotenv==1.2.3
 strands-agents[openai]==1.56.0
 uvicorn[standard]==0.52.4
+
+sqlalchemy>=2.0.38
+psycopg[binary]>=3.2.4
+pgvector>=0.3.6
+alembic>=1.14.1
+pymupdf>=1.25.3
