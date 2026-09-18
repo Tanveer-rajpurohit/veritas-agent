@@ -1,6 +1,7 @@
 from collections.abc import Generator
 from uuid import uuid4
 
+import pymupdf
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -11,6 +12,7 @@ from app.core.config import settings
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
+from app.services.exports.draft import export_storage
 from app.services.sources.embeddings import embedding_service
 from app.services.sources.storage import storage_service
 
@@ -113,7 +115,10 @@ def test_upload_and_page_are_matter_scoped(
     assert client.get(f"/api/v1/matters/{matter_id}/sources").status_code == 404
 
 
-def test_document_save_is_versioned_idempotent_and_scoped(client: TestClient) -> None:
+def test_document_save_is_versioned_idempotent_and_scoped(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    monkeypatch.setattr(export_storage, "base_path", tmp_path)
     matter_id = client.post("/api/v1/matters/", json={"title": "Drafting"}).json()["id"]
     created = client.post(f"/api/v1/matters/{matter_id}/documents", json={"title": "Working brief"})
     assert created.status_code == 201, created.text
@@ -131,6 +136,25 @@ def test_document_save_is_versioned_idempotent_and_scoped(client: TestClient) ->
     saved = client.post(f"/api/v1/documents/{document_id}/versions", json=payload, headers=headers)
     assert saved.status_code == 201, saved.text
     assert saved.json()["version_no"] == 2
+    exported = client.post(
+        f"/api/v1/document-versions/{saved.json()['id']}/exports",
+        headers={"Idempotency-Key": "draft-json-1"},
+        json={"format": "json", "mode": "draft"},
+    )
+    assert exported.status_code == 201, exported.text
+    package = client.get(exported.json()["download_url"])
+    assert package.json()["document"]["version_id"] == saved.json()["id"]
+    assert package.json()["review"]["state"] == "review_needed"
+    pdf = client.post(
+        f"/api/v1/document-versions/{saved.json()['id']}/exports",
+        headers={"Idempotency-Key": "draft-pdf-1"},
+        json={"format": "pdf", "mode": "draft"},
+    )
+    assert pdf.status_code == 201, pdf.text
+    pdf_bytes = client.get(pdf.json()["download_url"]).content
+    assert pdf_bytes.startswith(b"%PDF-")
+    with pymupdf.open(stream=pdf_bytes, filetype="pdf") as rendered:
+        assert "WORKING DRAFT - REQUIRES PROFESSIONAL REVIEW" in rendered[0].get_text()
     replay = client.post(f"/api/v1/documents/{document_id}/versions", json=payload, headers=headers)
     assert replay.json()["id"] == saved.json()["id"]
     assert (
@@ -149,6 +173,7 @@ def test_document_save_is_versioned_idempotent_and_scoped(client: TestClient) ->
     client.headers["Authorization"] = f"Bearer {other.json()['access_token']}"
     assert client.get(f"/api/v1/documents/{document_id}").status_code == 404
     assert client.get(f"/api/v1/document-versions/{saved.json()['id']}").status_code == 404
+    assert client.get(exported.json()["download_url"]).status_code == 404
     assert (
         client.post(
             f"/api/v1/documents/{document_id}/versions", json=payload, headers=headers

@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+psycopg://veritas:veritas_password@localhost:5432/veritas"
     SOURCE_STORAGE_BACKEND: str = "local"
     SOURCE_STORAGE_PATH: str = "./data/sources"
+    EXPORT_STORAGE_PATH: str = "./data/exports"
     OCR_PROVIDER: str = "local"
 
     EMBEDDING_PROVIDER: str = "local"

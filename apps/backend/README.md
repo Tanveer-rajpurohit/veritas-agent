@@ -48,6 +48,8 @@ while its test suite is small.
 - `POST /api/v1/document-versions/{id}/checks` records conservative fact and citation findings.
 - `GET /api/v1/document-versions/{id}/findings` returns findings with exact source spans.
 - `POST /api/v1/findings/{id}/resolutions` records a reasoned human decision.
+- `POST /api/v1/document-versions/{id}/exports` creates a draft PDF or JSON export.
+- `GET /api/v1/exports/{id}/download` returns the authorized export. Reviewed exports are blocked.
 - `POST /api/v1/agent/chat/stream` streams Main Agent events when enabled.
 - `GET /docs` opens the Swagger UI.
 - `GET /redoc` opens the ReDoc reference.
