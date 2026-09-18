@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AppSidebar } from "../../components/workspace/app-sidebar";
 import { WorkspaceDashboard } from "../../components/workspace/workspace-dashboard";
 import { MatterDetailView } from "../../components/workspace/matter-detail-view";
+import { ProfileView } from "../../components/workspace/profile-view";
+import { SettingsView } from "../../components/workspace/settings-view";
 import { CreateMatterModal } from "../../components/workspace/create-matter-modal";
 import {
   UploadDocumentModal,
@@ -104,7 +106,7 @@ function WorkspaceContent() {
       }
 
       setActiveNav(nav);
-      if (nav === "home") {
+      if (nav === "home" || nav === "profile" || nav === "settings") {
         setSelectedMatter(null);
       }
     },
@@ -159,6 +161,10 @@ function WorkspaceContent() {
             onBack={() => setSelectedMatter(null)}
             onSendToAgent={handleSendToAgent}
           />
+        ) : activeNav === "profile" ? (
+          <ProfileView />
+        ) : activeNav === "settings" ? (
+          <SettingsView />
         ) : (
           <WorkspaceDashboard
             matters={matters}
