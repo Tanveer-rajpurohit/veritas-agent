@@ -15,7 +15,6 @@ import { PaginationPlus } from "tiptap-pagination-plus";
 import { DraftingHeader } from "../../../components/drafting/drafting-header";
 import { DraftingToolbar } from "../../../components/drafting/drafting-toolbar";
 import { DraftingCanvas } from "../../../components/drafting/drafting-canvas";
-import { DraftingSidebar } from "../../../components/drafting/drafting-sidebar";
 import { DraftingBottomBar } from "../../../components/drafting/drafting-bottom-bar";
 import { FontSizeExtension } from "../../../lib/draft/font-size-extension";
 import { CitationExtension } from "../../../lib/draft/citation-extension";
@@ -65,7 +64,6 @@ export default function DraftingIdPage({
   const [pageCount, setPageCount] = useState<number>(1);
   const [wordCount, setWordCount] = useState<number>(0);
   const [charCount, setCharCount] = useState<number>(0);
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
 
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -334,15 +332,8 @@ export default function DraftingIdPage({
         onZoomChange={setZoom}
       />
 
-      {/* 3. True A4 Continuous Paginated Canvas with Left Explorer Sidebar */}
-      <div className="flex flex-1 min-h-0 overflow-hidden relative">
-        <DraftingSidebar
-          editor={editor}
-          isOpen={sidebarOpen}
-          onToggle={() => setSidebarOpen((prev) => !prev)}
-        />
-        <DraftingCanvas editor={editor} zoom={zoom} />
-      </div>
+      {/* 3. True A4 Continuous Paginated Canvas */}
+      <DraftingCanvas editor={editor} zoom={zoom} />
 
       {/* 4. Bottom Metrics Bar */}
       <DraftingBottomBar
@@ -352,8 +343,6 @@ export default function DraftingIdPage({
         zoom={zoom}
         onZoomChange={setZoom}
         onFitWidth={handleFitWidth}
-        sidebarOpen={sidebarOpen}
-        onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
       />
     </div>
   );

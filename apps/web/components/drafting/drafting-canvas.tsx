@@ -1,6 +1,7 @@
 "use client";
 
 import { EditorContent, type Editor } from "@tiptap/react";
+import { CitationHoverCard } from "./citation-hover-card";
 
 interface DraftingCanvasProps {
   editor: Editor | null;
@@ -90,6 +91,7 @@ export function DraftingCanvas({ editor, zoom }: DraftingCanvasProps) {
         overscrollBehavior: "contain",
       }}
     >
+      <CitationHoverCard editor={editor} />
       <div
         className="mx-auto flex justify-center origin-top transition-transform duration-75"
         style={{

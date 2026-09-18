@@ -108,25 +108,46 @@
   margin-bottom: 0 !important;
 }
 
-/* Inline Legal Citations - LawVriksh professional style */
+/* Inline Legal Citations - Indian Legal Digital Citation Standard */
 .ProseMirror .inline-citation,
 .inline-citation {
-  color: #2c5478 !important;
-  text-decoration: underline !important;
-  text-underline-offset: 3px !important;
-  text-decoration-color: #487aa8 !important;
-  font-weight: 500 !important;
+  display: inline;
   cursor: pointer !important;
-  transition: all 0.15s ease !important;
+  transition: background-color 0.15s ease !important;
   border-radius: 2px !important;
-  padding: 0 1px !important;
-  display: inline !important;
+  padding: 0 2px !important;
 }
 
 .ProseMirror .inline-citation:hover,
 .inline-citation:hover {
   background-color: #edf4fa !important;
+}
+
+.ProseMirror .inline-citation u,
+.inline-citation u,
+.ProseMirror u {
+  color: #2c5478 !important;
+  text-decoration: underline !important;
+  text-underline-offset: 3px !important;
+  text-decoration-color: #487aa8 !important;
+  font-weight: 500 !important;
+  transition: color 0.15s ease !important;
+}
+
+.ProseMirror .inline-citation:hover u,
+.inline-citation:hover u,
+.ProseMirror u:hover {
   color: #1a3c5e !important;
+}
+
+.ProseMirror a.legal-citation-link {
+  color: #2c5478 !important;
+  text-decoration: none !important;
+  cursor: pointer !important;
+}
+
+.ProseMirror a.legal-citation-link u {
+  color: #2c5478 !important;
 }
 
 /* Code */

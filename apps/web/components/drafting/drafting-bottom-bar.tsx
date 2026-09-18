@@ -1,5 +1,3 @@
-import { PanelLeft } from "lucide-react";
-
 interface DraftingBottomBarProps {
   pageCount: number;
   wordCount: number;
@@ -7,8 +5,6 @@ interface DraftingBottomBarProps {
   zoom: number;
   onZoomChange: (zoom: number) => void;
   onFitWidth: () => void;
-  sidebarOpen?: boolean;
-  onToggleSidebar?: () => void;
 }
 
 export function DraftingBottomBar({
@@ -18,27 +14,11 @@ export function DraftingBottomBar({
   zoom,
   onZoomChange,
   onFitWidth,
-  sidebarOpen = false,
-  onToggleSidebar,
 }: DraftingBottomBarProps) {
   return (
     <footer className="flex h-9 shrink-0 items-center justify-between border-t border-[#cbe0f2] bg-white px-4 text-xs text-stone-600 font-mono select-none z-20">
       {/* Left metrics */}
       <div className="flex items-center gap-3">
-        {onToggleSidebar && (
-          <button
-            type="button"
-            onClick={onToggleSidebar}
-            title={sidebarOpen ? "Hide Explorer" : "Show Explorer"}
-            className={`flex h-6 w-6 items-center justify-center rounded border transition-colors cursor-pointer ${
-              sidebarOpen
-                ? "bg-[#edf4fa] text-[#2c5478] border-[#cbe0f2]"
-                : "border-stone-200 text-stone-600 hover:bg-stone-100"
-            }`}
-          >
-            <PanelLeft className="h-3.5 w-3.5" />
-          </button>
-        )}
         <span>
           Total Pages:{" "}
           <strong className="text-stone-900 font-semibold">{pageCount}</strong>
