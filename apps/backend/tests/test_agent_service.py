@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 
-from app.services.agent_service import stream_main_agent
+from app.services.agents import stream_main_agent
 
 
 class FakeAgent:
@@ -36,9 +36,9 @@ async def collect_events(message: str) -> list[tuple[str, dict[str, Any]]]:
 def test_stream_emits_lifecycle_text_tool_and_completion(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr("app.services.agent_service.create_main_agent", lambda: FakeAgent())
-    monkeypatch.setattr("app.services.agent_service.settings.BEDROCK_AGENT_ENABLED", False)
-    monkeypatch.setattr("app.services.agent_service.settings.GROQ_MODEL", "test-model")
+    monkeypatch.setattr("app.services.agents.agent_service.create_main_agent", lambda: FakeAgent())
+    monkeypatch.setattr("app.services.agents.agent_service.settings.BEDROCK_AGENT_ENABLED", False)
+    monkeypatch.setattr("app.services.agents.agent_service.settings.GROQ_MODEL", "test-model")
 
     events = asyncio.run(collect_events("Review this claim"))
 
@@ -57,7 +57,7 @@ def test_stream_emits_lifecycle_text_tool_and_completion(
 def test_stream_returns_a_safe_error_without_provider_details(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr("app.services.agent_service.create_main_agent", lambda: FailingAgent())
+    monkeypatch.setattr("app.services.agents.agent_service.create_main_agent", lambda: FailingAgent())
 
     events = asyncio.run(collect_events("Review this claim"))
 
