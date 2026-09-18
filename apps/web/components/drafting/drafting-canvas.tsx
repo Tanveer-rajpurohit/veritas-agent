@@ -28,7 +28,7 @@ function DraftingDocumentSkeleton() {
 
         {/* Heading Section 1 */}
         <div className="pt-2">
-          <div className="h-4 w-72 bg-[#cbe0f2] rounded" />
+          <div className="h-4 w-72 bg-stone-300 rounded" />
         </div>
 
         {/* Paragraph 1 */}
@@ -41,7 +41,7 @@ function DraftingDocumentSkeleton() {
 
         {/* Heading Section 2 */}
         <div className="pt-3">
-          <div className="h-4 w-64 bg-[#cbe0f2] rounded" />
+          <div className="h-4 w-64 bg-stone-300 rounded" />
         </div>
 
         {/* Paragraph 2 */}
@@ -52,15 +52,15 @@ function DraftingDocumentSkeleton() {
         </div>
 
         {/* Citation Authority Box */}
-        <div className="p-4 bg-[#edf4fa] border-l-4 border-[#487aa8] rounded-r space-y-2">
-          <div className="h-3.5 w-64 bg-[#cbe0f2] rounded" />
+        <div className="p-4 bg-stone-50 border-l-4 border-stone-300 rounded-r space-y-2">
+          <div className="h-3.5 w-64 bg-stone-300 rounded" />
           <div className="h-3 w-80 bg-stone-200 rounded" />
           <div className="h-2.5 w-48 bg-stone-200 rounded" />
         </div>
 
         {/* Heading Section 3 */}
         <div className="pt-3">
-          <div className="h-4 w-52 bg-[#cbe0f2] rounded" />
+          <div className="h-4 w-52 bg-stone-300 rounded" />
         </div>
 
         {/* Paragraph 3 */}

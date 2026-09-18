@@ -175,17 +175,27 @@ export function DraftingToolbar({
     if (!editor) return;
     const { from, to } = editor.state.selection;
     const hasSelection = from !== to;
-    const selectedText = hasSelection
-      ? editor.state.doc.textBetween(from, to, " ").trim()
-      : `${citationTitle} (${citationRef})`;
 
-    editor
-      .chain()
-      .focus()
-      .insertContent(
-        `<span class="inline-citation" data-citation-title="${citationTitle}" data-citation="${citationRef}" data-court="${citationCourt}" data-status="Supported">${selectedText}</span> `,
-      )
-      .run();
+    if (hasSelection) {
+      editor
+        .chain()
+        .focus()
+        .setMark("citation", {
+          citationTitle,
+          citation: citationRef,
+          court: citationCourt,
+          status: "Supported",
+        })
+        .run();
+    } else {
+      editor
+        .chain()
+        .focus()
+        .insertContent(
+          `<span class="inline-citation" data-citation-title="${citationTitle}" data-citation="${citationRef}" data-court="${citationCourt}" data-status="Supported">[${citationTitle}, ${citationRef}]</span>&nbsp;`,
+        )
+        .run();
+    }
 
     setCitationModalOpen(false);
   }, [editor, citationTitle, citationRef, citationCourt]);
@@ -661,6 +671,48 @@ export function DraftingToolbar({
                 </span>
               </div>
               <div className="space-y-2">
+                {/* Precedent Quick Presets */}
+                <div>
+                  <label className="block text-[10px] font-mono text-stone-400 uppercase mb-1">
+                    Matter Precedents
+                  </label>
+                  <div className="flex flex-wrap gap-1">
+                    {[
+                      {
+                        title: "Innoventive Industries Ltd. v. ICICI Bank",
+                        ref: "(2018) 1 SCC 407",
+                        court: "Supreme Court of India",
+                        short: "Innoventive (2018)",
+                      },
+                      {
+                        title: "Asset Reconstruction Co. v. Bishal Jaiswal",
+                        ref: "(2021) 6 SCC 366",
+                        court: "Supreme Court of India",
+                        short: "Bishal Jaiswal (2021)",
+                      },
+                      {
+                        title: "Swiss Ribbons Pvt. Ltd. v. Union of India",
+                        ref: "(2019) 4 SCC 17",
+                        court: "Supreme Court of India",
+                        short: "Swiss Ribbons (2019)",
+                      },
+                    ].map((p) => (
+                      <button
+                        key={p.short}
+                        type="button"
+                        onClick={() => {
+                          setCitationTitle(p.title);
+                          setCitationRef(p.ref);
+                          setCitationCourt(p.court);
+                        }}
+                        className="rounded border border-stone-200 bg-stone-50 px-1.5 py-0.5 text-[10px] text-stone-600 hover:bg-[#edf4fa] hover:text-[#2c5478] hover:border-[#cbe0f2] transition-colors cursor-pointer"
+                      >
+                        {p.short}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-[10px] font-mono text-stone-500 uppercase">
                     Precedent / Title
@@ -702,7 +754,7 @@ export function DraftingToolbar({
                   onClick={insertInlineCitation}
                   className="w-full mt-2 rounded bg-[#487aa8] py-1.5 text-center font-medium text-white hover:bg-[#38648c] cursor-pointer transition-colors shadow-2xs"
                 >
-                  Insert Citation Chip
+                  Apply Citation Mark
                 </button>
               </div>
             </div>

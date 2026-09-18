@@ -15,6 +15,7 @@ import { PaginationPlus } from "tiptap-pagination-plus";
 import { DraftingHeader } from "../../../components/drafting/drafting-header";
 import { DraftingToolbar } from "../../../components/drafting/drafting-toolbar";
 import { DraftingCanvas } from "../../../components/drafting/drafting-canvas";
+import { DraftingSidebar } from "../../../components/drafting/drafting-sidebar";
 import { DraftingBottomBar } from "../../../components/drafting/drafting-bottom-bar";
 import { FontSizeExtension } from "../../../lib/draft/font-size-extension";
 import { CitationExtension } from "../../../lib/draft/citation-extension";
@@ -64,6 +65,7 @@ export default function DraftingIdPage({
   const [pageCount, setPageCount] = useState<number>(1);
   const [wordCount, setWordCount] = useState<number>(0);
   const [charCount, setCharCount] = useState<number>(0);
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
 
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -160,9 +162,39 @@ export default function DraftingIdPage({
     if (!editor || editor.isDestroyed) return;
     const current = editor.getHTML();
     if (!current || current === "<p></p>" || current.trim().length < 20) {
-      editor.commands.setContent(initialHtml, { emitUpdate: false });
+      editor.commands.setContent(initialHtml, { emitUpdate: true });
     }
   }, [editor, initialHtml]);
+
+  // Immediate pagination calculation - forces PaginationPlus to measure and split pages on load without delay
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+
+    const forcePagination = () => {
+      if (!editor || editor.isDestroyed || !editor.view) return;
+      try {
+        editor.view.dispatch(editor.state.tr.setMeta("PAGE_COUNT_META_KEY", {}));
+      } catch {
+        // Safe fallback
+      }
+    };
+
+    const rafId = requestAnimationFrame(forcePagination);
+    const t1 = setTimeout(forcePagination, 40);
+    const t2 = setTimeout(forcePagination, 160);
+    const t3 = setTimeout(forcePagination, 450);
+
+    if (typeof document !== "undefined" && document.fonts) {
+      document.fonts.ready.then(forcePagination).catch(() => {});
+    }
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [editor]);
 
   // Schedule autosave
   const scheduleAutoSave = useCallback(() => {
@@ -302,8 +334,15 @@ export default function DraftingIdPage({
         onZoomChange={setZoom}
       />
 
-      {/* 3. True A4 Continuous Paginated Canvas */}
-      <DraftingCanvas editor={editor} zoom={zoom} />
+      {/* 3. True A4 Continuous Paginated Canvas with Left Explorer Sidebar */}
+      <div className="flex flex-1 min-h-0 overflow-hidden relative">
+        <DraftingSidebar
+          editor={editor}
+          isOpen={sidebarOpen}
+          onToggle={() => setSidebarOpen((prev) => !prev)}
+        />
+        <DraftingCanvas editor={editor} zoom={zoom} />
+      </div>
 
       {/* 4. Bottom Metrics Bar */}
       <DraftingBottomBar
@@ -313,6 +352,8 @@ export default function DraftingIdPage({
         zoom={zoom}
         onZoomChange={setZoom}
         onFitWidth={handleFitWidth}
+        sidebarOpen={sidebarOpen}
+        onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
       />
     </div>
   );

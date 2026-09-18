@@ -163,8 +163,11 @@ export function AgentSideViewer({
         </button>
       )}
       <header className="flex h-11.5 shrink-0 items-center justify-between border-b border-[#cbe0f2] bg-white px-4">
-        <div className="flex items-center gap-2 min-w-0">
-          <strong className="text-[13px] font-medium text-stone-900 truncate">
+        <div className="flex flex-col min-w-0">
+          <span className="text-[10px] font-medium uppercase tracking-wider text-stone-400 font-mono">
+            Generated draft
+          </span>
+          <strong className="text-[13px] font-semibold text-stone-900 truncate">
             {document.title}
           </strong>
         </div>
