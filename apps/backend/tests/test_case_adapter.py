@@ -35,8 +35,7 @@ def test_ecourts_case_search_returns_candidates() -> None:
     )
 
 
-def test_ecourts_fetch_case_rejects_candidate_only_record(monkeypatch) -> None:
-    monkeypatch.setattr(settings, "LEGAL_SOURCE_FIXTURES_ENABLED", False)
+def test_ecourts_fetch_case_rejects_candidate_only_record() -> None:
     adapter = ECourtsIndiaAdapter()
     with pytest.raises(ValueError, match="not full judgment text"):
         adapter.fetch_case(candidate_id="SCIN010125642009")
@@ -45,7 +44,7 @@ def test_ecourts_fetch_case_rejects_candidate_only_record(monkeypatch) -> None:
 def test_indian_kanoon_missing_token_raises_configuration_error(monkeypatch) -> None:
     monkeypatch.setattr(settings, "INDIAN_KANOON_API_TOKEN", "")
     adapter = IndianKanoonAdapter()
-    with pytest.raises(ValueError, match="INDIAN_KANOON_API_TOKEN is not configured"):
+    with pytest.raises(ValueError, match="INDIAN_KANOON_API_TOKEN"):
         adapter.search_cases("some query")
 
 

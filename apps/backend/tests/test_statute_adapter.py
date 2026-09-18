@@ -69,5 +69,5 @@ def test_statute_adapter_handles_provider_404() -> None:
     mock_client.__enter__.return_value.get.return_value = mock_resp
 
     adapter = ECourtsIndiaAdapter(client=mock_client)
-    with pytest.raises(ValueError, match="not found on provider"):
+    with pytest.raises(ValueError, match="not found on the live provider"):
         adapter.get_provision(act_key="unknown_act_123", provision="999", unit="section")
