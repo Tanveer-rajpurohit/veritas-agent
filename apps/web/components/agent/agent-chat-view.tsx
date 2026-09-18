@@ -8,6 +8,7 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { useRouter } from "next/navigation";
 import { SEED_MATTERS } from "../../lib/workspace-data";
 import {
   ArrowUpIcon,
@@ -430,6 +431,7 @@ export function AgentChatView({
   onOpenMatter,
   onNewChat,
 }: AgentChatViewProps) {
+  const router = useRouter();
   const [activeAgent, setActiveAgent] = useState<AgentRoleType>("orchestrator");
   const [agentDropdownOpen, setAgentDropdownOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -1125,7 +1127,9 @@ export function AgentChatView({
             onClose={() => setSideViewerOpen(false)}
             onResizeStart={handleViewerResizeStart}
             onOpenInEditor={() => {
-              if (onOpenMatter && currentMatterId) {
+              if (sideViewerDoc?.id) {
+                router.push(`/drafting/${encodeURIComponent(sideViewerDoc.id)}`);
+              } else if (onOpenMatter && currentMatterId) {
                 onOpenMatter(currentMatterId);
               }
             }}

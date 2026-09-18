@@ -14,42 +14,25 @@ import {
   ChevronDownIcon,
   LayersIcon,
 } from "../workspace/workspace-icons";
+import type {
+  DraftDocument,
+  DraftPage,
+  DraftVersion,
+} from "../../types/draft/types";
+import {
+  exportAsDocx,
+  exportAsMarkdown,
+  printDocument,
+} from "../../lib/draft/export-document";
+import { draftToTipTapHtml } from "../../lib/draft/draft-data";
+import {
+  WordDocIcon,
+  PdfDocIcon,
+  MarkdownDocIcon,
+} from "../drafting/file-type-icons";
 
-export interface DraftPage {
-  pageNumber: number;
-  totalPdfPages: number;
-  headerTitle: string;
-  subHeader?: string;
-  sections: Array<{
-    title: string;
-    content: string;
-    citations?: Array<{
-      title: string;
-      citation: string;
-      status: "Supported" | "Contradicted";
-      court: string;
-    }>;
-  }>;
-}
-
-export interface DraftVersion {
-  version: string;
-  label: string;
-  date: string;
-  summary: string;
-  pages: DraftPage[];
-}
-
-export interface SideViewerDocument {
-  id: string;
-  title: string;
-  type: "draft" | "document";
-  matterName?: string;
-  court?: string;
-  caseNumber?: string;
-  currentVersion: string;
-  versions: DraftVersion[];
-}
+export type { DraftPage, DraftVersion };
+export type SideViewerDocument = DraftDocument;
 
 interface AgentSideViewerProps {
   document: SideViewerDocument | null;
@@ -59,6 +42,9 @@ interface AgentSideViewerProps {
   onResizeStart?: (event: ReactPointerEvent<HTMLButtonElement>) => void;
 }
 
+const BASE_A4_WIDTH = 794;
+const BASE_A4_HEIGHT = 1123;
+
 export function AgentSideViewer({
   document,
   isOpen,
@@ -67,11 +53,14 @@ export function AgentSideViewer({
   onResizeStart,
 }: AgentSideViewerProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [selectedVersion, setSelectedVersion] = useState<string>("v3");
   const [prevDocId, setPrevDocId] = useState<string | null>(
     document?.id || null,
   );
   const [versionDropdownOpen, setVersionDropdownOpen] = useState(false);
+  const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
+  const [scale, setScale] = useState<number>(0.65);
 
   if (document && document.id !== prevDocId) {
     setPrevDocId(document.id);
@@ -91,6 +80,24 @@ export function AgentSideViewer({
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+
+    const computeScale = () => {
+      const containerWidth = el.clientWidth;
+      const horizontalPadding = 40;
+      const available = Math.max(260, containerWidth - horizontalPadding);
+      const calculatedScale = Math.min(1.0, Math.max(0.35, available / BASE_A4_WIDTH));
+      setScale(calculatedScale);
+    };
+
+    computeScale();
+    const observer = new ResizeObserver(computeScale);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isOpen]);
+
   if (!isOpen || !document) {
     return null;
   }
@@ -99,25 +106,44 @@ export function AgentSideViewer({
     document.versions.find((v) => v.version === selectedVersion) ||
     document.versions[0];
 
-  const handleDownload = () => {
+  const handleExportDocx = () => {
     if (!activeVersionData) return;
-    const textContent = activeVersionData.pages
-      .map((p) => {
-        const secTexts = p.sections
-          .map((s) => `${s.title}\n\n${s.content}`)
-          .join("\n\n");
-        return `[PAGE ${p.pageNumber} OF ${p.totalPdfPages}]\n${p.headerTitle}\n\n${secTexts}`;
-      })
-      .join("\n\n==================================================\n\n");
-
-    const blob = new Blob([textContent], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = window.document.createElement("a");
-    a.href = url;
-    a.download = `${document.title.toLowerCase().replace(/\s+/g, "-")}-${selectedVersion}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+    exportAsDocx(document.title, activeVersionData.pages);
+    setExportDropdownOpen(false);
   };
+
+  const handlePrintPdf = () => {
+    if (!activeVersionData) return;
+    printDocument(document.title, activeVersionData.pages);
+    setExportDropdownOpen(false);
+  };
+
+  const handleExportMarkdown = () => {
+    if (!activeVersionData) return;
+    exportAsMarkdown(document.title, activeVersionData.pages);
+    setExportDropdownOpen(false);
+  };
+
+  const handleOpenEditor = () => {
+    if (typeof window !== "undefined" && document) {
+      try {
+        localStorage.setItem(
+          `veritas-draft-${document.id}`,
+          JSON.stringify(document),
+        );
+        localStorage.setItem(
+          `veritas-draft-html-${document.id}-${selectedVersion}`,
+          draftToTipTapHtml(document, selectedVersion),
+        );
+      } catch {
+        // Ignored
+      }
+    }
+    onOpenInEditor?.();
+  };
+
+  const scaledWidth = Math.round(BASE_A4_WIDTH * scale);
+  const scaledHeight = Math.round(BASE_A4_HEIGHT * scale);
 
   return (
     <aside
@@ -186,19 +212,63 @@ export function AgentSideViewer({
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={handleDownload}
-            className="flex h-7 items-center gap-1 rounded-md border border-[#cbe0f2] bg-white px-2 text-[11.5px] text-stone-700 transition-colors hover:bg-[#f7fbfe]"
-          >
-            <DownloadIcon size={12} />
-            <span>Download</span>
-          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setExportDropdownOpen(!exportDropdownOpen)}
+              className="flex h-7 items-center gap-1 rounded-md border border-[#cbe0f2] bg-white px-2 text-[11.5px] text-stone-700 transition-colors hover:bg-[#f7fbfe]"
+            >
+              <DownloadIcon size={12} />
+              <span>Export</span>
+              <ChevronDownIcon size={10} className="text-stone-400 ml-0.5" />
+            </button>
+
+            {exportDropdownOpen && (
+              <div className="absolute right-0 top-full z-50 mt-1.5 w-52 rounded-lg border border-stone-200 bg-white p-1.5 shadow-xl text-xs">
+                <div className="px-2.5 py-1 text-[10px] font-mono uppercase font-semibold text-stone-400">
+                  Export Options
+                </div>
+                <button
+                  type="button"
+                  onClick={handleExportDocx}
+                  className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-stone-700 hover:bg-[#edf4fa] hover:text-[#2c5478] cursor-pointer transition-colors"
+                >
+                  <WordDocIcon size={17} className="shrink-0" />
+                  <div className="flex flex-col">
+                    <span className="font-medium text-stone-900">Word Document</span>
+                    <span className="text-[10px] text-stone-400">.docx format</span>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePrintPdf}
+                  className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-stone-700 hover:bg-[#edf4fa] hover:text-[#2c5478] cursor-pointer transition-colors"
+                >
+                  <PdfDocIcon size={17} className="shrink-0" />
+                  <div className="flex flex-col">
+                    <span className="font-medium text-stone-900">PDF Document</span>
+                    <span className="text-[10px] text-stone-400">Vector print format</span>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportMarkdown}
+                  className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-stone-700 hover:bg-[#edf4fa] hover:text-[#2c5478] cursor-pointer transition-colors"
+                >
+                  <MarkdownDocIcon size={17} className="shrink-0" />
+                  <div className="flex flex-col">
+                    <span className="font-medium text-stone-900">Markdown</span>
+                    <span className="text-[10px] text-stone-400">.md format</span>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
 
           {onOpenInEditor && (
             <button
               type="button"
-              onClick={onOpenInEditor}
+              onClick={handleOpenEditor}
               className="flex h-7 items-center gap-1 rounded bg-[#487aa8] px-2.5 text-[11.5px] font-medium text-white hover:bg-[#38648c] cursor-pointer transition-colors"
             >
               <span>Open in editor</span>
@@ -216,49 +286,87 @@ export function AgentSideViewer({
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 [scrollbar-width:thin]">
-        <div className="flex flex-col items-center gap-5 max-w-[520px] mx-auto">
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto p-4 md:p-6 [scrollbar-width:thin]"
+      >
+        <div className="flex flex-col items-center gap-6 mx-auto w-full">
           {activeVersionData?.pages.map((page) => (
-            <article
+            <div
               key={page.pageNumber}
-              className="flex min-h-[620px] w-full flex-col justify-between rounded-sm border border-[#cbe0f2] bg-white p-7 font-serif shadow-sm md:p-8"
+              style={{
+                width: `${scaledWidth}px`,
+                height: `${scaledHeight}px`,
+              }}
+              className="relative shrink-0 select-text overflow-hidden rounded-[3px] border border-[#cbe0f2] bg-white shadow-md transition-[width,height] duration-75"
             >
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-stone-100 pb-2.5 font-sans text-[10px] text-stone-400 font-mono tracking-wider uppercase">
-                  <span>{page.headerTitle}</span>
+              <article
+                style={{
+                  width: `${BASE_A4_WIDTH}px`,
+                  height: `${BASE_A4_HEIGHT}px`,
+                  transform: `scale(${scale})`,
+                  transformOrigin: "top left",
+                }}
+                className="absolute left-0 top-0 flex flex-col justify-between bg-white p-12 font-serif text-[#181c20]"
+              >
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b border-stone-200 pb-3 font-sans text-[11px] text-stone-500 font-mono tracking-wider uppercase">
+                    <span>{page.headerTitle}</span>
+                    <span>
+                      Page {page.pageNumber} of {page.totalPdfPages}
+                    </span>
+                  </div>
+
+                  {page.subHeader && (
+                    <div className="text-center font-sans py-2.5 border-b border-stone-200">
+                      <p className="text-[12px] font-bold text-stone-900 uppercase tracking-wide whitespace-pre-line leading-relaxed">
+                        {page.subHeader}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="space-y-5 pt-2">
+                    {page.sections.map((sec, sIdx) => (
+                      <div key={sec.id || sIdx} className="space-y-2">
+                        <h4 className="font-sans text-[12px] font-bold text-stone-900 uppercase tracking-wide">
+                          {sec.title}
+                        </h4>
+                        <p className="text-[13.5px] leading-[1.75] text-stone-800 whitespace-pre-line text-justify">
+                          {sec.content}
+                        </p>
+                        {sec.citations && sec.citations.length > 0 && (
+                          <div className="mt-2 space-y-1.5 pl-3 border-l-2 border-[#487aa8] bg-[#edf4fa]/60 py-1.5 pr-2 rounded-r">
+                            {sec.citations.map((cit, cIdx) => (
+                              <div
+                                key={cIdx}
+                                className="flex items-baseline justify-between font-sans text-[11px]"
+                              >
+                                <span className="font-semibold text-[#2c5478]">
+                                  {cit.title} ·{" "}
+                                  <span className="font-normal italic">
+                                    {cit.citation}
+                                  </span>
+                                </span>
+                                <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-[#dcfce7] text-[#2e7d46] font-medium ml-2 shrink-0">
+                                  {cit.status} · {cit.court}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border-t border-stone-200 pt-3 mt-6 flex items-center justify-between font-sans text-[11px] text-stone-400 font-mono">
+                  <span>CONFIDENTIAL · FOR LEGAL REVIEW ONLY</span>
                   <span>
                     Page {page.pageNumber} of {page.totalPdfPages}
                   </span>
                 </div>
-
-                {page.subHeader && (
-                  <div className="text-center font-sans py-2 border-b border-stone-100">
-                    <p className="text-[11.5px] font-bold text-stone-800 uppercase tracking-wide">
-                      {page.subHeader}
-                    </p>
-                  </div>
-                )}
-
-                <div className="space-y-4 pt-1">
-                  {page.sections.map((sec, sIdx) => (
-                    <div key={sIdx} className="space-y-2">
-                      <h4 className="font-sans text-[11.5px] font-bold text-stone-800 uppercase tracking-wide">
-                        {sec.title}
-                      </h4>
-                      <p className="text-[13px] leading-[1.7] text-stone-700 whitespace-pre-line">
-                        {sec.content}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="border-t border-stone-100 pt-3 mt-6 flex items-center justify-end font-sans text-[10px] text-stone-400 font-mono">
-                <span>
-                  Page {page.pageNumber} of {page.totalPdfPages}
-                </span>
-              </div>
-            </article>
+              </article>
+            </div>
           ))}
         </div>
       </div>
