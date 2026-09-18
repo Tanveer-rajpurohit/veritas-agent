@@ -11,6 +11,8 @@ from app.core.config import settings
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
+from app.services.sources.embeddings import embedding_service
+from app.services.sources.storage import storage_service
 
 test_engine = create_engine(
     "sqlite:///:memory:",
@@ -79,6 +81,36 @@ def test_matter_isolation(client: TestClient) -> None:
         client.patch(f"/api/v1/matters/{matter_id}", json={"title": "Changed"}).status_code == 404
     )
     assert client.delete(f"/api/v1/matters/{matter_id}").status_code == 404
+
+
+def test_upload_and_page_are_matter_scoped(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    monkeypatch.setattr(storage_service, "base_path", tmp_path)
+    monkeypatch.setattr(
+        embedding_service,
+        "embed_chunks",
+        lambda texts: [[0.1] * 384 for _ in texts],
+    )
+    matter_id = client.post("/api/v1/matters/", json={"title": "Evidence"}).json()["id"]
+    response = client.post(
+        f"/api/v1/matters/{matter_id}/uploads",
+        files={"file": ("record.txt", b"The amount due is INR 12 lakh.", "text/plain")},
+    )
+    assert response.status_code == 201, response.text
+    source_id = response.json()["id"]
+    page = client.get(f"/api/v1/sources/{source_id}/pages/1")
+    assert page.status_code == 200
+    assert page.json()["text"] == "The amount due is INR 12 lakh."
+
+    other = client.post(
+        "/api/v1/auth/register",
+        json={"email": "source-reader@example.com", "password": "another-correct-password"},
+    )
+    client.headers["Authorization"] = f"Bearer {other.json()['access_token']}"
+    assert client.get(f"/api/v1/sources/{source_id}").status_code == 404
+    assert client.get(f"/api/v1/sources/{source_id}/pages/1").status_code == 404
+    assert client.get(f"/api/v1/matters/{matter_id}/sources").status_code == 404
 
 
 def test_create_matter_success(client: TestClient) -> None:

@@ -40,6 +40,8 @@ while its test suite is small.
 - `POST /api/v1/auth/register` creates an account and returns a bearer token.
 - `POST /api/v1/auth/login` returns a bearer token for an existing account.
 - `/api/v1/matters/` requires that token and returns only the caller's matters.
+- `POST /api/v1/matters/{id}/uploads` accepts PDF, TXT, and MD records up to 10 MB.
+- `GET /api/v1/matters/{id}/sources` and `GET /api/v1/sources/{id}/pages/{page}` return scoped evidence.
 - `POST /api/v1/agent/chat/stream` streams Main Agent events when enabled.
 - `GET /docs` opens the Swagger UI.
 - `GET /redoc` opens the ReDoc reference.
