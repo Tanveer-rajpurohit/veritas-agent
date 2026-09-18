@@ -3,6 +3,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class RequiredFact(BaseModel):
     """Factual field required to complete a legal draft."""
+
     model_config = ConfigDict(extra="forbid")
 
     key: str = Field(min_length=1)
@@ -12,6 +13,7 @@ class RequiredFact(BaseModel):
 
 class TemplateSection(BaseModel):
     """Section specification defining structure and drafting constraints."""
+
     model_config = ConfigDict(extra="forbid")
 
     section_id: str = Field(min_length=1)
@@ -23,6 +25,7 @@ class TemplateSection(BaseModel):
 
 class DraftTemplate(BaseModel):
     """Curated legal drafting template schema defining document structure and rules."""
+
     model_config = ConfigDict(extra="forbid")
 
     template_id: str = Field(min_length=1)
@@ -38,6 +41,7 @@ class DraftTemplate(BaseModel):
 
 class TemplateSummary(BaseModel):
     """Compact summary of a drafting template for discovery."""
+
     model_config = ConfigDict(extra="forbid")
 
     template_id: str
@@ -50,6 +54,7 @@ class TemplateSummary(BaseModel):
 
 class ListTemplatesRequest(BaseModel):
     """Filter parameters for template listing."""
+
     model_config = ConfigDict(extra="forbid")
 
     query: str | None = None
@@ -60,6 +65,7 @@ class ListTemplatesRequest(BaseModel):
 
 class GetTemplateRequest(BaseModel):
     """Request parameter for retrieving a specific template."""
+
     model_config = ConfigDict(extra="forbid")
 
     template_id: str = Field(min_length=1)

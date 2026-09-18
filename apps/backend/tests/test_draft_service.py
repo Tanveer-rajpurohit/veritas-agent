@@ -111,7 +111,9 @@ def test_propose_document_ops_applies_blocks_cleanly(monkeypatch) -> None:
     )
     monkeypatch.setattr(
         "app.repositories.drafts.draft_repository.create_new_version",
-        lambda db, draft, content_json, base_version_id, created_by_type, created_by_id, change_summary: created_version,
+        lambda db, draft, content_json, base_version_id, created_by_type, created_by_id, change_summary: (
+            created_version
+        ),
     )
 
     result = service.propose_document_ops(

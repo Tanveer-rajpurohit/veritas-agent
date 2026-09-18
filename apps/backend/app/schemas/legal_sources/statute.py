@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class SearchStatutesRequest(BaseModel):
     """Query parameters for statutory candidate discovery."""
+
     model_config = ConfigDict(extra="forbid")
 
     query: str = Field(min_length=1, max_length=500)
@@ -14,6 +15,7 @@ class SearchStatutesRequest(BaseModel):
 
 class StatuteCandidate(BaseModel):
     """Candidate statutory provision representation returned by discovery."""
+
     model_config = ConfigDict(extra="forbid")
 
     act_key: str
@@ -26,6 +28,7 @@ class StatuteCandidate(BaseModel):
 
 class SearchStatutesResponse(BaseModel):
     """Envelope for statutory candidate search results."""
+
     model_config = ConfigDict(extra="forbid")
 
     provider: str
@@ -34,6 +37,7 @@ class SearchStatutesResponse(BaseModel):
 
 class LookupStatuteRequest(BaseModel):
     """Exact provision lookup request."""
+
     model_config = ConfigDict(extra="forbid")
 
     act_key: str = Field(min_length=1, max_length=128)
@@ -43,6 +47,7 @@ class LookupStatuteRequest(BaseModel):
 
 class LookupStatuteResponse(BaseModel):
     """Materialized statutory provision response providing exact stored evidence."""
+
     model_config = ConfigDict(extra="forbid")
 
     evidence_span_id: UUID

@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class SearchCasesRequest(BaseModel):
     """Query parameters for case-law candidate discovery."""
+
     model_config = ConfigDict(extra="forbid")
 
     query: str = Field(min_length=1, max_length=500)
@@ -16,6 +17,7 @@ class SearchCasesRequest(BaseModel):
 
 class CaseCandidate(BaseModel):
     """Candidate judgment representation returned by discovery."""
+
     model_config = ConfigDict(extra="forbid")
 
     candidate_id: str
@@ -30,6 +32,7 @@ class CaseCandidate(BaseModel):
 
 class SearchCasesResponse(BaseModel):
     """Envelope for case-law search results."""
+
     model_config = ConfigDict(extra="forbid")
 
     provider: str
@@ -38,6 +41,7 @@ class SearchCasesResponse(BaseModel):
 
 class FetchCaseRequest(BaseModel):
     """Request parameter for fetching and materializing a selected judgment."""
+
     model_config = ConfigDict(extra="forbid")
 
     candidate_id: str = Field(min_length=1)
@@ -46,6 +50,7 @@ class FetchCaseRequest(BaseModel):
 
 class FetchCaseResponse(BaseModel):
     """Materialized judgment response providing exact stored evidence."""
+
     model_config = ConfigDict(extra="forbid")
 
     evidence_span_id: UUID

@@ -124,11 +124,14 @@ class DraftService:
             )
 
         latest_version = draft_repository.get_latest_version(db=db, draft_id=draft_id)
-        if base_version_id is not None and latest_version is not None:
-            if latest_version.id != base_version_id:
-                raise ValueError(
-                    f"Stale version write: base_version_id {base_version_id} does not match current version {latest_version.id}"
-                )
+        if (
+            base_version_id is not None
+            and latest_version is not None
+            and latest_version.id != base_version_id
+        ):
+            raise ValueError(
+                f"Stale version write: base_version_id {base_version_id} does not match current version {latest_version.id}"
+            )
 
         base_content = (
             copy.deepcopy(latest_version.content_json)
@@ -197,8 +200,7 @@ class DraftService:
                     b
                     for b in content_blocks
                     if not (
-                        isinstance(b, dict)
-                        and b.get("attrs", {}).get("position") == op.position
+                        isinstance(b, dict) and b.get("attrs", {}).get("position") == op.position
                     )
                 ]
 

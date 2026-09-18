@@ -39,4 +39,3 @@ class Draft(Base):
         cascade="all, delete-orphan",
         order_by="DocumentVersion.version_no",
     )
-

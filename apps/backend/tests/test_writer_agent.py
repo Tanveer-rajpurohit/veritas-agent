@@ -29,6 +29,12 @@ def test_writer_agent_initialization() -> None:
         "get_document_version",
         "create_draft",
         "propose_document_ops",
+        "list_draft_templates",
+        "get_draft_template",
+        "search_statutes",
+        "lookup_statute",
+        "search_cases",
+        "fetch_case",
     ]
 
 
@@ -65,3 +71,6 @@ def test_writer_system_prompt_contains_crucial_invariants() -> None:
     assert "create_evidence_span" in WRITER_SYSTEM_PROMPT
     assert "evidence_span_ids" in WRITER_SYSTEM_PROMPT
     assert "unresolved_questions" in WRITER_SYSTEM_PROMPT
+    assert "get_draft_template" in WRITER_SYSTEM_PROMPT
+    assert "lookup_statute" in WRITER_SYSTEM_PROMPT
+    assert "fetch_case" in WRITER_SYSTEM_PROMPT

@@ -24,6 +24,7 @@ class DocumentVersion(Base):
     Immutable document version capturing the full editor state and cryptographic hash.
     Conforms to the specification in docs/build plan/database.md.
     """
+
     __tablename__ = "document_versions"
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
@@ -75,9 +76,7 @@ class DocumentVersion(Base):
         nullable=False,
     )
 
-    __table_args__ = (
-        UniqueConstraint("draft_id", "version_no", name="uq_draft_version_no"),
-    )
+    __table_args__ = (UniqueConstraint("draft_id", "version_no", name="uq_draft_version_no"),)
 
     draft: Mapped["Draft"] = relationship(
         "Draft",

@@ -18,6 +18,12 @@ def test_writer_tools_do_not_expose_matter_id_to_model() -> None:
         "get_document_version",
         "create_draft",
         "propose_document_ops",
+        "list_draft_templates",
+        "get_draft_template",
+        "search_statutes",
+        "lookup_statute",
+        "search_cases",
+        "fetch_case",
     ]
     for writer_tool in tools:
         properties = writer_tool.tool_spec["inputSchema"]["json"]["properties"]
