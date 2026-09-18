@@ -21,8 +21,6 @@ class DraftCreateRequest(BaseModel):
 
 
 class DraftUpdateRequest(BaseModel):
-    # Decision: Human edits overwrite content_json in place without bumping version_no.
-    # Version increments are reserved for explicit AI milestone revisions to avoid bloating history.
     model_config = ConfigDict(extra="forbid")
 
     title: str | None = Field(default=None, min_length=1, max_length=255)

@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.models.matter import Matter
-from app.repositories.matter_repository import MatterRepository
-from app.schemas.matter import MatterCreateRequest, MatterResponse, MatterUpdateRequest
+from app.models.matters import Matter
+from app.repositories.matters import MatterRepository
+from app.schemas.matters import MatterCreateRequest, MatterResponse, MatterUpdateRequest
 
 router = APIRouter(
     prefix="/api/v1/matters",

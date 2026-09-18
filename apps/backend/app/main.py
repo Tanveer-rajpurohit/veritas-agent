@@ -4,11 +4,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-import app.models.draft  # noqa: F401
-import app.models.matter  # noqa: F401
+import app.models  # noqa: F401
 from app.core.config import settings
-from app.db.base import Base
-from app.db.session import engine
+from app.db.init_db import init_db
 from app.routers.agent.router import router as agent_router
 from app.routers.health.router import router as health_router
 from app.routers.matters.router import router as matter_router
@@ -16,7 +14,7 @@ from app.routers.matters.router import router as matter_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    Base.metadata.create_all(bind=engine)
+    init_db()
     yield
 
 

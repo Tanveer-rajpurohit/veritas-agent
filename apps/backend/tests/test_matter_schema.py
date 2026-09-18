@@ -4,7 +4,7 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-from app.schemas.matter import MatterCreateRequest, MatterResponse, MatterUpdateRequest
+from app.schemas.matters import MatterCreateRequest, MatterResponse, MatterUpdateRequest
 
 
 def test_matter_create_valid() -> None:

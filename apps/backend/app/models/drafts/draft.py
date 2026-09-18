@@ -8,12 +8,6 @@ from app.db.base import Base
 
 
 class Draft(Base):
-    """Working document draft belonging to a Matter.
-
-    Decision: content_json uses SQLAlchemy JSON, which maps to JSON in SQLite and JSONB
-    in PostgreSQL. ondelete='CASCADE' ensures deleting a matter cleans up its drafts.
-    """
-
     __tablename__ = "drafts"
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)

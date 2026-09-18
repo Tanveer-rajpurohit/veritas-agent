@@ -2,8 +2,8 @@ from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 
 from app.core.config import settings
-from app.schemas.agent import ChatRequest
-from app.services.agent_service import stream_main_agent
+from app.schemas.agents import ChatRequest
+from app.services.agents import stream_main_agent
 
 router = APIRouter(prefix="/api/v1/agent", tags=["AI Agent"])
 

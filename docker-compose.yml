@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.6-pg18
+    container_name: veritas-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: veritas
+      POSTGRES_PASSWORD: veritas_password
+      POSTGRES_DB: veritas
+    ports:
+      - "5432:5432"
+    volumes:
+      - veritas_pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U veritas -d veritas"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  veritas_pgdata:

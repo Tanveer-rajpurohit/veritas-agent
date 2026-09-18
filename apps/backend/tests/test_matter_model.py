@@ -2,7 +2,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from app.db.base import Base
-from app.models.matter import Matter
+from app.models.matters import Matter
 
 
 def test_matter_model_creation_and_defaults() -> None:
