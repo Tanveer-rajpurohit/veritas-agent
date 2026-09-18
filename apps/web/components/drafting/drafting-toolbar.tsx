@@ -709,12 +709,6 @@ export function DraftingToolbar({
           )}
         </div>
       </div>
-
-      <div className="hidden lg:flex items-center gap-2 text-[11px] font-mono text-stone-400 shrink-0">
-        <span className="rounded bg-[#edf4fa] px-2 py-0.5 text-[#2c5478] font-medium border border-[#cbe0f2]">
-          A4 Standard · 794px × 1123px
-        </span>
-      </div>
     </div>
   );
 }

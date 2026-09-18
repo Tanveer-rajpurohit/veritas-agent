@@ -40,3 +40,6 @@ export interface DraftDocument {
   versions: DraftVersion[];
   contentHtml?: string;
 }
+
+export type DraftSaveStatus = "saved" | "unsaved" | "saving";
+
