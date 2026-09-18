@@ -22,6 +22,7 @@ class SourcePage(Base):
     """
     Page-level extraction data retaining bounding dimensions and verbatim text.
     """
+
     __tablename__ = "source_pages"
 
     id: Mapped[uuid.UUID] = mapped_column(

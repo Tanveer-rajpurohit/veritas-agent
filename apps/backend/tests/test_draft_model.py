@@ -1,0 +1,40 @@
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import Session
+
+from app.db.base import Base
+from app.models.draft import Draft
+from app.models.matter import Matter
+
+
+def test_draft_model_creation_and_defaults() -> None:
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        matter = Matter(title="SBI v. Monnet")
+        session.add(matter)
+        session.commit()
+        session.refresh(matter)
+
+        draft = Draft(
+            matter_id=matter.id,
+            title="IBC Section 7 Application Brief",
+            content_json={"type": "doc", "content": [{"type": "paragraph", "text": "Draft body"}]},
+        )
+        session.add(draft)
+        session.commit()
+        session.refresh(draft)
+
+        assert draft.id is not None
+        assert draft.matter_id == matter.id
+        assert draft.version_no == 1
+        assert draft.kind == "brief"
+        assert draft.content_json == {
+            "type": "doc",
+            "content": [{"type": "paragraph", "text": "Draft body"}],
+        }
+
+        stmt = select(Draft).where(Draft.matter_id == matter.id)
+        retrieved = session.scalars(stmt).one()
+        assert retrieved.id == draft.id
+        assert retrieved.title == "IBC Section 7 Application Brief"

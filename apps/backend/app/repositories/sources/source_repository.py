@@ -1,4 +1,5 @@
 import uuid
+
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
@@ -11,13 +12,30 @@ class SourceRepository:
     Owns all direct database queries and mutations.
     """
 
-    def get_version_by_sha256(self, db: Session, file_sha256: str) -> SourceVersion | None:
-        """Looks up an immutable source version by its unique SHA-256 digest."""
+    def get_version_by_sha256(
+        self,
+        db: Session,
+        source_id: uuid.UUID,
+        file_sha256: str,
+    ) -> SourceVersion | None:
+        """Look up a duplicate file inside one source version chain."""
         return (
             db.query(SourceVersion)
-            .filter(SourceVersion.file_sha256 == file_sha256)
+            .filter(
+                SourceVersion.source_id == source_id,
+                SourceVersion.file_sha256 == file_sha256,
+            )
             .first()
         )
+
+    def get_next_version_number(self, db: Session, source_id: uuid.UUID) -> int:
+        """Return the next source version number without loading the relationship."""
+        latest = db.scalar(
+            select(func.max(SourceVersion.version_number)).where(
+                SourceVersion.source_id == source_id
+            )
+        )
+        return (latest or 0) + 1
 
     def get_source_by_id(self, db: Session, source_id: uuid.UUID) -> Source | None:
         """Retrieves a source document record by primary key."""
@@ -25,11 +43,7 @@ class SourceRepository:
 
     def get_chunk_count_for_version(self, db: Session, version_id: uuid.UUID) -> int:
         """Counts persisted chunks for a specific source version."""
-        return (
-            db.query(SourceChunk)
-            .filter(SourceChunk.source_version_id == version_id)
-            .count()
-        )
+        return db.query(SourceChunk).filter(SourceChunk.source_version_id == version_id).count()
 
     def create_source(self, db: Session, source: Source) -> Source:
         """Persists a new Source aggregate."""
@@ -56,7 +70,7 @@ class SourceRepository:
 
         for c in chunks:
             db.add(c)
-        db.commit()
+        db.flush()
 
     def search_vector_passages(
         self,
@@ -99,6 +113,7 @@ class SourceRepository:
                     SourceVersion.version_number == max_version_subq.c.max_ver,
                 ),
             )
+            .where(SourceChunk.embedding.is_not(None))
         )
 
         if matter_id is not None:
@@ -117,20 +132,56 @@ class SourceRepository:
         stmt = stmt.order_by(distance_expr.asc()).limit(limit)
         return db.execute(stmt).all()
 
+    def get_chunk_context(
+        self,
+        db: Session,
+        chunk_id: uuid.UUID,
+        matter_id: uuid.UUID,
+    ) -> tuple[SourceChunk, SourcePage, SourceVersion, Source] | None:
+        """Load an authorized passage and its immutable provenance chain."""
+        stmt = (
+            select(SourceChunk, SourcePage, SourceVersion, Source)
+            .join(SourceVersion, SourceChunk.source_version_id == SourceVersion.id)
+            .join(Source, SourceVersion.source_id == Source.id)
+            .join(SourcePage, SourceChunk.page_id == SourcePage.id)
+            .where(
+                SourceChunk.id == chunk_id,
+                or_(Source.matter_id == matter_id, Source.matter_id.is_(None)),
+            )
+        )
+        return db.execute(stmt).one_or_none()
+
+    def get_evidence_span_for_chunk(
+        self,
+        db: Session,
+        chunk_id: uuid.UUID,
+    ) -> EvidenceSpan | None:
+        """Return the materialized full-chunk evidence span, if it exists."""
+        return db.query(EvidenceSpan).filter(EvidenceSpan.chunk_id == chunk_id).first()
+
     def create_evidence_span(self, db: Session, span: EvidenceSpan) -> EvidenceSpan:
-        """Persists an audited evidence span."""
+        """Stage an audited evidence span in the caller-owned transaction."""
         db.add(span)
-        db.commit()
-        db.refresh(span)
+        db.flush()
         return span
 
     def get_evidence_spans(
         self,
         db: Session,
+        matter_id: uuid.UUID,
         span_ids: list[uuid.UUID],
     ) -> list[EvidenceSpan]:
-        """Retrieves evidence spans by their unique identifiers."""
-        return db.query(EvidenceSpan).filter(EvidenceSpan.id.in_(span_ids)).all()
+        """Retrieve spans only from the requested matter or global curated corpus."""
+        stmt = (
+            select(EvidenceSpan)
+            .join(SourceVersion, EvidenceSpan.source_version_id == SourceVersion.id)
+            .join(Source, SourceVersion.source_id == Source.id)
+            .where(
+                EvidenceSpan.id.in_(span_ids),
+                or_(Source.matter_id == matter_id, Source.matter_id.is_(None)),
+            )
+        )
+        return list(db.scalars(stmt).all())
 
 
 source_repository = SourceRepository()

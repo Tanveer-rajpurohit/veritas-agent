@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
@@ -8,7 +8,8 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
-    text,
+    UniqueConstraint,
+    func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -25,6 +26,7 @@ class EvidenceSpan(Base):
     Exact quoted text span linked directly to an underlying chunk and page,
     providing auditable provenance for Writer Agent claims.
     """
+
     __tablename__ = "evidence_spans"
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -36,14 +38,14 @@ class EvidenceSpan(Base):
         nullable=False,
         index=True,
     )
-    page_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("source_pages.id", ondelete="SET NULL"),
-        nullable=True,
+    page_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("source_pages.id", ondelete="CASCADE"),
+        nullable=False,
         index=True,
     )
-    chunk_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("source_chunks.id", ondelete="SET NULL"),
-        nullable=True,
+    chunk_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("source_chunks.id", ondelete="CASCADE"),
+        nullable=False,
         index=True,
     )
     start_offset: Mapped[int] = mapped_column(
@@ -70,18 +72,20 @@ class EvidenceSpan(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        server_default=text("now()"),
+        default=lambda: datetime.now(UTC),
+        server_default=func.now(),
     )
+
+    __table_args__ = (UniqueConstraint("chunk_id", name="uq_evidence_span_chunk"),)
 
     source_version: Mapped["SourceVersion"] = relationship(
         "SourceVersion",
         back_populates="evidence_spans",
     )
-    page: Mapped["SourcePage | None"] = relationship(
+    page: Mapped["SourcePage"] = relationship(
         "SourcePage",
     )
-    chunk: Mapped["SourceChunk | None"] = relationship(
+    chunk: Mapped["SourceChunk"] = relationship(
         "SourceChunk",
         back_populates="evidence_spans",
     )

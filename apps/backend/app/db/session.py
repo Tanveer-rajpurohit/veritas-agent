@@ -5,25 +5,19 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
 
-engine = create_engine(
-    settings.DATABASE_URL,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
-)
+engine_args: dict[str, object] = {"pool_pre_ping": True}
+if settings.DATABASE_URL.startswith("sqlite"):
+    engine_args["connect_args"] = {"check_same_thread": False}
+else:
+    engine_args.update(pool_size=10, max_overflow=20)
 
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine,
-)
+engine = create_engine(settings.DATABASE_URL, **engine_args)
+
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def get_db() -> Generator[Session, None, None]:
-    """
-    FastAPI dependency that yields a SQLAlchemy database session and guarantees
-    session closure upon request completion.
-    """
+    """Provide one database session per request and always close it."""
     db = SessionLocal()
     try:
         yield db

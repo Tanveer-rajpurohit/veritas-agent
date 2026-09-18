@@ -57,7 +57,9 @@ def test_stream_emits_lifecycle_text_tool_and_completion(
 def test_stream_returns_a_safe_error_without_provider_details(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr("app.services.agents.agent_service.create_main_agent", lambda: FailingAgent())
+    monkeypatch.setattr(
+        "app.services.agents.agent_service.create_main_agent", lambda: FailingAgent()
+    )
 
     events = asyncio.run(collect_events("Review this claim"))
 

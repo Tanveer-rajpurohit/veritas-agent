@@ -1,7 +1,7 @@
 import hashlib
 from pathlib import Path
 
-import fitz
+import pymupdf
 
 from app.schemas.sources import ExtractedDocument, ExtractedPage
 
@@ -25,7 +25,7 @@ class ExtractorService:
         if ext in (".txt", ".md"):
             return self._extract_plain_text(file_bytes)
 
-        doc = fitz.open(stream=file_bytes, filetype="pdf")
+        doc = pymupdf.open(stream=file_bytes, filetype="pdf")
         return self._process_fitz_doc(doc, method="pymupdf")
 
     def extract_from_file(self, file_path: str | Path) -> ExtractedDocument:
@@ -34,7 +34,7 @@ class ExtractorService:
         if path.suffix.lower() in (".txt", ".md"):
             return self._extract_plain_text(path.read_bytes())
 
-        doc = fitz.open(str(path))
+        doc = pymupdf.open(str(path))
         return self._process_fitz_doc(doc, method="pymupdf")
 
     def _process_fitz_doc(self, doc, method: str) -> ExtractedDocument:

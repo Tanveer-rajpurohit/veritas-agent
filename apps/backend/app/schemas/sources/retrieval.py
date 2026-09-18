@@ -1,4 +1,5 @@
 import uuid
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -6,6 +7,7 @@ class SourcePassage(BaseModel):
     """
     Evidence passage returned to the Writer Agent conforming to Section 8 of the specification.
     """
+
     model_config = ConfigDict(extra="ignore")
 
     passage_id: uuid.UUID
@@ -29,33 +31,29 @@ class SearchSourcesRequest(BaseModel):
     """
     Query parameters for Writer Agent evidence retrieval.
     """
+
     model_config = ConfigDict(extra="forbid")
 
-    matter_id: uuid.UUID | None = None
+    matter_id: uuid.UUID
     query: str = Field(min_length=1, max_length=2000)
     source_types: list[str] | None = None
     limit: int = Field(default=8, ge=1, le=20)
 
 
 class CreateEvidenceSpanRequest(BaseModel):
-    """
-    Creates an auditable evidence span linked to exact chunk and page text.
-    """
+    """Selects a retrieved passage for server-derived evidence creation."""
+
     model_config = ConfigDict(extra="forbid")
 
-    source_version_id: uuid.UUID
-    page_id: uuid.UUID | None = None
-    chunk_id: uuid.UUID | None = None
-    start_offset: int = Field(ge=0)
-    end_offset: int = Field(ge=0)
-    quoted_text: str = Field(min_length=1)
-    created_by: str = Field(default="writer_agent")
+    matter_id: uuid.UUID
+    passage_id: uuid.UUID
 
 
 class EvidenceSpanResponse(BaseModel):
     """
     Audited evidence span representation returned by get_evidence_spans.
     """
+
     model_config = ConfigDict(extra="ignore")
 
     id: uuid.UUID

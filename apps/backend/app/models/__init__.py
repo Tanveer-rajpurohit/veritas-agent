@@ -1,15 +1,13 @@
-from app.models.sources import (
-    EvidenceSpan,
-    Source,
-    SourceChunk,
-    SourcePage,
-    SourceVersion,
-)
+from app.models.draft import Draft
+from app.models.matter import Matter
+from app.models.sources import EvidenceSpan, Source, SourceChunk, SourcePage, SourceVersion
 
 __all__ = [
-    "Source",
-    "SourceVersion",
-    "SourcePage",
-    "SourceChunk",
+    "Draft",
     "EvidenceSpan",
+    "Matter",
+    "Source",
+    "SourceChunk",
+    "SourcePage",
+    "SourceVersion",
 ]

@@ -1,7 +1,6 @@
-"""Data access repositories."""
+"""Database access repositories grouped by domain."""
+
+from app.repositories.matter_repository import MatterRepository
 from app.repositories.sources import SourceRepository, source_repository
 
-__all__ = [
-    "SourceRepository",
-    "source_repository",
-]
+__all__ = ["MatterRepository", "SourceRepository", "source_repository"]

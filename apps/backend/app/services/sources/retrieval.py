@@ -1,5 +1,6 @@
 import hashlib
 import uuid
+
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -23,7 +24,7 @@ class RetrievalService:
         self,
         db: Session,
         query: str,
-        matter_id: uuid.UUID | None = None,
+        matter_id: uuid.UUID,
         source_types: list[str] | None = None,
         limit: int = 8,
     ) -> list[SourcePassage]:
@@ -71,61 +72,72 @@ class RetrievalService:
         self,
         db: Session,
         req: CreateEvidenceSpanRequest,
+        created_by: str = "writer_agent",
     ) -> EvidenceSpanResponse:
-        """
-        Creates an immutable, cryptographically verifiable evidence span for a claim citation.
-        """
-        quoted_hash = hashlib.sha256(req.quoted_text.encode("utf-8")).hexdigest()
+        """Materialize an authorized passage using only server-stored source text."""
+        context = source_repository.get_chunk_context(
+            db=db,
+            chunk_id=req.passage_id,
+            matter_id=req.matter_id,
+        )
+        if context is None:
+            raise ValueError("Passage not found or not authorized for this matter")
+
+        chunk, page, version, _source = context
+        if chunk.start_offset < 0 or chunk.end_offset > len(page.text):
+            raise ValueError("Stored passage offsets are outside the source page")
+        if chunk.start_offset >= chunk.end_offset:
+            raise ValueError("Stored passage offsets are invalid")
+
+        quoted_text = page.text[chunk.start_offset : chunk.end_offset]
+        if not quoted_text.strip():
+            raise ValueError("Stored passage does not contain usable source text")
+
+        existing_span = source_repository.get_evidence_span_for_chunk(db, chunk.id)
+        if existing_span is not None:
+            return self._to_response(existing_span)
+
+        quoted_hash = hashlib.sha256(quoted_text.encode("utf-8")).hexdigest()
 
         span = source_repository.create_evidence_span(
             db=db,
             span=EvidenceSpan(
-                source_version_id=req.source_version_id,
-                page_id=req.page_id,
-                chunk_id=req.chunk_id,
-                start_offset=req.start_offset,
-                end_offset=req.end_offset,
-                quoted_text=req.quoted_text,
+                source_version_id=version.id,
+                page_id=page.id,
+                chunk_id=chunk.id,
+                start_offset=chunk.start_offset,
+                end_offset=chunk.end_offset,
+                quoted_text=quoted_text,
                 quoted_text_sha256=quoted_hash,
-                created_by=req.created_by,
+                created_by=created_by,
             ),
         )
+        db.commit()
+        db.refresh(span)
 
-        return EvidenceSpanResponse(
-            id=span.id,
-            source_version_id=span.source_version_id,
-            page_id=span.page_id,
-            chunk_id=span.chunk_id,
-            start_offset=span.start_offset,
-            end_offset=span.end_offset,
-            quoted_text=span.quoted_text,
-            quoted_text_sha256=span.quoted_text_sha256,
-            created_by=span.created_by,
-        )
+        return self._to_response(span)
 
     def get_evidence_spans(
         self,
         db: Session,
+        matter_id: uuid.UUID,
         span_ids: list[uuid.UUID],
     ) -> list[EvidenceSpanResponse]:
         """
         Retrieves audited evidence spans verifying provenance.
         """
-        spans = source_repository.get_evidence_spans(db=db, span_ids=span_ids)
-        return [
-            EvidenceSpanResponse(
-                id=s.id,
-                source_version_id=s.source_version_id,
-                page_id=s.page_id,
-                chunk_id=s.chunk_id,
-                start_offset=s.start_offset,
-                end_offset=s.end_offset,
-                quoted_text=s.quoted_text,
-                quoted_text_sha256=s.quoted_text_sha256,
-                created_by=s.created_by,
-            )
-            for s in spans
-        ]
+        spans = source_repository.get_evidence_spans(
+            db=db,
+            matter_id=matter_id,
+            span_ids=span_ids,
+        )
+        if len(spans) != len(set(span_ids)):
+            raise ValueError("One or more evidence spans were not found or authorized")
+        return [self._to_response(span) for span in spans]
+
+    @staticmethod
+    def _to_response(span: EvidenceSpan) -> EvidenceSpanResponse:
+        return EvidenceSpanResponse.model_validate(span, from_attributes=True)
 
 
 retrieval_service = RetrievalService()

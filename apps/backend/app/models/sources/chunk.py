@@ -1,16 +1,17 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
+    JSON,
     DateTime,
     ForeignKey,
     Integer,
     String,
     Text,
     UniqueConstraint,
-    text,
+    func,
 )
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -28,6 +29,7 @@ class SourceChunk(Base):
     """
     Bounded, page-aware text chunk with dense vector embedding for semantic search.
     """
+
     __tablename__ = "source_chunks"
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -65,7 +67,7 @@ class SourceChunk(Base):
         nullable=False,
     )
     heading_path: Mapped[list[str] | None] = mapped_column(
-        ARRAY(String),
+        JSON().with_variant(ARRAY(String), "postgresql"),
         nullable=True,
     )
     embedding_model: Mapped[str] = mapped_column(
@@ -79,8 +81,8 @@ class SourceChunk(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        server_default=text("now()"),
+        default=lambda: datetime.now(UTC),
+        server_default=func.now(),
     )
 
     __table_args__ = (

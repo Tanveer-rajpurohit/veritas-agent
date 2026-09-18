@@ -9,3 +9,5 @@ venv/
 build/
 dist/
 *.egg-info/
+*.db
+*.sqlite*

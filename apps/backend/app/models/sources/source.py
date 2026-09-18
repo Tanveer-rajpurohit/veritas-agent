@@ -1,5 +1,5 @@
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
@@ -11,6 +11,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    func,
     text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -28,6 +29,7 @@ class Source(Base):
     Top-level logical record for an evidence source or legal corpus item.
     Represents documents, statutes, judgments, or synthetic test fixtures.
     """
+
     __tablename__ = "sources"
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -35,9 +37,10 @@ class Source(Base):
         default=uuid.uuid4,
     )
     matter_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("matters.id", ondelete="CASCADE"),
         index=True,
         nullable=True,
-        comment="Matter ID scoping all uploaded documents and drafts",
+        comment="Matter boundary; null is reserved for curated global sources",
     )
     source_type: Mapped[str] = mapped_column(
         String(64),
@@ -88,8 +91,8 @@ class Source(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        server_default=text("now()"),
+        default=lambda: datetime.now(UTC),
+        server_default=func.now(),
     )
 
     versions: Mapped[list["SourceVersion"]] = relationship(
@@ -105,6 +108,7 @@ class SourceVersion(Base):
     Immutable file capture for a source. A re-uploaded or modified document
     creates a new version, never overwriting historical extraction.
     """
+
     __tablename__ = "source_versions"
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -132,7 +136,6 @@ class SourceVersion(Base):
     file_sha256: Mapped[str] = mapped_column(
         String(64),
         nullable=False,
-        unique=True,
         index=True,
     )
     extraction_method: Mapped[str | None] = mapped_column(
@@ -168,12 +171,13 @@ class SourceVersion(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        server_default=text("now()"),
+        default=lambda: datetime.now(UTC),
+        server_default=func.now(),
     )
 
     __table_args__ = (
         UniqueConstraint("source_id", "version_number", name="uq_source_version_number"),
+        UniqueConstraint("source_id", "file_sha256", name="uq_source_version_file"),
     )
 
     source: Mapped["Source"] = relationship(

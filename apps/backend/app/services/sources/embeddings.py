@@ -1,6 +1,4 @@
-import hashlib
 import math
-import struct
 
 from app.core.config import settings
 
@@ -16,7 +14,7 @@ except ImportError:
 
 
 class EmbeddingService:
-    """Generates 384-dimensional dense vector embeddings for legal chunks and queries."""
+    """Generate and validate dense embeddings for source chunks and queries."""
 
     def __init__(self) -> None:
         self.model_name = settings.EMBEDDING_MODEL
@@ -36,7 +34,9 @@ class EmbeddingService:
             self._model = SentenceTransformer(self.model_name)
             return self._model
 
-        return None
+        raise RuntimeError(
+            "No embedding runtime is installed. Install fastembed or sentence-transformers."
+        )
 
     def embed_text(self, text: str) -> list[float]:
         """Generates a dense embedding vector for a single query or text."""
@@ -47,36 +47,35 @@ class EmbeddingService:
         if not texts:
             return []
 
+        if any(not text.strip() for text in texts):
+            raise ValueError("Embedding input cannot contain empty text")
+
         model = self._get_model()
-        if model is not None:
-            if hasattr(model, "embed"):
-                return [vector.tolist() for vector in model.embed(texts)]
-            elif hasattr(model, "encode"):
-                embeddings = model.encode(texts, normalize_embeddings=True)
-                return [vec.tolist() for vec in embeddings]
-
-        return [self._fallback_embed(t) for t in texts]
-
-    def _fallback_embed(self, text: str) -> list[float]:
-        """Generates a deterministic 384-dimensional unit vector from token hashes."""
-        vec = [0.0] * self.dimension
-        words = text.lower().split()
-        if not words:
-            vec[0] = 1.0
-            return vec
-
-        for word in words:
-            digest = hashlib.sha256(word.encode("utf-8")).digest()
-            for i in range(0, len(digest) - 4, 4):
-                slot = (struct.unpack(">I", digest[i : i + 4])[0]) % self.dimension
-                vec[slot] += 1.0
-
-        norm = math.sqrt(sum(x * x for x in vec))
-        if norm > 0:
-            vec = [x / norm for x in vec]
+        if hasattr(model, "embed"):
+            vectors = [vector.tolist() for vector in model.embed(texts)]
+        elif hasattr(model, "encode"):
+            encoded = model.encode(texts, normalize_embeddings=True)
+            vectors = [vector.tolist() for vector in encoded]
         else:
-            vec[0] = 1.0
-        return vec
+            raise RuntimeError("Configured embedding runtime has no supported encode method")
+
+        if len(vectors) != len(texts):
+            raise RuntimeError("Embedding runtime returned an unexpected vector count")
+        return [self._validate_and_normalize(vector) for vector in vectors]
+
+    def _validate_and_normalize(self, vector: list[float]) -> list[float]:
+        """Reject malformed output and normalize it for cosine search."""
+        if len(vector) != self.dimension:
+            raise ValueError(
+                f"Embedding dimension mismatch: expected {self.dimension}, got {len(vector)}"
+            )
+        if not all(math.isfinite(value) for value in vector):
+            raise ValueError("Embedding contains a non-finite value")
+
+        norm = math.sqrt(sum(value * value for value in vector))
+        if norm == 0:
+            raise ValueError("Embedding runtime returned a zero vector")
+        return [value / norm for value in vector]
 
 
 embedding_service = EmbeddingService()

@@ -68,6 +68,13 @@ class StorageService:
             raise FileNotFoundError(f"Source file not found at object_key: {object_key}")
         return file_path.read_bytes()
 
+    def delete_file(self, object_key: str) -> None:
+        """Remove a stored object created by an ingestion attempt."""
+        file_path = (self.base_path / object_key).resolve()
+        if not file_path.is_relative_to(self.base_path):
+            raise ValueError("Object key resolves outside source storage")
+        file_path.unlink(missing_ok=True)
+
     def get_absolute_path(self, object_key: str) -> Path:
         """Resolves the absolute path for an object key."""
         file_path = (self.base_path / object_key).resolve()
