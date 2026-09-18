@@ -5,6 +5,7 @@ from strands import tool
 from strands.tools.decorator import DecoratedFunctionTool
 
 from app.schemas.sources import CreateEvidenceSpanRequest
+from app.services.drafts import draft_service
 from app.services.sources.retrieval import retrieval_service
 
 
@@ -54,6 +55,20 @@ class WriterSourceToolHandlers:
             "evidence_spans": [span.model_dump(mode="json") for span in evidence],
         }
 
+    def get_document_version(self, document_version_id: str) -> dict[str, object]:
+        version = draft_service.get_document_version(
+            db=self._db,
+            version_id=UUID(document_version_id),
+            matter_id=self._matter_id,
+        )
+        return {
+            "version_id": str(version.id),
+            "draft_id": str(version.draft_id),
+            "version_no": version.version_no,
+            "content_json": version.content_json,
+            "content_sha256": version.content_sha256,
+        }
+
 
 def create_writer_source_tools(
     db: Session,
@@ -101,4 +116,15 @@ def create_writer_source_tools(
             raise ValueError("At least one evidence span id is required")
         return handlers.get_evidence_spans(span_ids)
 
-    return [search_sources, create_evidence_span, get_evidence_spans]
+    @tool(name="get_document_version")
+    def get_document_version(document_version_id: str) -> dict[str, object]:
+        """Load the exact immutable document version content and structure.
+
+        Args:
+            document_version_id: Document version identifier to load.
+        """
+        if not document_version_id.strip():
+            raise ValueError("document_version_id cannot be empty")
+        return handlers.get_document_version(document_version_id)
+
+    return [search_sources, create_evidence_span, get_evidence_spans, get_document_version]

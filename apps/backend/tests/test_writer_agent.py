@@ -26,6 +26,7 @@ def test_writer_agent_initialization() -> None:
         "search_sources",
         "create_evidence_span",
         "get_evidence_spans",
+        "get_document_version",
     ]
 
 

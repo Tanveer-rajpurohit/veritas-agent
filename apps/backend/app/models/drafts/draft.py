@@ -1,10 +1,14 @@
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Uuid
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
+if TYPE_CHECKING:
+    from app.models.drafts.document_version import DocumentVersion
 
 
 class Draft(Base):
@@ -28,3 +32,11 @@ class Draft(Base):
         onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
+
+    versions: Mapped[list["DocumentVersion"]] = relationship(
+        "DocumentVersion",
+        back_populates="draft",
+        cascade="all, delete-orphan",
+        order_by="DocumentVersion.version_no",
+    )
+
