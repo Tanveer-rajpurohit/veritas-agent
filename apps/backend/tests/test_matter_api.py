@@ -104,6 +104,10 @@ def test_upload_and_page_are_matter_scoped(
     page = client.get(f"/api/v1/sources/{source_id}/pages/1")
     assert page.status_code == 200
     assert page.json()["text"] == "The amount due is INR 12 lakh."
+    assert (
+        client.get(f"/api/v1/sources/{source_id}/download").content
+        == b"The amount due is INR 12 lakh."
+    )
 
     other = client.post(
         "/api/v1/auth/register",
@@ -111,6 +115,7 @@ def test_upload_and_page_are_matter_scoped(
     )
     client.headers["Authorization"] = f"Bearer {other.json()['access_token']}"
     assert client.get(f"/api/v1/sources/{source_id}").status_code == 404
+    assert client.get(f"/api/v1/sources/{source_id}/download").status_code == 404
     assert client.get(f"/api/v1/sources/{source_id}/pages/1").status_code == 404
     assert client.get(f"/api/v1/matters/{matter_id}/sources").status_code == 404
 

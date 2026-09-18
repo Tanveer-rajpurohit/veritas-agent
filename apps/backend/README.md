@@ -6,13 +6,14 @@ The backend currently includes the application shell, health endpoints, and a St
 
 ## Setup
 
-From `apps/backend`:
+Start PostgreSQL and MinIO from the repository root with `docker compose up -d`, then from `apps/backend`:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements-dev.txt
 Copy-Item .env.example .env
+# The sample MinIO credentials match docker-compose.yml; replace both for non-local use.
 # Replace AUTH_SECRET in .env with a random value of at least 32 characters.
 python -m uvicorn app.main:app --reload --port 8000
 ```
@@ -42,6 +43,7 @@ while its test suite is small.
 - `/api/v1/matters/` requires that token and returns only the caller's matters.
 - `POST /api/v1/matters/{id}/uploads` accepts PDF, TXT, and MD records up to 10 MB.
 - `GET /api/v1/matters/{id}/sources` and `GET /api/v1/sources/{id}/pages/{page}` return scoped evidence.
+- `GET /api/v1/sources/{id}/download` returns the authorized original file.
 - `POST /api/v1/matters/{id}/documents` creates an empty working brief.
 - `POST /api/v1/documents/{id}/versions` saves Tiptap JSON with a base version and `Idempotency-Key` header.
 - `GET /api/v1/documents/{id}` and `GET /api/v1/document-versions/{id}` return owned saved content.

@@ -28,6 +28,12 @@ class Settings(BaseSettings):
     SOURCE_STORAGE_BACKEND: str = "local"
     SOURCE_STORAGE_PATH: str = "./data/sources"
     EXPORT_STORAGE_PATH: str = "./data/exports"
+    EXPORT_STORAGE_BACKEND: str = "local"
+    MINIO_ENDPOINT: str = "http://localhost:9000"
+    MINIO_ACCESS_KEY: str = "veritas"
+    MINIO_SECRET_KEY: str = ""
+    MINIO_BUCKET: str = "veritas-sources"
+    MINIO_EXPORT_BUCKET: str = "veritas-exports"
     OCR_PROVIDER: str = "local"
 
     EMBEDDING_PROVIDER: str = "local"

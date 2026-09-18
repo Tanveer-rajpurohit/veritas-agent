@@ -2,6 +2,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -12,6 +13,7 @@ from app.models.matters import User
 from app.models.sources import Source, SourcePage, SourceVersion
 from app.repositories.matters import MatterRepository
 from app.services.sources.pipeline import ingestion_pipeline
+from app.services.sources.storage import storage_service
 
 router = APIRouter(prefix="/api/v1", tags=["Sources"])
 DbSession = Annotated[Session, Depends(get_db)]
@@ -126,6 +128,17 @@ def list_sources(matter_id: UUID, db: DbSession, user: CurrentUser) -> list[Sour
 def get_source(source_id: UUID, db: DbSession, user: CurrentUser) -> SourceResponse:
     source, version = _source_version(db, source_id, user.id)
     return _response(source, version)
+
+
+@router.get("/sources/{source_id}/download")
+def download_source(source_id: UUID, db: DbSession, user: CurrentUser) -> Response:
+    _, version = _source_version(db, source_id, user.id)
+    content = storage_service.read_file(version.object_key)
+    return Response(
+        content,
+        media_type=version.mime_type,
+        headers={"Content-Disposition": f'attachment; filename="source-{source_id}"'},
+    )
 
 
 @router.get("/sources/{source_id}/pages/{page_number}", response_model=PageResponse)
