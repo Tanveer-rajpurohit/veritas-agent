@@ -92,7 +92,6 @@ class Source(Base):
         server_default=text("now()"),
     )
 
-    # Relationships
     versions: Mapped[list["SourceVersion"]] = relationship(
         "SourceVersion",
         back_populates="source",
@@ -177,7 +176,6 @@ class SourceVersion(Base):
         UniqueConstraint("source_id", "version_number", name="uq_source_version_number"),
     )
 
-    # Relationships
     source: Mapped["Source"] = relationship(
         "Source",
         back_populates="versions",

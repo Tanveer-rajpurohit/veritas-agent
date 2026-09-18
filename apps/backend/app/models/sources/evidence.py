@@ -74,7 +74,6 @@ class EvidenceSpan(Base):
         server_default=text("now()"),
     )
 
-    # Relationships
     source_version: Mapped["SourceVersion"] = relationship(
         "SourceVersion",
         back_populates="evidence_spans",

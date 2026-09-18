@@ -87,7 +87,6 @@ class SourceChunk(Base):
         UniqueConstraint("source_version_id", "chunk_index", name="uq_source_chunk_index"),
     )
 
-    # Relationships
     source_version: Mapped["SourceVersion"] = relationship(
         "SourceVersion",
         back_populates="chunks",

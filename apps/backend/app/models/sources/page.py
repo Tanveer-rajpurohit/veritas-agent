@@ -62,7 +62,6 @@ class SourcePage(Base):
         UniqueConstraint("source_version_id", "page_number", name="uq_source_page_number"),
     )
 
-    # Relationships
     source_version: Mapped["SourceVersion"] = relationship(
         "SourceVersion",
         back_populates="pages",
