@@ -4,7 +4,7 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-from app.schemas.draft import DraftCreateRequest, DraftResponse, DraftUpdateRequest
+from app.schemas.drafts import DraftCreateRequest, DraftResponse, DraftUpdateRequest
 
 
 def test_draft_create_valid() -> None:

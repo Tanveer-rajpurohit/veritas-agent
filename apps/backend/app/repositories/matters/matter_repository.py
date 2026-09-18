@@ -3,13 +3,11 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.matter import Matter
-from app.schemas.matter import MatterCreateRequest, MatterUpdateRequest
+from app.models.matters import Matter
+from app.schemas.matters import MatterCreateRequest, MatterUpdateRequest
 
 
 class MatterRepository:
-    """Repository handling SQL persistence queries for Matters."""
-
     def __init__(self, db: Session) -> None:
         self.db = db
 
