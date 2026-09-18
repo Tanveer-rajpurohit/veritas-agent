@@ -7,6 +7,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.core.config import settings
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
@@ -37,8 +38,47 @@ def setup_test_db() -> Generator[None, None, None]:
 
 
 @pytest.fixture
-def client() -> TestClient:
-    return TestClient(app)
+def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    monkeypatch.setattr(settings, "AUTH_SECRET", "test-secret-that-is-at-least-32-bytes-long")
+    client = TestClient(app)
+    response = client.post(
+        "/api/v1/auth/register",
+        json={"email": "owner@example.com", "password": "correct-horse-battery"},
+    )
+    assert response.status_code == 201
+    client.headers["Authorization"] = f"Bearer {response.json()['access_token']}"
+    return client
+
+
+def test_matter_requires_authentication(client: TestClient) -> None:
+    client.headers.pop("Authorization")
+    assert client.get("/api/v1/matters/").status_code == 401
+
+
+def test_login_and_invalid_token(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": "owner@example.com", "password": "correct-horse-battery"},
+    )
+    assert response.status_code == 200
+    assert response.json()["token_type"] == "bearer"
+    client.headers["Authorization"] = "Bearer broken.token"
+    assert client.get("/api/v1/matters/").status_code == 401
+
+
+def test_matter_isolation(client: TestClient) -> None:
+    matter_id = client.post("/api/v1/matters/", json={"title": "Private"}).json()["id"]
+    response = client.post(
+        "/api/v1/auth/register",
+        json={"email": "other@example.com", "password": "another-correct-password"},
+    )
+    client.headers["Authorization"] = f"Bearer {response.json()['access_token']}"
+    assert client.get("/api/v1/matters/").json() == []
+    assert client.get(f"/api/v1/matters/{matter_id}").status_code == 404
+    assert (
+        client.patch(f"/api/v1/matters/{matter_id}", json={"title": "Changed"}).status_code == 404
+    )
+    assert client.delete(f"/api/v1/matters/{matter_id}").status_code == 404
 
 
 def test_create_matter_success(client: TestClient) -> None:

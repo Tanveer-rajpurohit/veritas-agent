@@ -13,6 +13,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements-dev.txt
 Copy-Item .env.example .env
+# Replace AUTH_SECRET in .env with a random value of at least 32 characters.
 python -m uvicorn app.main:app --reload --port 8000
 ```
 
@@ -36,6 +37,9 @@ while its test suite is small.
 
 - `GET /` returns API name, version, and status.
 - `GET /health` returns the service health status.
+- `POST /api/v1/auth/register` creates an account and returns a bearer token.
+- `POST /api/v1/auth/login` returns a bearer token for an existing account.
+- `/api/v1/matters/` requires that token and returns only the caller's matters.
 - `POST /api/v1/agent/chat/stream` streams Main Agent events when enabled.
 - `GET /docs` opens the Swagger UI.
 - `GET /redoc` opens the ReDoc reference.

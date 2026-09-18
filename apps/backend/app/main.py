@@ -8,6 +8,7 @@ import app.models  # noqa: F401
 from app.core.config import settings
 from app.db.init_db import init_db
 from app.routers.agent.router import router as agent_router
+from app.routers.auth import router as auth_router
 from app.routers.health.router import router as health_router
 from app.routers.matters.router import router as matter_router
 
@@ -36,6 +37,7 @@ app.add_middleware(
 )
 
 app.include_router(health_router)
+app.include_router(auth_router)
 app.include_router(agent_router)
 app.include_router(matter_router)
 

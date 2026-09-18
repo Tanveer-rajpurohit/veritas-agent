@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     APP_VERSION: str = "0.1.0"
     ENVIRONMENT: str = "development"
     ALLOWED_ORIGINS: list[str] = ["http://localhost:3000"]
+    AUTH_SECRET: str = ""
 
     BEDROCK_AGENT_ENABLED: bool = False
     AGENT_MAX_TOKENS: int = 2048
