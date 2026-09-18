@@ -373,3 +373,31 @@ def test_conflicting_records_create_stale_findings_after_edit(
     assert edited.status_code == 201, edited.text
     previous = client.get(f"/api/v1/document-versions/{saved['id']}/findings")
     assert previous.json()[0]["status"] == "stale"
+
+
+def test_threads_and_messages_are_persistent_and_scoped(client: TestClient) -> None:
+    matter_id = client.post("/api/v1/matters/", json={"title": "Chat"}).json()["id"]
+    thread = client.post(f"/api/v1/matters/{matter_id}/threads", json={"title": "Section 7"})
+    assert thread.status_code == 201, thread.text
+    thread_id = thread.json()["id"]
+    message = client.post(
+        f"/api/v1/threads/{thread_id}/messages", json={"content": "Draft a brief"}
+    )
+    assert message.status_code == 201, message.text
+    assert (
+        client.get(f"/api/v1/threads/{thread_id}/messages").json()[0]["content"] == "Draft a brief"
+    )
+    assert client.get(f"/api/v1/matters/{matter_id}/threads").json()[0]["id"] == thread_id
+
+    other = client.post(
+        "/api/v1/auth/register",
+        json={"email": "chat-reader@example.com", "password": "another-correct-password"},
+    )
+    client.headers["Authorization"] = f"Bearer {other.json()['access_token']}"
+    assert client.get(f"/api/v1/threads/{thread_id}/messages").status_code == 404
+    assert (
+        client.post(
+            f"/api/v1/threads/{thread_id}/messages", json={"content": "Intrusion"}
+        ).status_code
+        == 404
+    )

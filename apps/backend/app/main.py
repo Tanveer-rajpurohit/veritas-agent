@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.db.init_db import init_db
 from app.routers.agent.router import router as agent_router
 from app.routers.auth import router as auth_router
+from app.routers.conversations import router as conversations_router
 from app.routers.documents import router as documents_router
 from app.routers.exports import router as exports_router
 from app.routers.health.router import router as health_router
@@ -48,6 +49,7 @@ app.include_router(sources_router)
 app.include_router(documents_router)
 app.include_router(reviews_router)
 app.include_router(exports_router)
+app.include_router(conversations_router)
 
 
 @app.get("/", tags=["Health"])

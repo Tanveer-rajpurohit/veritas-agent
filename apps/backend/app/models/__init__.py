@@ -1,3 +1,4 @@
+from app.models.conversations import Message, Thread
 from app.models.drafts import DocumentVersion, Draft
 from app.models.matters import Matter, MatterMember, User
 from app.models.reviews import Finding, FindingEvidence, FindingResolution
@@ -11,6 +12,8 @@ __all__ = [
     "FindingEvidence",
     "FindingResolution",
     "Matter",
+    "Message",
+    "Thread",
     "MatterMember",
     "User",
     "Source",

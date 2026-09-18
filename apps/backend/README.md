@@ -44,6 +44,7 @@ while its test suite is small.
 - `POST /api/v1/matters/{id}/uploads` accepts PDF, TXT, and MD records up to 10 MB.
 - `GET /api/v1/matters/{id}/sources` and `GET /api/v1/sources/{id}/pages/{page}` return scoped evidence.
 - `GET /api/v1/sources/{id}/download` returns the authorized original file.
+- `POST /api/v1/matters/{id}/threads` and `/api/v1/threads/{id}/messages` persist scoped conversations.
 - `POST /api/v1/matters/{id}/documents` creates an empty working brief.
 - `POST /api/v1/documents/{id}/versions` saves Tiptap JSON with a base version and `Idempotency-Key` header.
 - `GET /api/v1/documents/{id}` and `GET /api/v1/document-versions/{id}` return owned saved content.
