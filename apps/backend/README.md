@@ -42,6 +42,9 @@ while its test suite is small.
 - `/api/v1/matters/` requires that token and returns only the caller's matters.
 - `POST /api/v1/matters/{id}/uploads` accepts PDF, TXT, and MD records up to 10 MB.
 - `GET /api/v1/matters/{id}/sources` and `GET /api/v1/sources/{id}/pages/{page}` return scoped evidence.
+- `POST /api/v1/matters/{id}/documents` creates an empty working brief.
+- `POST /api/v1/documents/{id}/versions` saves Tiptap JSON with a base version and `Idempotency-Key` header.
+- `GET /api/v1/documents/{id}` and `GET /api/v1/document-versions/{id}` return owned saved content.
 - `POST /api/v1/agent/chat/stream` streams Main Agent events when enabled.
 - `GET /docs` opens the Swagger UI.
 - `GET /redoc` opens the ReDoc reference.

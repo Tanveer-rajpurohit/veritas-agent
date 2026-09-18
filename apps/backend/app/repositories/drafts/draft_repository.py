@@ -2,8 +2,10 @@ import hashlib
 import json
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.drafts.document_command import DocumentCommand
 from app.models.drafts.document_version import DocumentVersion
 from app.models.drafts.draft import Draft
 
@@ -90,11 +92,23 @@ class DraftRepository:
         created_by_type: str = "agent",
         created_by_id: str = "writer_agent",
         change_summary: str | None = None,
+        user_id: UUID | None = None,
+        idempotency_key: str | None = None,
+        request_hash: str | None = None,
     ) -> DocumentVersion:
         """
         Creates a new immutable DocumentVersion under concurrency control.
         Rejects stale writes when base_version_id is no longer current.
         """
+        draft = db.scalar(select(Draft).where(Draft.id == draft.id).with_for_update())
+        if draft is None:
+            raise ValueError("Draft not found")
+        if user_id is not None and idempotency_key is not None and request_hash is not None:
+            command = db.get(DocumentCommand, (user_id, draft.id, idempotency_key))
+            if command is not None:
+                if command.request_hash != request_hash:
+                    raise ValueError("Idempotency key was used with different content")
+                return db.get(DocumentVersion, command.version_id)
         latest = self.get_latest_version(db=db, draft_id=draft.id)
         if base_version_id is not None and latest is not None and latest.id != base_version_id:
             raise ValueError(
@@ -122,6 +136,17 @@ class DraftRepository:
 
         db.add(version)
         db.add(draft)
+        if user_id is not None and idempotency_key is not None and request_hash is not None:
+            db.flush()
+            db.add(
+                DocumentCommand(
+                    user_id=user_id,
+                    draft_id=draft.id,
+                    key=idempotency_key,
+                    request_hash=request_hash,
+                    version_id=version.id,
+                )
+            )
         db.commit()
         db.refresh(version)
         return version

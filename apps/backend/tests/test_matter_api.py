@@ -113,6 +113,50 @@ def test_upload_and_page_are_matter_scoped(
     assert client.get(f"/api/v1/matters/{matter_id}/sources").status_code == 404
 
 
+def test_document_save_is_versioned_idempotent_and_scoped(client: TestClient) -> None:
+    matter_id = client.post("/api/v1/matters/", json={"title": "Drafting"}).json()["id"]
+    created = client.post(f"/api/v1/matters/{matter_id}/documents", json={"title": "Working brief"})
+    assert created.status_code == 201, created.text
+    document_id = created.json()["id"]
+    initial_id = created.json()["current_version_id"]
+    payload = {
+        "base_version_id": initial_id,
+        "schema_version": 1,
+        "content": {
+            "type": "doc",
+            "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Amount due"}]}],
+        },
+    }
+    headers = {"Idempotency-Key": "save-1"}
+    saved = client.post(f"/api/v1/documents/{document_id}/versions", json=payload, headers=headers)
+    assert saved.status_code == 201, saved.text
+    assert saved.json()["version_no"] == 2
+    replay = client.post(f"/api/v1/documents/{document_id}/versions", json=payload, headers=headers)
+    assert replay.json()["id"] == saved.json()["id"]
+    assert (
+        client.post(
+            f"/api/v1/documents/{document_id}/versions",
+            json=payload,
+            headers={"Idempotency-Key": "save-2"},
+        ).status_code
+        == 409
+    )
+
+    other = client.post(
+        "/api/v1/auth/register",
+        json={"email": "document-reader@example.com", "password": "another-correct-password"},
+    )
+    client.headers["Authorization"] = f"Bearer {other.json()['access_token']}"
+    assert client.get(f"/api/v1/documents/{document_id}").status_code == 404
+    assert client.get(f"/api/v1/document-versions/{saved.json()['id']}").status_code == 404
+    assert (
+        client.post(
+            f"/api/v1/documents/{document_id}/versions", json=payload, headers=headers
+        ).status_code
+        == 404
+    )
+
+
 def test_create_matter_success(client: TestClient) -> None:
     payload = {
         "title": "State Bank of India v. Monnet Ispat & Energy Ltd",
