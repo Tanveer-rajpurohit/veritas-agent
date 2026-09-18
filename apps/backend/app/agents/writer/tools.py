@@ -34,6 +34,10 @@ class WriterSourceToolHandlers:
         self.max_tool_calls = max_tool_calls
         self.tool_call_count = 0
 
+    def reset_tool_call_count(self) -> None:
+        """Reset the execution tool call count for a new run."""
+        self.tool_call_count = 0
+
     def _record_tool_call(self) -> None:
         self.tool_call_count += 1
         if self.tool_call_count > self.max_tool_calls:
@@ -202,12 +206,13 @@ class WriterSourceToolHandlers:
             provision=raw_prov["provision"],
             unit=raw_prov["unit"],
             heading=raw_prov["heading"],
-            provider=ecourts_adapter.PROVIDER_NAME,
+            provider=raw_prov.get("provider", ecourts_adapter.PROVIDER_NAME),
             provider_url=raw_prov.get("provider_url"),
             official_source_url=raw_prov.get("official_source_url"),
             retrieved_at=datetime.now(UTC).isoformat(),
             content_sha256=span.quoted_text_sha256,
             text=span.quoted_text,
+            is_fixture=raw_prov.get("is_fixture", False),
             limitations=raw_prov.get("limitations", []),
         )
         return resp.model_dump(mode="json")
@@ -264,6 +269,7 @@ class WriterSourceToolHandlers:
             content_sha256=span.quoted_text_sha256,
             text=span.quoted_text,
             summary=case_data.get("summary"),
+            is_fixture=case_data.get("is_fixture", False),
             limitations=case_data.get("limitations", []),
         )
         return resp.model_dump(mode="json")

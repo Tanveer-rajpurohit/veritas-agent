@@ -24,6 +24,8 @@ class StatuteCandidate(BaseModel):
     act_title: str
     heading: str
     provider_url: str | None = None
+    is_fixture: bool = False
+    limitations: list[str] = Field(default_factory=list)
 
 
 class SearchStatutesResponse(BaseModel):
@@ -63,4 +65,5 @@ class LookupStatuteResponse(BaseModel):
     retrieved_at: str
     content_sha256: str
     text: str
+    is_fixture: bool = False
     limitations: list[str] = Field(default_factory=list)

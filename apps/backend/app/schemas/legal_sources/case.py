@@ -27,6 +27,7 @@ class CaseCandidate(BaseModel):
     date: str | None = None
     citation: str | None = None
     source_url: str | None = None
+    is_fixture: bool = False
     limitations: list[str] = Field(default_factory=list)
 
 
@@ -67,4 +68,5 @@ class FetchCaseResponse(BaseModel):
     content_sha256: str
     text: str
     summary: str | None = None
+    is_fixture: bool = False
     limitations: list[str] = Field(default_factory=list)

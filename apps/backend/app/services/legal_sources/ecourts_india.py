@@ -250,16 +250,45 @@ class ECourtsIndiaAdapter:
                                 act_title=act_title,
                                 heading=str(item.get("heading") or item.get("title") or ""),
                                 provider_url=item.get("url"),
+                                is_fixture=False,
+                                limitations=[],
                             )
                         )
-        except Exception:
-            pass
+                else:
+                    if not settings.LEGAL_SOURCE_FIXTURES_ENABLED:
+                        raise ValueError(
+                            f"Provider returned HTTP {resp.status_code} for search '{clean_q}'"
+                        )
+        except Exception as e:
+            if not settings.LEGAL_SOURCE_FIXTURES_ENABLED:
+                if isinstance(e, ValueError):
+                    raise
+                raise ValueError(f"Legal source unavailable from provider: {e}") from e
 
         if not candidates:
-            # Fallback to curated demo fixture for matching queries
+            if not settings.LEGAL_SOURCE_FIXTURES_ENABLED:
+                return SearchStatutesResponse(
+                    provider=self.PROVIDER_NAME,
+                    candidates=[],
+                )
+            # Explicit demo fixtures when enabled
             candidates = [
-                StatuteCandidate.model_validate(c) for c in self.DEMO_STATUTE_SEARCH_FIXTURE[:limit]
+                StatuteCandidate(
+                    act_key=c["act_key"],
+                    provision=c["provision"],
+                    unit=c["unit"],
+                    act_title=c["act_title"],
+                    heading=c["heading"],
+                    provider_url=c.get("provider_url"),
+                    is_fixture=True,
+                    limitations=["Synthetic fixture; not a live legal source."],
+                )
+                for c in self.DEMO_STATUTE_SEARCH_FIXTURE[:limit]
             ]
+            return SearchStatutesResponse(
+                provider="synthetic_demo_fixture",
+                candidates=candidates,
+            )
 
         return SearchStatutesResponse(
             provider=self.PROVIDER_NAME,
@@ -297,28 +326,46 @@ class ECourtsIndiaAdapter:
                                 data.get("heading") or f"{clean_unit.capitalize()} {clean_prov}"
                             ),
                             "text": text.strip(),
+                            "provider": self.PROVIDER_NAME,
                             "provider_url": urljoin(settings.ECOURTS_INDIA_BASE_URL, endpoint),
                             "official_source_url": data.get("official_url"),
+                            "is_fixture": False,
                             "limitations": [
                                 "The immediate provider is a private service.",
                                 "Retrieval does not independently establish current legal treatment.",
                             ],
                         }
                 elif resp.status_code == 404:
+                    if not settings.LEGAL_SOURCE_FIXTURES_ENABLED:
+                        raise ValueError(
+                            f"Provision {clean_unit} {clean_prov} of '{clean_act}' not found on provider"
+                        )
                     fixture_key = (clean_act, clean_unit, clean_prov)
                     if fixture_key in self.DEMO_PROVISION_FIXTURES:
-                        return dict(self.DEMO_PROVISION_FIXTURES[fixture_key])
+                        fixture = dict(self.DEMO_PROVISION_FIXTURES[fixture_key])
+                        fixture["is_fixture"] = True
+                        fixture["provider"] = "synthetic_demo_fixture"
+                        fixture["limitations"] = ["Synthetic fixture; not a live legal source."]
+                        return fixture
                     raise ValueError(
                         f"Provision {clean_unit} {clean_prov} of '{clean_act}' not found on provider"
                     )
         except ValueError:
             raise
-        except Exception:
-            pass
+        except Exception as e:
+            if not settings.LEGAL_SOURCE_FIXTURES_ENABLED:
+                raise ValueError(
+                    f"Statute {clean_act} {clean_unit} {clean_prov} unavailable from provider: {e}"
+                ) from e
 
-        fixture_key = (clean_act, clean_unit, clean_prov)
-        if fixture_key in self.DEMO_PROVISION_FIXTURES:
-            return dict(self.DEMO_PROVISION_FIXTURES[fixture_key])
+        if settings.LEGAL_SOURCE_FIXTURES_ENABLED:
+            fixture_key = (clean_act, clean_unit, clean_prov)
+            if fixture_key in self.DEMO_PROVISION_FIXTURES:
+                fixture = dict(self.DEMO_PROVISION_FIXTURES[fixture_key])
+                fixture["is_fixture"] = True
+                fixture["provider"] = "synthetic_demo_fixture"
+                fixture["limitations"] = ["Synthetic fixture; not a live legal source."]
+                return fixture
 
         raise ValueError(f"Statute {clean_act} {clean_unit} {clean_prov} unavailable from provider")
 
@@ -354,16 +401,45 @@ class ECourtsIndiaAdapter:
                                 date=c.get("date"),
                                 citation=c.get("citation"),
                                 source_url=c.get("url"),
+                                is_fixture=False,
                                 limitations=["Candidate discovery from keyless judgment index."],
                             )
                         )
-        except Exception:
-            pass
+                else:
+                    if not settings.LEGAL_SOURCE_FIXTURES_ENABLED:
+                        raise ValueError(
+                            f"Provider returned HTTP {resp.status_code} for case search"
+                        )
+        except Exception as e:
+            if not settings.LEGAL_SOURCE_FIXTURES_ENABLED:
+                if isinstance(e, ValueError):
+                    raise
+                raise ValueError(f"Legal source unavailable from provider: {e}") from e
 
         if not candidates:
+            if not settings.LEGAL_SOURCE_FIXTURES_ENABLED:
+                return SearchCasesResponse(
+                    provider=self.PROVIDER_NAME,
+                    candidates=[],
+                )
             candidates = [
-                CaseCandidate.model_validate(c) for c in self.DEMO_CASE_CANDIDATE_FIXTURE[:limit]
+                CaseCandidate(
+                    candidate_id=c["candidate_id"],
+                    provider="synthetic_demo_fixture",
+                    title=c["title"],
+                    court=c["court"],
+                    date=c["date"],
+                    citation=c["citation"],
+                    source_url=c["source_url"],
+                    is_fixture=True,
+                    limitations=["Synthetic fixture; not a live legal source."],
+                )
+                for c in self.DEMO_CASE_CANDIDATE_FIXTURE[:limit]
             ]
+            return SearchCasesResponse(
+                provider="synthetic_demo_fixture",
+                candidates=candidates,
+            )
 
         return SearchCasesResponse(
             provider=self.PROVIDER_NAME,
@@ -390,16 +466,36 @@ class ECourtsIndiaAdapter:
                             "source_url": data.get("url"),
                             "text": text.strip(),
                             "summary": data.get("summary"),
+                            "is_fixture": False,
                             "limitations": [
                                 "The immediate provider is a private service.",
                                 "Ratio must be verified against official Supreme Court order.",
                             ],
                         }
-        except Exception:
-            pass
+                elif resp.status_code == 404:
+                    if not settings.LEGAL_SOURCE_FIXTURES_ENABLED:
+                        raise ValueError(f"Case candidate '{candidate_id}' not found on provider")
+                    if clean_id in self.DEMO_CASE_PASSAGE_FIXTURE:
+                        fixture = dict(self.DEMO_CASE_PASSAGE_FIXTURE[clean_id])
+                        fixture["is_fixture"] = True
+                        fixture["provider"] = "synthetic_demo_fixture"
+                        fixture["limitations"] = ["Synthetic fixture; not a live legal source."]
+                        return fixture
+                    raise ValueError(f"Case candidate '{candidate_id}' not found on provider")
+        except ValueError:
+            raise
+        except Exception as e:
+            if not settings.LEGAL_SOURCE_FIXTURES_ENABLED:
+                raise ValueError(
+                    f"Case candidate '{candidate_id}' unavailable from provider: {e}"
+                ) from e
 
-        if clean_id in self.DEMO_CASE_PASSAGE_FIXTURE:
-            return dict(self.DEMO_CASE_PASSAGE_FIXTURE[clean_id])
+        if settings.LEGAL_SOURCE_FIXTURES_ENABLED and clean_id in self.DEMO_CASE_PASSAGE_FIXTURE:
+            fixture = dict(self.DEMO_CASE_PASSAGE_FIXTURE[clean_id])
+            fixture["is_fixture"] = True
+            fixture["provider"] = "synthetic_demo_fixture"
+            fixture["limitations"] = ["Synthetic fixture; not a live legal source."]
+            return fixture
 
         raise ValueError(f"Case candidate '{candidate_id}' not found on provider")
 

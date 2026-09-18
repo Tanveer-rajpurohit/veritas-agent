@@ -34,9 +34,11 @@ class DraftTemplate(BaseModel):
     document_type: str = Field(min_length=1)
     version: int = 1
     description: str = Field(min_length=1)
+    purpose: str = Field(min_length=1)
     required_facts: list[RequiredFact] = Field(default_factory=list)
     sections: list[TemplateSection] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
+    provenance_note: str = Field(min_length=1)
 
 
 class TemplateSummary(BaseModel):
@@ -49,6 +51,7 @@ class TemplateSummary(BaseModel):
     document_type: str
     jurisdiction: str
     description: str
+    purpose: str
     section_count: int
 
 
