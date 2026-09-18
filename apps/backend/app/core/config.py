@@ -35,6 +35,15 @@ class Settings(BaseSettings):
     WRITER_RETRIEVAL_LIMIT: int = 8
     WRITER_MAX_EVIDENCE_TOKENS: int = 6000
 
+    LEGAL_STATUTE_PROVIDER: str = "ecourts_india"
+    LEGAL_CASE_PROVIDER: str = "ecourts_india"
+    ECOURTS_INDIA_BASE_URL: str = "https://indiacode.ecourtsindia.com/api/v1"
+    INDIAN_KANOON_API_TOKEN: str = ""
+    INDIAN_KANOON_BASE_URL: str = "https://api.indiankanoon.org"
+    LEGAL_SOURCE_TIMEOUT_SECONDS: float = 10.0
+    LEGAL_SOURCE_MAX_RESPONSE_BYTES: int = 2000000
+    LEGAL_SOURCE_CACHE_TTL_SECONDS: int = 86400
+
     @field_validator("ALLOWED_ORIGINS", mode="before")
     @classmethod
     def parse_allowed_origins(cls, value: str | list[str]) -> list[str]:
