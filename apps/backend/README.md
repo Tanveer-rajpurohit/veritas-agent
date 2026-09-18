@@ -15,6 +15,7 @@ python -m pip install -r requirements-dev.txt
 Copy-Item .env.example .env
 # The sample MinIO credentials match docker-compose.yml; replace both for non-local use.
 # Replace AUTH_SECRET in .env with a random value of at least 32 characters.
+python -m alembic upgrade head
 python -m uvicorn app.main:app --reload --port 8000
 ```
 
@@ -30,7 +31,10 @@ Run these commands from `apps/backend` before committing:
 python -m ruff format --check --no-cache .
 python -m ruff check --no-cache .
 python -m pytest
+python -m alembic check
 ```
+
+Database tables are managed only by Alembic. For a local database that already matches the baseline schema, inspect and back it up before running `python -m alembic stamp b38381765488`; never stamp an unverified database.
 
 Use `python -m ruff format --no-cache .` to apply formatting. Tests use pytest and live in the
 top-level `tests/` directory; this flat layout keeps the current backend easy to navigate
