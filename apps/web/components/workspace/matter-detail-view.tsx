@@ -51,6 +51,8 @@ interface DraftItem {
   status: "Working Draft" | "Review Needed" | "Eligible for Export";
 }
 
+type HumanDecision = "accepted" | "rejected";
+
 interface FindingItem {
   id: string;
   dimension:
@@ -66,6 +68,10 @@ interface FindingItem {
   proposition: string;
   bench?: string;
   detail: string;
+  humanDecision?: {
+    action: HumanDecision;
+    reason?: string;
+  };
 }
 
 const TEMPLATE_OPTIONS: SelectOption[] = [
@@ -197,6 +203,11 @@ export function MatterDetailView({
     "all" | "citation" | "fact"
   >("all");
 
+  const [rejectingFindingId, setRejectingFindingId] = useState<string | null>(
+    null,
+  );
+  const [rejectReason, setRejectReason] = useState("");
+
   const [drafts, setDrafts] = useState<DraftItem[]>([
     {
       id: "draft-1",
@@ -244,7 +255,7 @@ export function MatterDetailView({
     },
   ]);
 
-  const [findings] = useState<FindingItem[]>([
+  const [findings, setFindings] = useState<FindingItem[]>([
     {
       id: "find-1",
       dimension: "Quotation",
@@ -433,6 +444,26 @@ export function MatterDetailView({
     setNewDraftTitle("");
     setNewDraftPrompt("");
     setDraftModalOpen(false);
+  }
+
+  function handleAcceptFinding(id: string) {
+    setFindings((prev) =>
+      prev.map((f) =>
+        f.id === id ? { ...f, humanDecision: { action: "accepted" } } : f,
+      ),
+    );
+  }
+
+  function handleRejectFinding(id: string, reason: string) {
+    setFindings((prev) =>
+      prev.map((f) =>
+        f.id === id
+          ? { ...f, humanDecision: { action: "rejected", reason } }
+          : f,
+      ),
+    );
+    setRejectingFindingId(null);
+    setRejectReason("");
   }
 
   const promptSuggestions = [
@@ -817,20 +848,34 @@ export function MatterDetailView({
                           <span>{finding.agent}</span>
                         </span>
                       </div>
-                      <span
-                        className={`inline-flex items-center gap-1 rounded-sm px-2 py-0.5 text-[10px] font-semibold ${
-                          finding.status === "Supported"
-                            ? "bg-[#edf8f1] text-[#1e6f3d] border border-emerald-200"
-                            : "bg-rose-50 text-rose-700 border border-rose-200"
-                        }`}
-                      >
-                        {finding.status === "Supported" ? (
-                          <CheckIcon size={10} />
-                        ) : (
-                          <AlertCircleIcon size={10} />
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-sm px-2 py-0.5 text-[10px] font-semibold ${
+                            finding.status === "Supported"
+                              ? "bg-[#edf8f1] text-[#1e6f3d] border border-emerald-200"
+                              : "bg-rose-50 text-rose-700 border border-rose-200"
+                          }`}
+                        >
+                          {finding.status === "Supported" ? (
+                            <CheckIcon size={10} />
+                          ) : (
+                            <AlertCircleIcon size={10} />
+                          )}
+                          <span>{finding.status}</span>
+                        </span>
+                        {finding.humanDecision?.action === "accepted" && (
+                          <span className="inline-flex items-center gap-1 rounded-sm bg-[#edf8f1] px-2 py-0.5 text-[10px] font-semibold text-[#1e6f3d] border border-emerald-200">
+                            <CheckIcon size={10} />
+                            <span>Accepted</span>
+                          </span>
                         )}
-                        <span>{finding.status}</span>
-                      </span>
+                        {finding.humanDecision?.action === "rejected" && (
+                          <span className="inline-flex items-center gap-1 rounded-sm bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-700 border border-rose-200">
+                            <XIcon size={10} />
+                            <span>Rejected</span>
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <div>
@@ -852,6 +897,18 @@ export function MatterDetailView({
                     <p className="m-0 text-[11px] text-stone-600 leading-normal">
                       {finding.detail}
                     </p>
+
+                    {finding.humanDecision?.action === "rejected" &&
+                      finding.humanDecision.reason && (
+                        <div className="rounded-sm border border-rose-100 bg-rose-50/60 px-3 py-2">
+                          <p className="m-0 text-[10.5px] font-semibold text-rose-700">
+                            Rejection reason
+                          </p>
+                          <p className="m-0 pt-0.5 text-[11px] text-rose-800 leading-relaxed">
+                            {finding.humanDecision.reason}
+                          </p>
+                        </div>
+                      )}
                   </div>
 
                   <div className="pt-3 mt-3 border-t border-stone-100 flex items-center justify-between gap-2">
@@ -867,18 +924,46 @@ export function MatterDetailView({
                       <span>Send to Agent</span>
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        alert(
-                          `Inspecting verified evidence span for ${finding.title}...`,
-                        )
-                      }
-                      className="inline-flex h-6 items-center gap-1 rounded-sm border border-stone-200 px-2 text-[10.5px] font-medium text-stone-600 hover:bg-stone-50 hover:text-stone-900 cursor-pointer"
-                    >
-                      <EyeIcon size={11} />
-                      <span>Inspect Span</span>
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      {finding.status === "Contradicted" &&
+                        !finding.humanDecision && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleAcceptFinding(finding.id)}
+                              className="inline-flex h-6 items-center gap-1 rounded-sm border border-emerald-200 bg-[#edf8f1] px-2 text-[10.5px] font-semibold text-[#1e6f3d] hover:bg-emerald-100 transition-colors cursor-pointer"
+                              aria-label={`Accept finding: ${finding.title}`}
+                            >
+                              <CheckIcon size={10} />
+                              <span>Accept</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRejectingFindingId(finding.id);
+                                setRejectReason("");
+                              }}
+                              className="inline-flex h-6 items-center gap-1 rounded-sm border border-rose-200 bg-rose-50 px-2 text-[10.5px] font-semibold text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer"
+                              aria-label={`Reject finding: ${finding.title}`}
+                            >
+                              <XIcon size={10} />
+                              <span>Reject</span>
+                            </button>
+                          </>
+                        )}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          alert(
+                            `Inspecting verified evidence span for ${finding.title}...`,
+                          )
+                        }
+                        className="inline-flex h-6 items-center gap-1 rounded-sm border border-stone-200 px-2 text-[10.5px] font-medium text-stone-600 hover:bg-stone-50 hover:text-stone-900 cursor-pointer"
+                      >
+                        <EyeIcon size={11} />
+                        <span>Inspect Span</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1024,6 +1109,105 @@ export function MatterDetailView({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {rejectingFindingId !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain bg-stone-950/40 p-4 backdrop-blur-xs"
+          onMouseDown={(event) => {
+            if (event.currentTarget === event.target) {
+              setRejectingFindingId(null);
+              setRejectReason("");
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reject-finding-title"
+            aria-describedby="reject-finding-description"
+            className="relative my-auto w-full max-w-md overflow-visible rounded-xl border border-stone-200/90 bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+          >
+            <div className="flex items-start justify-between pb-4 border-b border-stone-100">
+              <div>
+                <h2
+                  id="reject-finding-title"
+                  className="m-0 font-sans text-base font-semibold text-stone-900"
+                >
+                  Reject Finding
+                </h2>
+                <p
+                  id="reject-finding-description"
+                  className="m-0 pt-1 text-xs leading-relaxed text-stone-500"
+                >
+                  Provide a reason for rejecting this machine finding. This
+                  decision is recorded locally.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setRejectingFindingId(null);
+                  setRejectReason("");
+                }}
+                aria-label="Close reject finding dialog"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition-colors cursor-pointer shrink-0 ml-4"
+              >
+                <XIcon size={15} />
+              </button>
+            </div>
+
+            <div className="pt-5 flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label
+                  htmlFor="reject-reason"
+                  className="text-xs font-semibold text-stone-700"
+                >
+                  Rejection reason
+                  <span className="ml-1 text-rose-600">*</span>
+                </label>
+                <textarea
+                  id="reject-reason"
+                  name="reject-reason"
+                  rows={4}
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="State why the machine finding is being rejected — e.g. citation is inapplicable to the current proposition…"
+                  className="min-h-[100px] w-full resize-none rounded-lg border border-stone-200/90 bg-white p-3.5 text-xs leading-relaxed text-stone-900 shadow-2xs transition-[border-color,box-shadow] placeholder:text-stone-400 focus-visible:border-[#487aa8] focus-visible:ring-2 focus-visible:ring-[#487aa8]/15 focus-visible:outline-none"
+                />
+                {rejectReason.trim() === "" && (
+                  <p className="m-0 text-[11px] text-rose-600">
+                    A rejection reason is required.
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-1 border-t border-stone-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRejectingFindingId(null);
+                    setRejectReason("");
+                  }}
+                  className="h-9 rounded-lg border border-stone-200 bg-white px-4 text-xs font-medium text-stone-700 shadow-2xs hover:bg-stone-50 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={rejectReason.trim() === ""}
+                  onClick={() =>
+                    handleRejectFinding(rejectingFindingId, rejectReason.trim())
+                  }
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-rose-600 px-5 text-xs font-semibold text-white shadow-2xs hover:bg-rose-700 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <XIcon size={12} />
+                  <span>Confirm Rejection</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
