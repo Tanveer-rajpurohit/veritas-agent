@@ -330,12 +330,20 @@ export function AppSidebar({
         <div className="border-t border-stone-200/90 p-2 flex flex-col gap-1">
           <button
             type="button"
-            className={`flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-stone-700 hover:bg-[#edf4fa] hover:text-[#487aa8] cursor-pointer transition-colors ${
-              collapsed ? "justify-center px-0" : ""
-            }`}
+            onClick={() => onSelectNav("settings")}
+            className={`flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
+              activeNav === "settings"
+                ? "bg-[#edf4fa] text-[#2c5478] font-semibold"
+                : "text-stone-700 hover:bg-[#edf4fa] hover:text-[#487aa8]"
+            } ${collapsed ? "justify-center px-0" : ""}`}
             title="Settings"
           >
-            <SettingsIcon size={14} className="text-stone-600" />
+            <SettingsIcon
+              size={14}
+              className={
+                activeNav === "settings" ? "text-[#487aa8]" : "text-stone-600"
+              }
+            />
             {!collapsed && <span>Settings</span>}
           </button>
 
