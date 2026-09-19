@@ -10,12 +10,11 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import current_user
 from app.db.session import get_db
-from app.models.drafts import DocumentVersion
+from app.dependencies.matter import get_finding_for_user, get_version_for_user
 from app.models.matters import User
 from app.models.reviews import Finding, FindingEvidence, FindingResolution
 from app.models.sources import EvidenceSpan, Source, SourcePage, SourceVersion
 from app.repositories.drafts.draft_repository import draft_repository
-from app.repositories.matters import MatterRepository
 from app.schemas.agents.fact_reviewer import (
     FactReviewRunRequest,
     FactReviewRunResponse,
@@ -61,16 +60,6 @@ class ResolveFinding(BaseModel):
     model_config = ConfigDict(extra="forbid")
     action: str
     reason: str = Field(min_length=10, max_length=2000)
-
-
-def _owned_version(db: Session, version_id: UUID, user_id: UUID) -> DocumentVersion:
-    version = draft_repository.get_version_by_id(db, version_id)
-    if version is None:
-        raise HTTPException(status_code=404, detail="Version not found")
-    draft = draft_repository.get_draft_by_id(db, version.draft_id)
-    if draft is None or MatterRepository(db).get_by_id(draft.matter_id, user_id) is None:
-        raise HTTPException(status_code=404, detail="Version not found")
-    return version
 
 
 def _response(db: Session, finding: Finding) -> FindingResponse:
@@ -146,10 +135,7 @@ def run_checks(
     payload: FactReviewRunRequest | None = None,
     idempotency_key: Annotated[str | None, Header(min_length=1, max_length=128)] = None,
 ) -> FactReviewRunResponse | list[FindingResponse]:
-    version = _owned_version(db, version_id, user.id)
-    draft = draft_repository.get_draft_by_id(db, version.draft_id)
-    if draft is None:
-        raise HTTPException(status_code=404, detail="Draft not found")
+    version, draft, _ = get_version_for_user(db, version_id, user.id, "reviewer")
 
     latest = draft_repository.get_latest_version(db, draft.id)
     if latest.id != version.id:
@@ -186,7 +172,7 @@ def list_findings(
     status: Annotated[str | None, Query()] = None,
     is_stale: Annotated[bool | None, Query()] = None,
 ) -> list[FindingResponse]:
-    _owned_version(db, version_id, user.id)
+    get_version_for_user(db, version_id, user.id, "viewer")
     query = select(Finding).where(Finding.document_version_id == version_id)
     if dimension:
         query = query.where(Finding.dimension == dimension)
@@ -210,10 +196,8 @@ def resolve_finding(
     user: CurrentUser,
     idempotency_key: Annotated[str, Header(min_length=1, max_length=128)],
 ) -> FindingResponse:
-    finding = db.get(Finding, finding_id)
-    if finding is None:
-        raise HTTPException(status_code=404, detail="Finding not found")
-    version = _owned_version(db, finding.document_version_id, user.id)
+    finding, _ = get_finding_for_user(db, finding_id, user.id, "reviewer")
+    version, draft, _ = get_version_for_user(db, finding.document_version_id, user.id, "reviewer")
     latest = draft_repository.get_latest_version(db, version.draft_id)
     if latest.id != version.id or finding.stale_at is not None:
         raise HTTPException(status_code=409, detail="Finding is stale")

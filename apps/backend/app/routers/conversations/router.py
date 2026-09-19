@@ -9,9 +9,9 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import current_user
 from app.db.session import get_db
+from app.dependencies.matter import get_thread_for_user, require_matter_role
 from app.models.conversations import Message, Thread
-from app.models.matters import User
-from app.repositories.matters import MatterRepository
+from app.models.matters import Matter, MatterMember, User
 
 router = APIRouter(prefix="/api/v1", tags=["Conversations"])
 DbSession = Annotated[Session, Depends(get_db)]
@@ -44,9 +44,7 @@ class MessageResponse(BaseModel):
 
 
 def owned_thread(db: Session, thread_id: UUID, user_id: UUID) -> Thread:
-    thread = db.get(Thread, thread_id)
-    if thread is None or MatterRepository(db).get_by_id(thread.matter_id, user_id) is None:
-        raise HTTPException(status_code=404, detail="Thread not found")
+    thread, _ = get_thread_for_user(db, thread_id, user_id, "viewer")
     return thread
 
 
@@ -68,13 +66,15 @@ def _message_response(message: Message) -> MessageResponse:
 
 @router.post("/matters/{matter_id}/threads", response_model=ThreadResponse, status_code=201)
 def create_thread(
-    matter_id: UUID, payload: CreateThread, db: DbSession, user: CurrentUser
+    payload: CreateThread,
+    auth_data: Annotated[tuple[Matter, MatterMember], Depends(require_matter_role("editor"))],
+    db: DbSession,
+    user: CurrentUser,
 ) -> ThreadResponse:
+    matter, _ = auth_data
     if not payload.title.strip():
         raise HTTPException(status_code=422, detail="Thread title is required")
-    if MatterRepository(db).get_by_id(matter_id, user.id) is None:
-        raise HTTPException(status_code=404, detail="Matter not found")
-    thread = Thread(matter_id=matter_id, title=payload.title.strip(), created_by=user.id)
+    thread = Thread(matter_id=matter.id, title=payload.title.strip(), created_by=user.id)
     db.add(thread)
     db.commit()
     db.refresh(thread)
@@ -82,11 +82,13 @@ def create_thread(
 
 
 @router.get("/matters/{matter_id}/threads", response_model=list[ThreadResponse])
-def list_threads(matter_id: UUID, db: DbSession, user: CurrentUser) -> list[ThreadResponse]:
-    if MatterRepository(db).get_by_id(matter_id, user.id) is None:
-        raise HTTPException(status_code=404, detail="Matter not found")
+def list_threads(
+    auth_data: Annotated[tuple[Matter, MatterMember], Depends(require_matter_role("viewer"))],
+    db: DbSession,
+) -> list[ThreadResponse]:
+    matter, _ = auth_data
     threads = db.scalars(
-        select(Thread).where(Thread.matter_id == matter_id).order_by(Thread.created_at.desc())
+        select(Thread).where(Thread.matter_id == matter.id).order_by(Thread.created_at.desc())
     ).all()
     return [_thread_response(thread) for thread in threads]
 
@@ -102,8 +104,8 @@ def create_message(
 ) -> MessageResponse:
     if not payload.content.strip():
         raise HTTPException(status_code=422, detail="Message cannot be blank")
-    owned_thread(db, thread_id, user.id)
-    message = Message(thread_id=thread_id, role="user", content=payload.content.strip())
+    thread, _ = get_thread_for_user(db, thread_id, user.id, "editor")
+    message = Message(thread_id=thread.id, role="user", content=payload.content.strip())
     db.add(message)
     db.commit()
     db.refresh(message)
@@ -112,8 +114,8 @@ def create_message(
 
 @router.get("/threads/{thread_id}/messages", response_model=list[MessageResponse])
 def list_messages(thread_id: UUID, db: DbSession, user: CurrentUser) -> list[MessageResponse]:
-    owned_thread(db, thread_id, user.id)
+    thread, _ = get_thread_for_user(db, thread_id, user.id, "viewer")
     messages = db.scalars(
-        select(Message).where(Message.thread_id == thread_id).order_by(Message.created_at)
+        select(Message).where(Message.thread_id == thread.id).order_by(Message.created_at)
     ).all()
     return [_message_response(message) for message in messages]

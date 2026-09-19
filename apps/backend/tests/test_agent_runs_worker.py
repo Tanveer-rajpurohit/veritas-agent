@@ -41,6 +41,7 @@ def _seed_matter_and_draft(db):
     matter = Matter(
         id=uuid4(),
         title="Insolvency Petition Matter",
+        created_by=user.id,
     )
     db.add(matter)
 

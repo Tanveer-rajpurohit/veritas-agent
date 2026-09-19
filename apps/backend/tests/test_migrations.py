@@ -27,6 +27,58 @@ def test_baseline_migration_round_trip(tmp_path, monkeypatch) -> None:
     command.check(config)
 
 
+def test_matter_authorization_migration_rejects_unowned_existing_matter(
+    tmp_path, monkeypatch
+) -> None:
+    import uuid
+    from datetime import UTC, datetime
+
+    database_path = tmp_path / "unowned-matter.db"
+    database_url = f"sqlite:///{database_path.as_posix()}"
+    monkeypatch.setattr(settings, "DATABASE_URL", database_url)
+    config = Config(Path(__file__).parents[1] / "alembic.ini")
+
+    command.upgrade(config, "a3d9d2707c30")
+    engine = create_engine(database_url)
+    now = datetime.now(UTC)
+    with engine.begin() as conn:
+        user_id = uuid.uuid4().hex
+        matter_id = uuid.uuid4().hex
+        conn.execute(
+            text(
+                "INSERT INTO users "
+                "(id, email, password_hash, is_active, created_at, updated_at) "
+                "VALUES (:id, :email, :password_hash, 1, :created_at, :updated_at)"
+            ),
+            {
+                "id": user_id,
+                "email": "unowned@example.com",
+                "password_hash": "argon2-test",
+                "created_at": now,
+                "updated_at": now,
+            },
+        )
+        conn.execute(
+            text(
+                "INSERT INTO matters "
+                "(id, title, matter_type, stage, created_at, updated_at) "
+                "VALUES (:id, :title, :matter_type, :stage, :created_at, :updated_at)"
+            ),
+            {
+                "id": matter_id,
+                "title": "Unowned private matter",
+                "matter_type": "Insolvency (IBC)",
+                "stage": "Drafting",
+                "created_at": now,
+                "updated_at": now,
+            },
+        )
+    engine.dispose()
+
+    with pytest.raises(RuntimeError, match="without an owner membership"):
+        command.upgrade(config, "head")
+
+
 def test_postgresql_migration_lifecycle(monkeypatch) -> None:
     test_database_url = os.getenv("TEST_DATABASE_URL")
     if not test_database_url:
@@ -91,6 +143,7 @@ def test_postgresql_migration_lifecycle(monkeypatch) -> None:
         test_engine = create_engine(disposable_db_url)
         created_time = datetime(2026, 9, 18, 12, 0, 0, tzinfo=UTC)
         user_id = uuid.uuid4()
+        matter_id = uuid.uuid4()
         with test_engine.connect() as conn:
             conn.execute(
                 text(
@@ -103,6 +156,27 @@ def test_postgresql_migration_lifecycle(monkeypatch) -> None:
                     "pw": "argon2_simulated_hash",
                     "created": created_time,
                 },
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO matters "
+                    "(id, title, matter_type, stage, created_at, updated_at) "
+                    "VALUES (:id, :title, :matter_type, :stage, :created, :created)"
+                ),
+                {
+                    "id": matter_id,
+                    "title": "Existing owned matter",
+                    "matter_type": "Insolvency (IBC)",
+                    "stage": "Drafting",
+                    "created": created_time,
+                },
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO matter_members (matter_id, user_id, role) "
+                    "VALUES (:matter_id, :user_id, 'owner')"
+                ),
+                {"matter_id": matter_id, "user_id": user_id},
             )
             conn.commit()
 
@@ -142,6 +216,26 @@ def test_postgresql_migration_lifecycle(monkeypatch) -> None:
             assert row["full_name"] is None
             assert row["phone_number"] is None
             assert row["law_firm"] is None
+
+            matter_creator = conn.execute(
+                text("SELECT created_by FROM matters WHERE id = :id"),
+                {"id": matter_id},
+            ).scalar_one()
+            assert matter_creator == user_id
+            member = (
+                conn.execute(
+                    text(
+                        "SELECT role, created_by, created_at FROM matter_members "
+                        "WHERE matter_id = :matter_id AND user_id = :user_id"
+                    ),
+                    {"matter_id": matter_id, "user_id": user_id},
+                )
+                .mappings()
+                .one()
+            )
+            assert member["role"] == "owner"
+            assert member["created_by"] == user_id
+            assert member["created_at"] is not None
 
             # Verify updated_at is NOT NULL
             is_nullable = conn.execute(

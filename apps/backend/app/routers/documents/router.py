@@ -9,10 +9,14 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import current_user
 from app.db.session import get_db
+from app.dependencies.matter import (
+    get_draft_for_user,
+    get_version_for_user,
+    require_matter_role,
+)
 from app.models.drafts import Draft
-from app.models.matters import User
+from app.models.matters import Matter, MatterMember, User
 from app.repositories.drafts.draft_repository import draft_repository
-from app.repositories.matters import MatterRepository
 from app.services.sources.retrieval import retrieval_service
 
 router = APIRouter(prefix="/api/v1", tags=["Documents"])
@@ -54,13 +58,6 @@ class VersionResponse(BaseModel):
     parent_version_id: UUID | None
     content: dict
     content_sha256: str
-
-
-def _owned_draft(db: Session, document_id: UUID, user_id: UUID) -> Draft:
-    draft = draft_repository.get_draft_by_id(db, document_id)
-    if draft is None or MatterRepository(db).get_by_id(draft.matter_id, user_id) is None:
-        raise HTTPException(status_code=404, detail="Document not found")
-    return draft
 
 
 def _validate_content(content: dict) -> list[UUID]:
@@ -161,12 +158,14 @@ def _version_response(version) -> VersionResponse:
 
 @router.post("/matters/{matter_id}/documents", response_model=DocumentResponse, status_code=201)
 def create_document(
-    matter_id: UUID, payload: CreateDocument, db: DbSession, user: CurrentUser
+    payload: CreateDocument,
+    auth_data: Annotated[tuple[Matter, MatterMember], Depends(require_matter_role("editor"))],
+    db: DbSession,
+    user: CurrentUser,
 ) -> DocumentResponse:
-    if MatterRepository(db).get_by_id(matter_id, user.id) is None:
-        raise HTTPException(status_code=404, detail="Matter not found")
+    matter, _ = auth_data
     draft = Draft(
-        matter_id=matter_id,
+        matter_id=matter.id,
         title=payload.title.strip(),
         kind="brief",
         content_json={"type": "doc", "content": []},
@@ -176,7 +175,7 @@ def create_document(
     version = draft_repository.get_latest_version(db, draft.id)
     return DocumentResponse(
         id=draft.id,
-        matter_id=matter_id,
+        matter_id=matter.id,
         title=draft.title,
         current_version_id=version.id,
         version_no=version.version_no,
@@ -185,10 +184,12 @@ def create_document(
 
 
 @router.get("/matters/{matter_id}/documents", response_model=list[DocumentResponse])
-def list_documents(matter_id: UUID, db: DbSession, user: CurrentUser) -> list[DocumentResponse]:
-    if MatterRepository(db).get_by_id(matter_id, user.id) is None:
-        raise HTTPException(status_code=404, detail="Matter not found")
-    drafts = draft_repository.list_drafts_by_matter(db, matter_id)
+def list_documents(
+    auth_data: Annotated[tuple[Matter, MatterMember], Depends(require_matter_role("viewer"))],
+    db: DbSession,
+) -> list[DocumentResponse]:
+    matter, _ = auth_data
+    drafts = draft_repository.list_drafts_by_matter(db, matter.id)
     responses: list[DocumentResponse] = []
     for draft in drafts:
         version = draft_repository.get_latest_version(db, draft.id)
@@ -208,7 +209,7 @@ def list_documents(matter_id: UUID, db: DbSession, user: CurrentUser) -> list[Do
 
 @router.get("/documents/{document_id}", response_model=DocumentResponse)
 def get_document(document_id: UUID, db: DbSession, user: CurrentUser) -> DocumentResponse:
-    draft = _owned_draft(db, document_id, user.id)
+    draft, _ = get_draft_for_user(db, document_id, user.id, "viewer")
     version = draft_repository.get_latest_version(db, draft.id)
     return DocumentResponse(
         id=draft.id,
@@ -222,10 +223,7 @@ def get_document(document_id: UUID, db: DbSession, user: CurrentUser) -> Documen
 
 @router.get("/document-versions/{version_id}", response_model=VersionResponse)
 def get_document_version(version_id: UUID, db: DbSession, user: CurrentUser) -> VersionResponse:
-    version = draft_repository.get_version_by_id(db, version_id)
-    if version is None:
-        raise HTTPException(status_code=404, detail="Version not found")
-    _owned_draft(db, version.draft_id, user.id)
+    version, _, _ = get_version_for_user(db, version_id, user.id, "viewer")
     return _version_response(version)
 
 
@@ -233,7 +231,7 @@ def get_document_version(version_id: UUID, db: DbSession, user: CurrentUser) -> 
 def update_document(
     document_id: UUID, payload: UpdateDocument, db: DbSession, user: CurrentUser
 ) -> DocumentResponse:
-    draft = _owned_draft(db, document_id, user.id)
+    draft, _ = get_draft_for_user(db, document_id, user.id, "editor")
     clean_title = payload.title.strip()
     if not clean_title:
         raise HTTPException(status_code=422, detail="Title cannot be empty")
@@ -253,7 +251,7 @@ def update_document(
 
 @router.delete("/documents/{document_id}", status_code=204)
 def delete_document(document_id: UUID, db: DbSession, user: CurrentUser) -> None:
-    draft = _owned_draft(db, document_id, user.id)
+    draft, _ = get_draft_for_user(db, document_id, user.id, "owner")
     draft_repository.delete_draft(db, draft)
 
 
@@ -261,8 +259,8 @@ def delete_document(document_id: UUID, db: DbSession, user: CurrentUser) -> None
 def list_document_versions(
     document_id: UUID, db: DbSession, user: CurrentUser
 ) -> list[VersionResponse]:
-    _owned_draft(db, document_id, user.id)
-    versions = draft_repository.list_versions_by_draft(db, document_id)
+    draft, _ = get_draft_for_user(db, document_id, user.id, "viewer")
+    versions = draft_repository.list_versions_by_draft(db, draft.id)
     return [_version_response(v) for v in versions]
 
 
@@ -274,7 +272,7 @@ def save_version(
     user: CurrentUser,
     idempotency_key: Annotated[str, Header(min_length=1, max_length=128)],
 ) -> VersionResponse:
-    draft = _owned_draft(db, document_id, user.id)
+    draft, _ = get_draft_for_user(db, document_id, user.id, "editor")
     span_ids = _validate_content(payload.content)
     if span_ids:
         try:

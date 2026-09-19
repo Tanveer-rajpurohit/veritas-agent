@@ -83,7 +83,7 @@ def test_checks_endpoint_synthetic_conflict_api_flow(auth_client: tuple[TestClie
     db = TestingSessionLocal()
 
     # Create Matter
-    matter = Matter(id=uuid4(), title="Matter for Checks API")
+    matter = Matter(id=uuid4(), title="Matter for Checks API", created_by=user.id)
     member = MatterMember(matter_id=matter.id, user_id=user.id, role="owner")
     db.add_all([matter, member])
     db.flush()

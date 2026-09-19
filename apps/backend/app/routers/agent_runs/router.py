@@ -12,14 +12,18 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import current_user
 from app.db.session import get_db
+from app.dependencies.matter import (
+    get_agent_run_for_user,
+    get_matter_for_user,
+    get_thread_for_user,
+)
 from app.models.agent_runs import AgentEvent, AgentRun
 from app.models.conversations import Message
-from app.models.matters import MatterMember, User
+from app.models.matters import User
 from app.models.sources import Source
 from app.repositories.drafts.draft_repository import draft_repository
-from app.repositories.matters import MatterRepository
-from app.routers.conversations.router import owned_thread
 from app.schemas.agents.writer import DocumentOperation
+from app.schemas.matters import MatterRole
 from app.services.drafts.draft_service import draft_service
 from app.workers.agent_runs import process_agent_run
 
@@ -80,13 +84,6 @@ def _response(run: AgentRun) -> RunResponse:
     )
 
 
-def _owned_run(db: Session, run_id: UUID, user_id: UUID) -> AgentRun:
-    run = db.get(AgentRun, run_id)
-    if run is None or MatterRepository(db).get_by_id(run.matter_id, user_id) is None:
-        raise HTTPException(status_code=404, detail="Agent run not found")
-    return run
-
-
 @router.post("/matters/{matter_id}/agent-runs", response_model=RunResponse, status_code=202)
 def create_run(
     matter_id: UUID,
@@ -96,8 +93,6 @@ def create_run(
     user: CurrentUser,
     idempotency_key: Annotated[str, Header(min_length=1, max_length=128)],
 ) -> RunResponse:
-    if MatterRepository(db).get_by_id(matter_id, user.id) is None:
-        raise HTTPException(status_code=404, detail="Matter not found")
     allowed_actions = {
         "main": {"answer", "review_citations", "review_facts"},
         "writer": {"prepare_working_brief", "revise_working_brief"},
@@ -106,6 +101,13 @@ def create_run(
     }
     if payload.requested_action not in allowed_actions[payload.agent]:
         raise HTTPException(status_code=422, detail="Action is not supported by this agent")
+    required_role: MatterRole = (
+        "editor"
+        if payload.requested_action
+        in {"prepare_working_brief", "revise_working_brief", "apply_safe_fact_fixes"}
+        else "reviewer"
+    )
+    get_matter_for_user(db, matter_id, user.id, required_role)
     document_required_actions = {
         "revise_working_brief",
         "review_facts",
@@ -114,18 +116,23 @@ def create_run(
     }
     if payload.requested_action in document_required_actions and payload.document_id is None:
         raise HTTPException(status_code=422, detail="A document is required for revision")
-    thread = owned_thread(db, payload.thread_id, user.id)
-    message = db.get(Message, payload.message_id)
-    if (
-        thread.matter_id != matter_id
-        or message is None
-        or message.thread_id != thread.id
-        or message.role != "user"
-    ):
-        raise HTTPException(status_code=422, detail="Message does not belong to this matter thread")
+    thread, _ = get_thread_for_user(
+        db, payload.thread_id, user.id, required_role, matter_id=matter_id
+    )
+    message = db.scalar(
+        select(Message).where(
+            Message.id == payload.message_id,
+            Message.thread_id == thread.id,
+            Message.role == "user",
+        )
+    )
+    if message is None:
+        raise HTTPException(status_code=404, detail="Message not found")
     if payload.document_id is not None:
         draft = draft_repository.get_draft_by_id(db, payload.document_id, matter_id)
-        if draft is None or payload.document_version_id is None:
+        if draft is None:
+            raise HTTPException(status_code=404, detail="Document not found")
+        if payload.document_version_id is None:
             raise HTTPException(status_code=422, detail="Current document version is required")
         current = draft_repository.get_latest_version(db, draft.id)
         if current.id != payload.document_version_id:
@@ -140,7 +147,7 @@ def create_run(
             )
         ).all()
         if len(sources) != len(set(payload.source_ids)):
-            raise HTTPException(status_code=422, detail="A source is unavailable for this matter")
+            raise HTTPException(status_code=404, detail="Source not found")
     request_hash = hashlib.sha256(
         json.dumps(payload.model_dump(mode="json"), sort_keys=True).encode()
     ).hexdigest()
@@ -185,7 +192,8 @@ def create_run(
 
 @router.get("/agent-runs/{run_id}", response_model=RunResponse)
 def get_run(run_id: UUID, db: DbSession, user: CurrentUser) -> RunResponse:
-    return _response(_owned_run(db, run_id, user.id))
+    run, _ = get_agent_run_for_user(db, run_id, user.id, "viewer")
+    return _response(run)
 
 
 @router.post("/agent-runs/{run_id}/apply", response_model=ApplyProposalResponse, status_code=201)
@@ -195,17 +203,7 @@ def apply_writer_proposal(
     user: CurrentUser,
     idempotency_key: Annotated[str, Header(min_length=1, max_length=128)],
 ) -> ApplyProposalResponse:
-    run = _owned_run(db, run_id, user.id)
-    if run.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Agent run not found")
-    membership = db.scalar(
-        select(MatterMember).where(
-            MatterMember.matter_id == run.matter_id,
-            MatterMember.user_id == user.id,
-        )
-    )
-    if membership is None or membership.role not in {"owner", "editor"}:
-        raise HTTPException(status_code=403, detail="Editor access is required to apply edits")
+    run, _ = get_agent_run_for_user(db, run_id, user.id, "editor")
     if run.status != "completed" or run.agent != "writer" or not run.document_id:
         raise HTTPException(status_code=409, detail="This run has no applicable document proposal")
     result = dict(run.result or {})
@@ -263,9 +261,7 @@ def reject_writer_proposal(
     db: DbSession,
     user: CurrentUser,
 ) -> RejectProposalResponse:
-    run = _owned_run(db, run_id, user.id)
-    if run.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Agent run not found")
+    run, _ = get_agent_run_for_user(db, run_id, user.id, "editor")
     result = dict(run.result or {})
     if run.status != "completed" or run.agent != "writer" or not result.get("proposed_operations"):
         raise HTTPException(status_code=409, detail="This run has no document proposal")
@@ -285,7 +281,7 @@ def get_run_events(
     user: CurrentUser,
     last_event_id: Annotated[str | None, Header()] = None,
 ) -> StreamingResponse:
-    _owned_run(db, run_id, user.id)
+    get_agent_run_for_user(db, run_id, user.id, "viewer")
     cursor = 0
     if last_event_id:
         try:

@@ -85,7 +85,7 @@ def test_fact_review_synthetic_conflict_fixture() -> None:
 
     # 1. Setup user and matter
     user = User(id=uuid4(), email="lawyer@example.com", password_hash="hash")
-    matter = Matter(id=uuid4(), title="IBC Section 7 Working Brief")
+    matter = Matter(id=uuid4(), title="IBC Section 7 Working Brief", created_by=user.id)
     member = MatterMember(matter_id=matter.id, user_id=user.id, role="owner")
     db.add_all([user, matter, member])
     db.flush()
@@ -164,7 +164,7 @@ def test_fact_review_synthetic_conflict_fixture() -> None:
 def test_fact_review_blocks_unsafe_fix_in_apply_safe_fixes() -> None:
     db = TestingSessionLocal()
     user = User(id=uuid4(), email="lawyer2@example.com", password_hash="hash")
-    matter = Matter(id=uuid4(), title="Conflict Matter")
+    matter = Matter(id=uuid4(), title="Conflict Matter", created_by=user.id)
     db.add_all([user, matter, MatterMember(matter_id=matter.id, user_id=user.id, role="owner")])
     db.flush()
 
@@ -209,7 +209,7 @@ def test_fact_review_blocks_unsafe_fix_in_apply_safe_fixes() -> None:
 def test_fact_review_does_not_apply_unscoped_amount_fix() -> None:
     db = TestingSessionLocal()
     user = User(id=uuid4(), email="lawyer3@example.com", password_hash="hash")
-    matter = Matter(id=uuid4(), title="Typo Matter")
+    matter = Matter(id=uuid4(), title="Typo Matter", created_by=user.id)
     db.add_all([user, matter, MatterMember(matter_id=matter.id, user_id=user.id, role="owner")])
     db.flush()
 

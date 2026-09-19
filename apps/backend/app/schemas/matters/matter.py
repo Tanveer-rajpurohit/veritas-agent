@@ -1,7 +1,8 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class MatterCreateRequest(BaseModel):
@@ -64,6 +65,9 @@ class MatterUpdateRequest(BaseModel):
         return value
 
 
+MatterRole = Literal["owner", "editor", "reviewer", "viewer"]
+
+
 class MatterResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -74,5 +78,48 @@ class MatterResponse(BaseModel):
     court: str | None = None
     matter_type: str
     stage: str
+    created_by: UUID
+    role: MatterRole | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class MatterMemberResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    matter_id: UUID
+    user_id: UUID
+    role: MatterRole
+    email: str | None = None
+    created_at: datetime
+    created_by: UUID | None = None
+
+
+class AddMemberRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    user_id: UUID | None = Field(default=None, description="Target user ID")
+    email: str | None = Field(default=None, description="Target user email")
+    role: MatterRole = Field(description="Role to assign: owner, editor, reviewer, or viewer")
+
+    @field_validator("email")
+    @classmethod
+    def validate_email_format(cls, value: str | None) -> str | None:
+        if value is not None:
+            cleaned = value.strip().lower()
+            if "@" not in cleaned:
+                raise ValueError("Invalid email address")
+            return cleaned
+        return value
+
+    @model_validator(mode="after")
+    def require_one_user_identifier(self) -> "AddMemberRequest":
+        if (self.user_id is None) == (self.email is None):
+            raise ValueError("Provide exactly one of user_id or email")
+        return self
+
+
+class UpdateMemberRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    role: MatterRole = Field(description="Role to update: owner, editor, reviewer, or viewer")

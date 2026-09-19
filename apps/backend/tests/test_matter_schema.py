@@ -47,14 +47,17 @@ def test_matter_update_valid_and_rejects_blank() -> None:
 def test_matter_response_serialization() -> None:
     now = datetime.now(UTC)
     matter_id = uuid4()
+    creator_id = uuid4()
     resp = MatterResponse(
         id=matter_id,
         title="Test Matter",
         matter_type="Insolvency (IBC)",
         stage="Drafting",
+        created_by=creator_id,
         created_at=now,
         updated_at=now,
     )
     assert resp.id == matter_id
+    assert resp.created_by == creator_id
     assert resp.title == "Test Matter"
     assert resp.created_at == now

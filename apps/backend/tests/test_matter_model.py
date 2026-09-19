@@ -2,7 +2,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from app.db.base import Base
-from app.models.matters import Matter
+from app.models.matters import Matter, User
 
 
 def test_matter_model_creation_and_defaults() -> None:
@@ -11,10 +11,16 @@ def test_matter_model_creation_and_defaults() -> None:
     Base.metadata.create_all(engine)
 
     with Session(engine) as session:
+        user = User(email="test@example.com", password_hash="hashed")
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+
         new_matter = Matter(
             title="State Bank of India v. Monnet Ispat & Energy Ltd",
             court="NCLT Kolkata",
             case_number="CP (IB) No. 169/KB/2017",
+            created_by=user.id,
         )
         session.add(new_matter)
         session.commit()
@@ -22,6 +28,7 @@ def test_matter_model_creation_and_defaults() -> None:
 
         # Verify auto-generated fields
         assert new_matter.id is not None
+        assert new_matter.created_by == user.id
         assert new_matter.matter_type == "Insolvency (IBC)"
         assert new_matter.stage == "Drafting"
         assert new_matter.created_at is not None

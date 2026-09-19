@@ -9,9 +9,9 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import current_user
 from app.db.session import get_db
-from app.models.matters import User
+from app.dependencies.matter import get_source_for_user, require_matter_role
+from app.models.matters import Matter, MatterMember, User
 from app.models.sources import Source, SourcePage, SourceVersion
-from app.repositories.matters import MatterRepository
 from app.services.sources.pipeline import ingestion_pipeline
 from app.services.sources.storage import storage_service
 
@@ -43,24 +43,6 @@ class PageResponse(BaseModel):
     extraction_confidence: float | None
 
 
-def _owned_matter(db: Session, matter_id: UUID, user_id: UUID) -> None:
-    if MatterRepository(db).get_by_id(matter_id, user_id) is None:
-        raise HTTPException(status_code=404, detail="Matter not found")
-
-
-def _source_version(db: Session, source_id: UUID, user_id: UUID) -> tuple[Source, SourceVersion]:
-    row = db.execute(
-        select(Source, SourceVersion)
-        .join(SourceVersion, SourceVersion.source_id == Source.id)
-        .where(Source.id == source_id)
-        .order_by(SourceVersion.version_number.desc())
-    ).first()
-    if row is None or row.Source.matter_id is None:
-        raise HTTPException(status_code=404, detail="Source not found")
-    _owned_matter(db, row.Source.matter_id, user_id)
-    return row.Source, row.SourceVersion
-
-
 def _response(source: Source, version: SourceVersion) -> SourceResponse:
     return SourceResponse(
         id=source.id,
@@ -77,13 +59,13 @@ def _response(source: Source, version: SourceVersion) -> SourceResponse:
 
 @router.post("/matters/{matter_id}/uploads", response_model=SourceResponse, status_code=201)
 async def upload_source(
-    matter_id: UUID,
+    auth_data: Annotated[tuple[Matter, MatterMember], Depends(require_matter_role("editor"))],
     db: DbSession,
     user: CurrentUser,
     file: Annotated[UploadFile, File()],
     is_synthetic: bool = False,
 ) -> SourceResponse:
-    _owned_matter(db, matter_id, user.id)
+    matter, _ = auth_data
     filename = file.filename or ""
     extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     if extension not in {"pdf", "txt", "md"}:
@@ -103,7 +85,7 @@ async def upload_source(
             db=db,
             content=content,
             filename=filename,
-            matter_id=matter_id,
+            matter_id=matter.id,
             is_synthetic=is_synthetic,
         )
     except ValueError as exc:
@@ -112,10 +94,13 @@ async def upload_source(
 
 
 @router.get("/matters/{matter_id}/sources", response_model=list[SourceResponse])
-def list_sources(matter_id: UUID, db: DbSession, user: CurrentUser) -> list[SourceResponse]:
-    _owned_matter(db, matter_id, user.id)
+def list_sources(
+    auth_data: Annotated[tuple[Matter, MatterMember], Depends(require_matter_role("viewer"))],
+    db: DbSession,
+) -> list[SourceResponse]:
+    matter, _ = auth_data
     sources = db.scalars(
-        select(Source).where(Source.matter_id == matter_id).order_by(Source.created_at.desc())
+        select(Source).where(Source.matter_id == matter.id).order_by(Source.created_at.desc())
     ).all()
     return [
         _response(source, max(source.versions, key=lambda version: version.version_number))
@@ -126,13 +111,13 @@ def list_sources(matter_id: UUID, db: DbSession, user: CurrentUser) -> list[Sour
 
 @router.get("/sources/{source_id}", response_model=SourceResponse)
 def get_source(source_id: UUID, db: DbSession, user: CurrentUser) -> SourceResponse:
-    source, version = _source_version(db, source_id, user.id)
+    source, version, _ = get_source_for_user(db, source_id, user.id, "viewer")
     return _response(source, version)
 
 
 @router.get("/sources/{source_id}/download")
 def download_source(source_id: UUID, db: DbSession, user: CurrentUser) -> Response:
-    _, version = _source_version(db, source_id, user.id)
+    _, version, _ = get_source_for_user(db, source_id, user.id, "viewer")
     content = storage_service.read_file(version.object_key)
     return Response(
         content,
@@ -145,7 +130,7 @@ def download_source(source_id: UUID, db: DbSession, user: CurrentUser) -> Respon
 def get_source_page(
     source_id: UUID, page_number: int, db: DbSession, user: CurrentUser
 ) -> PageResponse:
-    source, version = _source_version(db, source_id, user.id)
+    _, version, _ = get_source_for_user(db, source_id, user.id, "viewer")
     page = db.scalar(
         select(SourcePage).where(
             SourcePage.source_version_id == version.id,
@@ -155,7 +140,7 @@ def get_source_page(
     if page is None:
         raise HTTPException(status_code=404, detail="Page not found")
     return PageResponse(
-        source_id=source.id,
+        source_id=source_id,
         source_version_id=version.id,
         page_number=page.page_number,
         text=page.text,

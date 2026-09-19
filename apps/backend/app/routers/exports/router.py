@@ -10,10 +10,10 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import current_user
 from app.db.session import get_db
+from app.dependencies.matter import get_export_for_user, get_version_for_user
 from app.models.drafts.export import DraftExport
 from app.models.matters import User
 from app.repositories.drafts.draft_repository import draft_repository
-from app.repositories.matters import MatterRepository
 from app.services.exports.draft import (
     build_package,
     checksum,
@@ -43,17 +43,6 @@ class ExportResponse(BaseModel):
     created_at: datetime
 
 
-def _owned_export(db: Session, export_id: UUID, user_id: UUID) -> DraftExport:
-    export = db.get(DraftExport, export_id)
-    if export is None:
-        raise HTTPException(status_code=404, detail="Export not found")
-    version = draft_repository.get_version_by_id(db, export.document_version_id)
-    draft = draft_repository.get_draft_by_id(db, version.draft_id) if version else None
-    if draft is None or MatterRepository(db).get_by_id(draft.matter_id, user_id) is None:
-        raise HTTPException(status_code=404, detail="Export not found")
-    return export
-
-
 def _response(export: DraftExport) -> ExportResponse:
     return ExportResponse(
         id=export.id,
@@ -76,10 +65,7 @@ def create_export(
     user: CurrentUser,
     idempotency_key: Annotated[str, Header(min_length=1, max_length=128)],
 ) -> ExportResponse:
-    version = draft_repository.get_version_by_id(db, version_id)
-    draft = draft_repository.get_draft_by_id(db, version.draft_id) if version else None
-    if draft is None or MatterRepository(db).get_by_id(draft.matter_id, user.id) is None:
-        raise HTTPException(status_code=404, detail="Version not found")
+    version, draft, _ = get_version_for_user(db, version_id, user.id, "viewer")
     if draft_repository.get_latest_version(db, draft.id).id != version_id:
         raise HTTPException(status_code=409, detail="Export requires the current version")
     if payload.mode != "draft":
@@ -122,12 +108,13 @@ def create_export(
 
 @router.get("/exports/{export_id}", response_model=ExportResponse)
 def get_export(export_id: UUID, db: DbSession, user: CurrentUser) -> ExportResponse:
-    return _response(_owned_export(db, export_id, user.id))
+    export, _ = get_export_for_user(db, export_id, user.id, "viewer")
+    return _response(export)
 
 
 @router.get("/exports/{export_id}/download")
 def download_export(export_id: UUID, db: DbSession, user: CurrentUser) -> Response:
-    export = _owned_export(db, export_id, user.id)
+    export, _ = get_export_for_user(db, export_id, user.id, "viewer")
     content = export_storage.read(export.object_key)
     media_type = "application/pdf" if export.format == "pdf" else "application/json"
     return Response(

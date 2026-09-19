@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.db.base import Base
 from app.models.drafts import Draft
-from app.models.matters import Matter
+from app.models.matters import Matter, User
 
 
 def test_draft_model_creation_and_defaults() -> None:
@@ -11,7 +11,12 @@ def test_draft_model_creation_and_defaults() -> None:
     Base.metadata.create_all(engine)
 
     with Session(engine) as session:
-        matter = Matter(title="SBI v. Monnet")
+        user = User(email="author@example.com", password_hash="hashed")
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+
+        matter = Matter(title="SBI v. Monnet", created_by=user.id)
         session.add(matter)
         session.commit()
         session.refresh(matter)
