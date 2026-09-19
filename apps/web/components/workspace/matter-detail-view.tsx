@@ -22,7 +22,15 @@ import {
   AlertCircleIcon,
   ColoredFileIcon,
 } from "./workspace-icons";
-import { useDocuments } from "../../hooks/documents/useDocuments";
+import {
+  useCreateDocument,
+  useDocuments,
+} from "../../hooks/documents/useDocuments";
+import {
+  useDownloadSource,
+  useSources,
+  useUploadSource,
+} from "../../hooks/sources/useSources";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 
 interface MatterDetailViewProps {
@@ -38,67 +46,9 @@ interface DocumentItem {
   pages: number;
   size: string;
   uploadedAt: string;
-  format: "PDF" | "XLSX" | "DOCX";
+  format: "PDF" | "TXT" | "MD";
   hasDiscrepancy?: boolean;
 }
-
-const INITIAL_DOCUMENTS: DocumentItem[] = [
-  {
-    id: "doc-1",
-    name: "IBC_Section7_Form1_Petition.pdf",
-    type: "Pleadings",
-    pages: 56,
-    size: "3.2 MB",
-    uploadedAt: "Today, 10:14 AM",
-    format: "PDF",
-  },
-  {
-    id: "doc-2",
-    name: "Syndicated_Facility_Agreement_2023.pdf",
-    type: "Contracts",
-    pages: 34,
-    size: "2.1 MB",
-    uploadedAt: "Yesterday",
-    format: "PDF",
-  },
-  {
-    id: "doc-3",
-    name: "NeSL_Default_Authentication_Record.pdf",
-    type: "Evidence",
-    pages: 4,
-    size: "520 KB",
-    uploadedAt: "14 May 2026",
-    format: "PDF",
-  },
-  {
-    id: "doc-4",
-    name: "Audited_Bank_Ledger_Statements.xlsx",
-    type: "Evidence",
-    pages: 12,
-    size: "840 KB",
-    uploadedAt: "10 May 2026",
-    format: "XLSX",
-    hasDiscrepancy: true,
-  },
-  {
-    id: "doc-5",
-    name: "Statutory_Demand_Notice_Section8.pdf",
-    type: "Pleadings",
-    pages: 8,
-    size: "460 KB",
-    uploadedAt: "06 May 2026",
-    format: "PDF",
-  },
-  {
-    id: "doc-6",
-    name: "NCLT_Interim_Restraint_Order.pdf",
-    type: "Orders",
-    pages: 6,
-    size: "380 KB",
-    uploadedAt: "01 May 2026",
-    format: "PDF",
-  },
-];
 
 interface DraftItem {
   id: string;
@@ -192,6 +142,10 @@ export function MatterDetailView({
   const [draftModalOpen, setDraftModalOpen] = useState(false);
 
   const { data: backendDocs } = useDocuments(matter.id);
+  const createDocumentMutation = useCreateDocument(matter.id);
+  const { data: backendSources } = useSources(matter.id);
+  const uploadSourceMutation = useUploadSource();
+  const downloadSourceMutation = useDownloadSource();
   const setActiveMatterId = useWorkspaceStore((s) => s.setActiveMatterId);
   const setActiveDocumentId = useWorkspaceStore((s) => s.setActiveDocumentId);
 
@@ -209,27 +163,29 @@ export function MatterDetailView({
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const indicatorRef = useRef<HTMLDivElement>(null);
 
-  const [localUploadedDocs, setLocalUploadedDocs] = useState<DocumentItem[]>([]);
-
   const documents = useMemo<DocumentItem[]>(() => {
-    const backendItems: DocumentItem[] = (backendDocs || []).map((bd) => ({
-      id: bd.id,
-      name: bd.title,
-      type: "Pleadings",
-      pages: 1,
-      size: "Cloud sync",
-      uploadedAt: "Recently synced",
-      format: "PDF",
+    const backendItems: DocumentItem[] = (backendSources || []).map((source) => ({
+      id: source.id,
+      name: source.canonical_title,
+      type: "Evidence",
+      pages: source.page_count ?? 0,
+      size: source.extraction_status,
+      uploadedAt: `Version ${source.version_number}`,
+      format: source.canonical_title.toLowerCase().endsWith(".md")
+        ? "MD"
+        : source.canonical_title.toLowerCase().endsWith(".txt")
+          ? "TXT"
+          : "PDF",
     }));
 
-    const combined = [...localUploadedDocs, ...backendItems, ...INITIAL_DOCUMENTS];
+    const combined = backendItems;
     const seen = new Set<string>();
     return combined.filter((d) => {
       if (seen.has(d.id)) return false;
       seen.add(d.id);
       return true;
     });
-  }, [backendDocs, localUploadedDocs]);
+  }, [backendSources]);
 
   const [findingCategory, setFindingCategory] = useState<
     "all" | "citation" | "fact"
@@ -240,52 +196,18 @@ export function MatterDetailView({
   );
   const [rejectReason, setRejectReason] = useState("");
 
-  const [drafts, setDrafts] = useState<DraftItem[]>([
-    {
-      id: "draft-1",
-      title: "IBC Section 7 Application (Form 1 Petition)",
-      summary:
-        "Primary insolvency petition under Section 7 of IBC, 2016 for initiation of CIRP against Corporate Debtor default.",
-      templateType: "Form 1 Petition",
-      citationsCount: 18,
-      lastEdited: "10 mins ago by Tanveer",
-      version: "v3",
-      status: "Working Draft",
-    },
-    {
-      id: "draft-2",
-      title: "Rejoinder on Limitation under Article 137",
-      summary:
-        "Pleading countering debtor's 3-year limitation objection via balance sheet debt acknowledgment under Section 18 Limitation Act.",
-      templateType: "Limitation Brief",
-      citationsCount: 9,
-      lastEdited: "Yesterday by Tanveer",
-      version: "v1",
-      status: "Review Needed",
-    },
-    {
-      id: "draft-3",
-      title: "Synopsis and Chronological List of Dates",
-      summary:
-        "Chronological chain of transaction milestones from facility sanction to NeSL default record.",
-      templateType: "Chronology Brief",
-      citationsCount: 14,
-      lastEdited: "3 days ago",
-      version: "v2",
-      status: "Eligible for Export",
-    },
-    {
-      id: "draft-4",
-      title: "Citation Verification & Currency Memo",
-      summary:
-        "Precedent audit report validating ratio decidendi and verifying negative judicial history across cited SC benches.",
-      templateType: "Precedent Memo",
-      citationsCount: 12,
-      lastEdited: "5 days ago",
-      version: "v4",
-      status: "Eligible for Export",
-    },
-  ]);
+  const drafts = useMemo<DraftItem[]>(() => {
+    return (backendDocs ?? []).map((document) => ({
+      id: document.id,
+      title: document.title,
+      summary: "Saved matter draft with immutable version history.",
+      templateType: "Matter draft",
+      citationsCount: 0,
+      lastEdited: "Saved in workspace",
+      version: `v${document.version_no}`,
+      status: "Working Draft" as const,
+    }));
+  }, [backendDocs]);
 
   const [findings, setFindings] = useState<FindingItem[]>([
     {
@@ -422,57 +344,37 @@ export function MatterDetailView({
     });
   }, [findings, findingCategory]);
 
-  function handleUploadDocument(data: {
+  async function handleUploadDocument(data: {
     name: string;
     type: EvidenceType;
     matterId?: string;
     file?: File | null;
   }) {
-    const trimmed = data.name.trim();
-    const hasExtension =
-      trimmed.endsWith(".pdf") ||
-      trimmed.endsWith(".xlsx") ||
-      trimmed.endsWith(".docx");
-    const finalName = hasExtension ? trimmed : `${trimmed}.pdf`;
-    const derivedFormat: "PDF" | "XLSX" | "DOCX" = finalName.endsWith(".xlsx")
-      ? "XLSX"
-      : finalName.endsWith(".docx")
-        ? "DOCX"
-        : "PDF";
-
-    const newDoc: DocumentItem = {
-      id: `doc-${Date.now()}`,
-      name: finalName,
-      type: data.type,
-      pages: Math.floor(Math.random() * 20) + 4,
-      size: data.file
-        ? `${(data.file.size / (1024 * 1024)).toFixed(1)} MB`
-        : "1.8 MB",
-      uploadedAt: "Just now",
-      format: derivedFormat,
-    };
-
-    setLocalUploadedDocs((prev) => [newDoc, ...prev]);
+    if (!data.file) {
+      throw new Error("Choose a source file before uploading");
+    }
+    await uploadSourceMutation.mutateAsync({
+      matterId: matter.id,
+      file: data.file,
+    });
   }
 
-  function handleCreateDraftSubmit(e: React.FormEvent) {
+  async function handleDownloadSource(sourceId: string, filename: string) {
+    const blob = await downloadSourceMutation.mutateAsync(sourceId);
+    const url = URL.createObjectURL(blob);
+    const link = window.document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    window.document.body.appendChild(link);
+    link.click();
+    window.document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleCreateDraftSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!newDraftTitle.trim()) return;
-
-    const newDraft: DraftItem = {
-      id: `draft-${Date.now()}`,
-      title: newDraftTitle.trim(),
-      summary:
-        newDraftPrompt.trim() ||
-        `Draft generated from ${newDraftTemplate} template.`,
-      templateType: newDraftTemplate,
-      citationsCount: 4,
-      lastEdited: "Just now by Tanveer",
-      version: "v1",
-      status: "Working Draft",
-    };
-
-    setDrafts((prev) => [newDraft, ...prev]);
+    await createDocumentMutation.mutateAsync({ title: newDraftTitle.trim() });
     setNewDraftTitle("");
     setNewDraftPrompt("");
     setDraftModalOpen(false);
@@ -727,11 +629,8 @@ export function MatterDetailView({
                       </button>
                       <button
                         type="button"
-                        onClick={() =>
-                          alert(
-                            `Downloading reference source copy of ${doc.name}...`,
-                          )
-                        }
+                        onClick={() => void handleDownloadSource(doc.id, doc.name)}
+                        disabled={downloadSourceMutation.isPending}
                         className="flex h-6 w-6 items-center justify-center rounded-sm border border-stone-200 text-stone-500 hover:bg-stone-50 hover:text-stone-900 cursor-pointer"
                         title="Download document"
                       >

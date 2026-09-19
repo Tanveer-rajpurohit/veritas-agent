@@ -20,7 +20,7 @@ interface UploadDocumentModalProps {
     type: EvidenceType;
     matterId?: string;
     file?: File | null;
-  }) => void;
+  }) => Promise<void> | void;
   matters?: Matter[];
   preselectedMatterId?: string;
 }
@@ -67,6 +67,8 @@ export function UploadDocumentModal({
   );
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -118,22 +120,29 @@ export function UploadDocumentModal({
     setIsDragging(false);
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedFile) return;
+    if (!selectedFile || !effectiveMatterId || isUploading) return;
 
     const finalName = docName.trim() || selectedFile.name;
 
-    onUpload({
-      name: finalName,
-      type: category,
-      matterId: effectiveMatterId,
-      file: selectedFile,
-    });
-
-    setDocName("");
-    setSelectedFile(null);
-    onClose();
+    setIsUploading(true);
+    setUploadError(null);
+    try {
+      await onUpload({
+        name: finalName,
+        type: category,
+        matterId: effectiveMatterId,
+        file: selectedFile,
+      });
+      setDocName("");
+      setSelectedFile(null);
+      onClose();
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "Upload failed");
+    } finally {
+      setIsUploading(false);
+    }
   }
 
   return (
@@ -235,7 +244,7 @@ export function UploadDocumentModal({
               type="file"
               id={`${formId}-source-file`}
               name="source-file"
-              accept=".pdf,.docx,.xlsx,.txt"
+              accept=".pdf,.txt,.md"
               className="hidden"
               onChange={(e) => handleFileChange(e.target.files)}
             />
@@ -308,12 +317,18 @@ export function UploadDocumentModal({
                     </span>
                   </p>
                   <p className="m-0 pt-1 text-[11px] text-stone-400">
-                    PDF, DOCX, XLSX, or TXT up to 100 MB
+                    PDF, TXT, or Markdown up to 10 MB
                   </p>
                 </div>
               )}
             </div>
           </div>
+
+          {uploadError && (
+            <p role="alert" className="m-0 text-xs font-medium text-rose-700">
+              {uploadError}
+            </p>
+          )}
 
           <div className="flex items-start gap-2.5 rounded-lg border border-[#cbe0f2] bg-[#f8fbfe] p-3 text-[11px] text-stone-600 leading-relaxed">
             <ShieldCheckIcon
@@ -337,11 +352,11 @@ export function UploadDocumentModal({
             </button>
             <button
               type="submit"
-              disabled={!selectedFile || !effectiveMatterId}
+              disabled={!selectedFile || !effectiveMatterId || isUploading}
               className="inline-flex h-9.5 items-center gap-1.5 rounded-lg bg-[#487aa8] px-5 text-xs font-semibold text-white shadow-2xs transition-[background-color,opacity] hover:bg-[#3b668e] focus-visible:ring-2 focus-visible:ring-[#487aa8] focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer"
             >
               <UploadIcon size={13} />
-              <span>Add Document</span>
+              <span>{isUploading ? "Uploading…" : "Add Document"}</span>
             </button>
           </div>
         </form>

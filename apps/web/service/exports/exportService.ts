@@ -24,10 +24,9 @@ export const exportService = {
     return fetchClient.get<ExportRecord>(`/exports/${exportId}`);
   },
 
-  getDownloadUrl(exportId: string): string {
-    const base = (
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"
-    ).replace(/\/+$/, "");
-    return `${base}/exports/${exportId}/download`;
+  downloadExport(exportId: string): Promise<Blob> {
+    return fetchClient.get<Blob>(`/exports/${exportId}/download`, {
+      responseType: "blob",
+    });
   },
 };

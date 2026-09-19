@@ -20,7 +20,6 @@ import type {
   DraftVersion,
 } from "../../types/draft/types";
 import {
-  exportAsDocx,
   exportAsMarkdown,
   printDocument,
 } from "../../lib/draft/export-document";
@@ -63,6 +62,8 @@ export function AgentSideViewer({
   const [versionDropdownOpen, setVersionDropdownOpen] = useState(false);
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
   const [scale, setScale] = useState<number>(0.65);
+  const [exportingFormat, setExportingFormat] = useState<string | null>(null);
+  const createExportMutation = useCreateExport();
 
   if (document && document.id !== prevDocId) {
     setPrevDocId(document.id);
@@ -108,8 +109,17 @@ export function AgentSideViewer({
     document.versions.find((v) => v.version === selectedVersion) ||
     document.versions[0];
 
-  const createExportMutation = useCreateExport();
-  const [exportingFormat, setExportingFormat] = useState<string | null>(null);
+  const downloadExport = async (exportId: string, extension: "pdf" | "json") => {
+    const blob = await exportService.downloadExport(exportId);
+    const url = URL.createObjectURL(blob);
+    const link = window.document.createElement("a");
+    link.href = url;
+    link.download = `veritas-draft-${exportId}.${extension}`;
+    window.document.body.appendChild(link);
+    link.click();
+    window.document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   const handleExportPdf = async () => {
     if (!activeVersionData) return;
@@ -123,13 +133,7 @@ export function AgentSideViewer({
           versionId,
           payload: { format: "pdf", mode: "draft" },
         });
-        const downloadUrl = exportService.getDownloadUrl(result.id);
-        const link = window.document.createElement("a");
-        link.href = downloadUrl;
-        link.download = `veritas-draft-${result.id}.pdf`;
-        window.document.body.appendChild(link);
-        link.click();
-        window.document.body.removeChild(link);
+        await downloadExport(result.id, "pdf");
       } else {
         printDocument(document.title, activeVersionData.pages);
       }
@@ -152,13 +156,7 @@ export function AgentSideViewer({
           versionId,
           payload: { format: "json", mode: "draft" },
         });
-        const downloadUrl = exportService.getDownloadUrl(result.id);
-        const link = window.document.createElement("a");
-        link.href = downloadUrl;
-        link.download = `veritas-draft-${result.id}.json`;
-        window.document.body.appendChild(link);
-        link.click();
-        window.document.body.removeChild(link);
+        await downloadExport(result.id, "json");
       } else {
         const jsonStr = JSON.stringify(document, null, 2);
         const blob = new Blob([jsonStr], { type: "application/json" });
@@ -205,6 +203,7 @@ export function AgentSideViewer({
           draftToTipTapHtml(document, selectedVersion),
         );
       } catch {
+        // Storage may be unavailable; opening the editor must still work.
       }
     }
     onOpenInEditor?.();

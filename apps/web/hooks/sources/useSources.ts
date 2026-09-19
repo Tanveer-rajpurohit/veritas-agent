@@ -25,16 +25,26 @@ export function useSourcePage(
   });
 }
 
-export function useUploadSource(matterId: string) {
+export function useUploadSource() {
   const queryClient = useQueryClient();
 
-  return useMutation<SourceRecord, Error, { file: File; isSynthetic?: boolean }>({
-    mutationFn: ({ file, isSynthetic }) =>
+  return useMutation<
+    SourceRecord,
+    Error,
+    { matterId: string; file: File; isSynthetic?: boolean }
+  >({
+    mutationFn: ({ matterId, file, isSynthetic }) =>
       sourceService.uploadSource(matterId, file, isSynthetic),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.sources.byMatter(matterId),
+        queryKey: queryKeys.sources.byMatter(variables.matterId),
       });
     },
+  });
+}
+
+export function useDownloadSource() {
+  return useMutation<Blob, Error, string>({
+    mutationFn: (sourceId) => sourceService.downloadSource(sourceId),
   });
 }

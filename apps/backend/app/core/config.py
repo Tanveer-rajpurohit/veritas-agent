@@ -1,6 +1,6 @@
 import json
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -72,6 +72,27 @@ class Settings(BaseSettings):
                 return [str(origin).strip().rstrip("/") for origin in parsed if origin]
 
         return [origin.strip().rstrip("/") for origin in value.split(",") if origin.strip()]
+
+    @field_validator("OBJECT_STORAGE_BACKEND", mode="before")
+    @classmethod
+    def normalize_object_storage_backend(cls, value: str) -> str:
+        backend = value.strip().lower()
+        if backend not in {"s3", "minio"}:
+            raise ValueError("OBJECT_STORAGE_BACKEND must be 's3' or 'minio'")
+        return backend
+
+    @model_validator(mode="after")
+    def validate_object_storage(self) -> "Settings":
+        if not self.BUCKET_NAME.strip():
+            raise ValueError("BUCKET_NAME is required")
+        if self.OBJECT_STORAGE_BACKEND == "minio":
+            if not self.MINIO_ENDPOINT.strip():
+                raise ValueError("MINIO_ENDPOINT is required when MinIO is selected")
+            if not self.MINIO_ACCESS_KEY or not self.MINIO_SECRET_KEY:
+                raise ValueError("MinIO access and secret keys are required")
+        if bool(self.AWS_ACCESS_KEY_ID) != bool(self.AWS_SECRET_ACCESS_KEY):
+            raise ValueError("Both AWS access key fields are required when either is configured")
+        return self
 
     @property
     def active_agent_provider(self) -> str:

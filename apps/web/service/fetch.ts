@@ -20,6 +20,7 @@ export class ApiError extends Error {
 export interface RequestOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
   skipAuth?: boolean;
+  responseType?: "json" | "blob";
   params?: Record<string, string | number | boolean | undefined | null>;
 }
 
@@ -60,7 +61,14 @@ export async function request<T>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { body, skipAuth = false, params, headers = {}, ...customConfig } = options;
+  const {
+    body,
+    skipAuth = false,
+    responseType = "json",
+    params,
+    headers = {},
+    ...customConfig
+  } = options;
 
   const requestHeaders: Record<string, string> = {
     ...((headers as Record<string, string>) || {}),
@@ -100,6 +108,10 @@ export async function request<T>(
 
   if (response.status === 204) {
     return undefined as unknown as T;
+  }
+
+  if (response.ok && responseType === "blob") {
+    return (await response.blob()) as T;
   }
 
   const contentType = response.headers.get("content-type");

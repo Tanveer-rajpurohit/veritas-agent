@@ -17,6 +17,7 @@ import type { Matter } from "../../types/workspace/types";
 import { PanelLeftIcon } from "../../components/workspace/workspace-icons";
 import { useMatters, useCreateMatter, useDeleteMatter } from "../../hooks/matters/useMatters";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
+import { useUploadSource } from "../../hooks/sources/useSources";
 
 function WorkspaceContent() {
   const router = useRouter();
@@ -26,6 +27,7 @@ function WorkspaceContent() {
   const { data: backendMatters } = useMatters();
   const createMatterMutation = useCreateMatter();
   const deleteMatterMutation = useDeleteMatter();
+  const uploadSourceMutation = useUploadSource();
   const setActiveMatterId = useWorkspaceStore((s) => s.setActiveMatterId);
 
   const [collapsed, setCollapsed] = useState<boolean>(false);
@@ -138,12 +140,19 @@ function WorkspaceContent() {
   }, []);
 
   const handleUploadDocument = useCallback(
-    (data: {
+    async (data: {
       name: string;
       type: EvidenceType;
       matterId?: string;
       file?: File | null;
     }) => {
+      if (!data.matterId || !data.file) {
+        throw new Error("Select a matter and source file before uploading");
+      }
+      await uploadSourceMutation.mutateAsync({
+        matterId: data.matterId,
+        file: data.file,
+      });
       if (data.matterId) {
         const now = Date.now();
         setUpdatedActivities((prev) => ({
@@ -154,9 +163,8 @@ function WorkspaceContent() {
           },
         }));
       }
-      setUploadOpen(false);
     },
-    [],
+    [uploadSourceMutation],
   );
 
   const handleSelectNav = useCallback(

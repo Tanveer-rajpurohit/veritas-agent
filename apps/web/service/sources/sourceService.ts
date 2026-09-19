@@ -29,10 +29,9 @@ export const sourceService = {
     );
   },
 
-  getDownloadUrl(sourceId: string): string {
-    const base = (
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"
-    ).replace(/\/+$/, "");
-    return `${base}/sources/${sourceId}/download`;
+  downloadSource(sourceId: string): Promise<Blob> {
+    return fetchClient.get<Blob>(`/sources/${sourceId}/download`, {
+      responseType: "blob",
+    });
   },
 };
