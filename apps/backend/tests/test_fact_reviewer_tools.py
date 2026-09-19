@@ -195,3 +195,101 @@ def test_request_fact_fix_blocks_human_choice_candidate() -> None:
     assert fix_result["new_version_id"] is None
     assert str(candidate.candidate_id) in fix_result["blocked_candidate_ids"]
     assert str(candidate.candidate_id) not in fix_result["applied_candidate_ids"]
+
+
+def test_lookup_company_master_validates_cin_regex(monkeypatch: pytest.MonkeyPatch) -> None:
+    db = TestingSessionLocal()
+    matter_id = uuid4()
+    version_id = uuid4()
+    claim_id = uuid4()
+
+    claim = FactClaim(
+        id=claim_id,
+        document_version_id=version_id,
+        block_index=0,
+        from_offset=0,
+        to_offset=21,
+        kind="identifier",
+        text="U72200MH2018PTC312345",
+        normalized=NormalizedFact(
+            kind="identifier",
+            raw_value="U72200MH2018PTC312345",
+            canonical_value="U72200MH2018PTC312345",
+        ),
+        claim_sha256="0" * 64,
+    )
+
+    handlers = FactReviewerToolHandlers(
+        db=db,
+        matter_id=matter_id,
+        document_version_id=version_id,
+        claims=[claim],
+    )
+
+    with pytest.raises(ValueError, match="Invalid CIN format"):
+        handlers.lookup_company_master(str(claim_id), "NOT_A_CIN")
+
+    with pytest.raises(ValueError, match="Invalid CIN format"):
+        handlers.lookup_company_master(str(claim_id), "U72200MH2018PTC")
+
+    mock_lookup_called = False
+
+    def mock_lookup(cin: str):
+        nonlocal mock_lookup_called
+        mock_lookup_called = True
+        return {
+            "provider": "MCA",
+            "source_url": "https://data.gov.in",
+            "cin": cin,
+            "record": {"CompanyName": "Acme Tech Pvt Ltd"},
+            "limitations": [],
+        }
+
+    monkeypatch.setattr(
+        "app.agents.fact_reviewer.tools.company_master_adapter.lookup_by_cin",
+        mock_lookup,
+    )
+
+    result = handlers.lookup_company_master(str(claim_id), "U72200MH2018PTC312345")
+    assert mock_lookup_called is True
+    assert result["status"] == "available"
+
+
+def test_identical_tool_call_deduplication(monkeypatch: pytest.MonkeyPatch) -> None:
+    db = TestingSessionLocal()
+    matter_id = uuid4()
+    version_id = uuid4()
+
+    handlers = FactReviewerToolHandlers(
+        db=db,
+        matter_id=matter_id,
+        document_version_id=version_id,
+        claims=[],
+    )
+
+    call_count = 0
+
+    def mock_get_provision(act_key: str, provision: str, unit: str):
+        nonlocal call_count
+        call_count += 1
+        return {
+            "act_title": "Insolvency and Bankruptcy Code, 2016",
+            "act_key": act_key,
+            "provision": provision,
+            "unit": unit,
+            "text": "Initiation of corporate insolvency resolution process by financial creditor.",
+            "official_source_url": "https://indiacode.nic.in",
+        }
+
+    monkeypatch.setattr(
+        "app.agents.fact_reviewer.tools.ecourts_adapter.get_provision",
+        mock_get_provision,
+    )
+
+    res1 = handlers.lookup_legal_fact(act_key="ibc", provision="7", unit="section")
+    assert call_count == 1
+    assert res1["status"] == "available"
+
+    res2 = handlers.lookup_legal_fact(act_key="ibc", provision="7", unit="section")
+    assert call_count == 1
+    assert res2 == res1

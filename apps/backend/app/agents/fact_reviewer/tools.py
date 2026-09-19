@@ -1,5 +1,7 @@
 import hashlib
 import json
+import re
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
@@ -19,6 +21,8 @@ from app.schemas.sources import CreateEvidenceSpanRequest
 from app.services.drafts import draft_service
 from app.services.legal_sources import company_master_adapter, ecourts_adapter, legal_materializer
 from app.services.sources.retrieval import retrieval_service
+
+CIN_REGEX = re.compile(r"^[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$", re.IGNORECASE)
 
 
 class FactReviewerToolHandlers:
@@ -41,6 +45,7 @@ class FactReviewerToolHandlers:
         self.max_tool_calls = max_tool_calls
         self.tool_call_count = 0
         self.submitted_findings: list[ProposedFactFinding] = []
+        self._call_cache: dict[str, dict[str, object]] = {}
 
     def _record_tool_call(self) -> None:
         self.tool_call_count += 1
@@ -48,6 +53,20 @@ class FactReviewerToolHandlers:
             raise RuntimeError(
                 f"Tool call limit exceeded: maximum {self.max_tool_calls} tool calls allowed per review run."
             )
+
+    def _memoize(
+        self,
+        tool_name: str,
+        params: dict[str, Any],
+        execute_fn: Callable[[], dict[str, object]],
+    ) -> dict[str, object]:
+        self._record_tool_call()
+        cache_key = f"{tool_name}:{json.dumps(params, sort_keys=True, default=str)}"
+        if cache_key in self._call_cache:
+            return self._call_cache[cache_key]
+        result = execute_fn()
+        self._call_cache[cache_key] = result
+        return result
 
     def register_correction_candidate(self, candidate: FactCorrectionCandidate) -> None:
         self._correction_candidates[candidate.candidate_id] = candidate
@@ -57,22 +76,28 @@ class FactReviewerToolHandlers:
         document_version_id: str,
         block_ids: list[str] | None = None,
     ) -> dict[str, object]:
-        self._record_tool_call()
         req_version_id = UUID(document_version_id)
         if req_version_id != self._document_version_id:
             raise ValueError(
                 "Requested document_version_id does not match the active review target"
             )
 
-        filtered = [
-            c
-            for c in self._claims
-            if not block_ids or c.block_id in block_ids or str(c.block_index) in block_ids
-        ]
-        return {
-            "document_version_id": str(self._document_version_id),
-            "claims": [c.model_dump(mode="json") for c in filtered],
-        }
+        def _execute() -> dict[str, object]:
+            filtered = [
+                c
+                for c in self._claims
+                if not block_ids or c.block_id in block_ids or str(c.block_index) in block_ids
+            ]
+            return {
+                "document_version_id": str(self._document_version_id),
+                "claims": [c.model_dump(mode="json") for c in filtered],
+            }
+
+        return self._memoize(
+            "get_review_claims",
+            {"document_version_id": document_version_id, "block_ids": block_ids},
+            _execute,
+        )
 
     def search_matter_evidence(
         self,
@@ -81,7 +106,6 @@ class FactReviewerToolHandlers:
         source_types: list[str] | None = None,
         limit: int = 6,
     ) -> dict[str, object]:
-        self._record_tool_call()
         cid = UUID(claim_id)
         if cid not in self._claim_map:
             raise ValueError(f"Claim ID {claim_id} is not part of this document version")
@@ -93,24 +117,30 @@ class FactReviewerToolHandlers:
         if not 1 <= limit <= 10:
             raise ValueError("limit must be between 1 and 10")
 
-        passages = retrieval_service.search_sources(
-            db=self._db,
-            query=query,
-            matter_id=self._matter_id,
-            source_types=source_types,
-            limit=limit,
+        def _execute() -> dict[str, object]:
+            passages = retrieval_service.search_sources(
+                db=self._db,
+                query=query,
+                matter_id=self._matter_id,
+                source_types=source_types,
+                limit=limit,
+            )
+            return {
+                "claim_id": claim_id,
+                "passages": [passage.model_dump(mode="json") for passage in passages],
+            }
+
+        return self._memoize(
+            "search_matter_evidence",
+            {"claim_id": claim_id, "query": query, "source_types": source_types, "limit": limit},
+            _execute,
         )
-        return {
-            "claim_id": claim_id,
-            "passages": [passage.model_dump(mode="json") for passage in passages],
-        }
 
     def materialize_fact_evidence(
         self,
         claim_id: str,
         passage_ids: list[str],
     ) -> dict[str, object]:
-        self._record_tool_call()
         cid = UUID(claim_id)
         if cid not in self._claim_map:
             raise ValueError(f"Claim ID {claim_id} is not part of this document version")
@@ -118,28 +148,34 @@ class FactReviewerToolHandlers:
         if len(passage_ids) > 10:
             raise ValueError("At most 10 passage IDs can be materialized per tool call")
 
-        evidence_spans: list[dict[str, Any]] = []
-        for pid in passage_ids:
-            span = retrieval_service.create_evidence_span(
-                db=self._db,
-                req=CreateEvidenceSpanRequest(
-                    matter_id=self._matter_id,
-                    passage_id=UUID(pid),
-                ),
-            )
-            evidence_spans.append(span.model_dump(mode="json"))
+        def _execute() -> dict[str, object]:
+            evidence_spans: list[dict[str, Any]] = []
+            for pid in passage_ids:
+                span = retrieval_service.create_evidence_span(
+                    db=self._db,
+                    req=CreateEvidenceSpanRequest(
+                        matter_id=self._matter_id,
+                        passage_id=UUID(pid),
+                    ),
+                )
+                evidence_spans.append(span.model_dump(mode="json"))
 
-        return {
-            "claim_id": claim_id,
-            "evidence_spans": evidence_spans,
-        }
+            return {
+                "claim_id": claim_id,
+                "evidence_spans": evidence_spans,
+            }
+
+        return self._memoize(
+            "materialize_fact_evidence",
+            {"claim_id": claim_id, "passage_ids": passage_ids},
+            _execute,
+        )
 
     def submit_fact_findings(
         self,
         document_version_id: str,
         findings: list[dict[str, Any]],
     ) -> dict[str, object]:
-        self._record_tool_call()
         req_version_id = UUID(document_version_id)
         if req_version_id != self._document_version_id:
             raise ValueError(
@@ -149,62 +185,69 @@ class FactReviewerToolHandlers:
         if len(findings) > 100:
             raise ValueError("A single submission cannot exceed 100 findings")
 
-        created_finding_ids: list[str] = []
-        for raw in findings:
-            finding_item = ProposedFactFinding.model_validate(raw)
-            if finding_item.claim_id not in self._claim_map:
-                raise ValueError(f"Finding references unknown claim_id: {finding_item.claim_id}")
+        def _execute() -> dict[str, object]:
+            created_finding_ids: list[str] = []
+            for raw in findings:
+                finding_item = ProposedFactFinding.model_validate(raw)
+                if finding_item.claim_id not in self._claim_map:
+                    raise ValueError(f"Finding references unknown claim_id: {finding_item.claim_id}")
 
-            claim = self._claim_map[finding_item.claim_id]
+                claim = self._claim_map[finding_item.claim_id]
 
-            if finding_item.status in {"supported", "contradicted"} and not finding_item.evidence:
-                finding_item.status = "unresolved"
-                finding_item.reason = "No authoritative evidence span provided to support finding."
+                if finding_item.status in {"supported", "contradicted"} and not finding_item.evidence:
+                    finding_item.status = "unresolved"
+                    finding_item.reason = "No authoritative evidence span provided to support finding."
 
-            span_ids = [link.evidence_span_id for link in finding_item.evidence]
-            if span_ids:
-                retrieval_service.get_evidence_spans(
-                    db=self._db,
-                    matter_id=self._matter_id,
-                    span_ids=span_ids,
-                )
-
-            recomputed_hash = hashlib.sha256(claim.text.strip().encode()).hexdigest()
-
-            db_finding = Finding(
-                claim_id=claim.id,
-                document_version_id=self._document_version_id,
-                block_index=claim.block_index,
-                claim_text=claim.text,
-                claim_sha256=recomputed_hash,
-                dimension=finding_item.dimension,
-                status=finding_item.status,
-                method=finding_item.method,
-                reason=finding_item.reason,
-                limitations=finding_item.limitations,
-                checked_at=datetime.now(UTC),
-                stale_at=None,
-            )
-            self._db.add(db_finding)
-            self._db.flush()
-
-            for link in finding_item.evidence:
-                self._db.add(
-                    FindingEvidence(
-                        finding_id=db_finding.id,
-                        evidence_span_id=link.evidence_span_id,
-                        relation=link.relation,
+                span_ids = [link.evidence_span_id for link in finding_item.evidence]
+                if span_ids:
+                    retrieval_service.get_evidence_spans(
+                        db=self._db,
+                        matter_id=self._matter_id,
+                        span_ids=span_ids,
                     )
+
+                recomputed_hash = hashlib.sha256(claim.text.strip().encode()).hexdigest()
+
+                db_finding = Finding(
+                    claim_id=claim.id,
+                    document_version_id=self._document_version_id,
+                    block_index=claim.block_index,
+                    claim_text=claim.text,
+                    claim_sha256=recomputed_hash,
+                    dimension=finding_item.dimension,
+                    status=finding_item.status,
+                    method=finding_item.method,
+                    reason=finding_item.reason,
+                    limitations=finding_item.limitations,
+                    checked_at=datetime.now(UTC),
+                    stale_at=None,
                 )
+                self._db.add(db_finding)
+                self._db.flush()
 
-            created_finding_ids.append(str(db_finding.id))
-            self.submitted_findings.append(finding_item)
+                for link in finding_item.evidence:
+                    self._db.add(
+                        FindingEvidence(
+                            finding_id=db_finding.id,
+                            evidence_span_id=link.evidence_span_id,
+                            relation=link.relation,
+                        )
+                    )
 
-        self._db.commit()
-        return {
-            "submitted_count": len(created_finding_ids),
-            "finding_ids": created_finding_ids,
-        }
+                created_finding_ids.append(str(db_finding.id))
+                self.submitted_findings.append(finding_item)
+
+            self._db.commit()
+            return {
+                "submitted_count": len(created_finding_ids),
+                "finding_ids": created_finding_ids,
+            }
+
+        return self._memoize(
+            "submit_fact_findings",
+            {"document_version_id": document_version_id, "findings": findings},
+            _execute,
+        )
 
     def lookup_public_registry(
         self,
@@ -212,7 +255,6 @@ class FactReviewerToolHandlers:
         registry: str,
         query: str,
     ) -> dict[str, object]:
-        self._record_tool_call()
         cid = UUID(claim_id)
         if cid not in self._claim_map:
             raise ValueError(f"Claim ID {claim_id} is not part of this document version")
@@ -228,59 +270,78 @@ class FactReviewerToolHandlers:
         if len(query) > 500:
             raise ValueError("query must be at most 500 characters")
 
-        return {
-            "status": "unavailable",
-            "message": "IBBI registry adapter is temporarily offline or unconfigured for this environment.",
-            "passages": [],
-        }
+        def _execute() -> dict[str, object]:
+            return {
+                "status": "unavailable",
+                "message": "IBBI registry adapter is temporarily offline or unconfigured for this environment.",
+                "passages": [],
+            }
+
+        return self._memoize(
+            "lookup_public_registry",
+            {"claim_id": claim_id, "registry": registry, "query": query},
+            _execute,
+        )
 
     def lookup_company_master(self, claim_id: str, cin: str) -> dict[str, object]:
-        self._record_tool_call()
         cid = UUID(claim_id)
         if cid not in self._claim_map:
             raise ValueError(f"Claim ID {claim_id} is not part of this document version")
 
-        try:
-            result = company_master_adapter.lookup_by_cin(cin)
-            record = result["record"]
-            company_name = str(record.get("CompanyName") or cin)
-            evidence_text = json.dumps(
-                {
-                    "provider": result["provider"],
-                    "retrieved_for_cin": result["cin"],
-                    "dataset_updated_date": result.get("updated_date"),
-                    "record": record,
-                    "limitations": result["limitations"],
-                },
-                ensure_ascii=False,
-                sort_keys=True,
+        clean_cin = "".join(cin.upper().split())
+        if not CIN_REGEX.match(clean_cin):
+            raise ValueError(
+                f"Invalid CIN format '{cin}'. CIN must be a valid 21-character alphanumeric code."
             )
-            span, source, version = legal_materializer.materialize_legal_text(
-                db=self._db,
-                title=f"MCA Company Master Data - {company_name}",
-                text=evidence_text,
-                source_type="registry_record",
-                official_url=result["source_url"],
-                authority_level="official_primary",
-                heading_path=["Company Master Data"],
-            )
-            return {
-                "status": "available",
-                "claim_id": claim_id,
-                "evidence_span_id": str(span.id),
-                "source_id": str(source.id),
-                "source_version_id": str(version.id),
-                **result,
-            }
-        except Exception:
-            return {
-                "status": "unavailable",
-                "claim_id": claim_id,
-                "message": "The MCA Company Master Data provider could not confirm this CIN.",
-                "limitations": [
-                    "Do not treat an unavailable or missing registry result as a contradiction."
-                ],
-            }
+
+        def _execute() -> dict[str, object]:
+            try:
+                result = company_master_adapter.lookup_by_cin(clean_cin)
+                record = result["record"]
+                company_name = str(record.get("CompanyName") or clean_cin)
+                evidence_text = json.dumps(
+                    {
+                        "provider": result["provider"],
+                        "retrieved_for_cin": result["cin"],
+                        "dataset_updated_date": result.get("updated_date"),
+                        "record": record,
+                        "limitations": result["limitations"],
+                    },
+                    ensure_ascii=False,
+                    sort_keys=True,
+                )
+                span, source, version = legal_materializer.materialize_legal_text(
+                    db=self._db,
+                    title=f"MCA Company Master Data - {company_name}",
+                    text=evidence_text,
+                    source_type="registry_record",
+                    official_url=result["source_url"],
+                    authority_level="official_primary",
+                    heading_path=["Company Master Data"],
+                )
+                return {
+                    "status": "available",
+                    "claim_id": claim_id,
+                    "evidence_span_id": str(span.id),
+                    "source_id": str(source.id),
+                    "source_version_id": str(version.id),
+                    **result,
+                }
+            except Exception:
+                return {
+                    "status": "unavailable",
+                    "claim_id": claim_id,
+                    "message": "The MCA Company Master Data provider could not confirm this CIN.",
+                    "limitations": [
+                        "Do not treat an unavailable or missing registry result as a contradiction."
+                    ],
+                }
+
+        return self._memoize(
+            "lookup_company_master",
+            {"claim_id": claim_id, "cin": clean_cin},
+            _execute,
+        )
 
     def request_fact_fix(
         self,
@@ -288,67 +349,77 @@ class FactReviewerToolHandlers:
         correction_candidate_ids: list[str],
         idempotency_key: str,
     ) -> dict[str, object]:
-        self._record_tool_call()
         req_version_id = UUID(document_version_id)
         if req_version_id != self._document_version_id:
             raise ValueError("Requested document_version_id does not match active review target")
 
-        applied_ids: list[str] = []
-        blocked_ids: list[str] = []
-        safe_candidates: list[FactCorrectionCandidate] = []
+        def _execute() -> dict[str, object]:
+            applied_ids: list[str] = []
+            blocked_ids: list[str] = []
+            safe_candidates: list[FactCorrectionCandidate] = []
 
-        for cid_str in correction_candidate_ids:
-            cid = UUID(cid_str)
-            candidate = self._correction_candidates.get(cid)
-            if not candidate:
-                blocked_ids.append(cid_str)
-                continue
-            if candidate.safety != "safe":
-                blocked_ids.append(cid_str)
-                continue
-            safe_candidates.append(candidate)
-            applied_ids.append(cid_str)
+            for cid_str in correction_candidate_ids:
+                cid = UUID(cid_str)
+                candidate = self._correction_candidates.get(cid)
+                if not candidate:
+                    blocked_ids.append(cid_str)
+                    continue
+                if candidate.safety != "safe":
+                    blocked_ids.append(cid_str)
+                    continue
+                safe_candidates.append(candidate)
+                applied_ids.append(cid_str)
 
-        if not safe_candidates:
+            if not safe_candidates:
+                return {
+                    "new_version_id": None,
+                    "applied_candidate_ids": applied_ids,
+                    "blocked_candidate_ids": blocked_ids,
+                }
+
+            current_version = draft_service.get_document_version(
+                db=self._db,
+                version_id=self._document_version_id,
+                matter_id=self._matter_id,
+            )
+
+            operations: list[DocumentOperation] = []
+            for candidate in safe_candidates:
+                claim = self._claim_map[candidate.claim_id]
+                operations.append(
+                    DocumentOperation(
+                        type="replace_block",
+                        position=claim.block_id or str(claim.block_index),
+                        text=candidate.replacement_text,
+                        evidence_span_ids=candidate.evidence_span_ids,
+                    )
+                )
+
+            new_version = draft_service.propose_document_ops(
+                db=self._db,
+                matter_id=self._matter_id,
+                draft_id=current_version.draft_id,
+                base_version_id=self._document_version_id,
+                operations=operations,
+                change_summary="Fact Reviewer safe automated correction applied",
+                created_by_id="fact_reviewer",
+            )
+
             return {
-                "new_version_id": None,
+                "new_version_id": str(new_version.id),
                 "applied_candidate_ids": applied_ids,
                 "blocked_candidate_ids": blocked_ids,
             }
 
-        current_version = draft_service.get_document_version(
-            db=self._db,
-            version_id=self._document_version_id,
-            matter_id=self._matter_id,
+        return self._memoize(
+            "request_fact_fix",
+            {
+                "document_version_id": document_version_id,
+                "correction_candidate_ids": correction_candidate_ids,
+                "idempotency_key": idempotency_key,
+            },
+            _execute,
         )
-
-        operations: list[DocumentOperation] = []
-        for candidate in safe_candidates:
-            claim = self._claim_map[candidate.claim_id]
-            operations.append(
-                DocumentOperation(
-                    type="replace_block",
-                    position=claim.block_id or str(claim.block_index),
-                    text=candidate.replacement_text,
-                    evidence_span_ids=candidate.evidence_span_ids,
-                )
-            )
-
-        new_version = draft_service.propose_document_ops(
-            db=self._db,
-            matter_id=self._matter_id,
-            draft_id=current_version.draft_id,
-            base_version_id=self._document_version_id,
-            operations=operations,
-            change_summary="Fact Reviewer safe automated correction applied",
-            created_by_id="fact_reviewer",
-        )
-
-        return {
-            "new_version_id": str(new_version.id),
-            "applied_candidate_ids": applied_ids,
-            "blocked_candidate_ids": blocked_ids,
-        }
 
     def lookup_legal_fact(
         self,
@@ -356,35 +427,42 @@ class FactReviewerToolHandlers:
         provision: str,
         unit: str = "section",
     ) -> dict[str, object]:
-        self._record_tool_call()
-        try:
-            raw_prov = ecourts_adapter.get_provision(
-                act_key=act_key, provision=provision, unit=unit
-            )
-            span, source, version = legal_materializer.materialize_legal_text(
-                db=self._db,
-                title=f"{raw_prov['act_title']} - {unit.capitalize()} {provision}",
-                text=raw_prov["text"],
-                source_type="statute",
-                official_url=raw_prov.get("official_source_url") or raw_prov.get("provider_url"),
-                heading_path=[f"{unit.capitalize()} {provision}"],
-            )
-            return {
-                "status": "available",
-                "evidence_span_id": str(span.id),
-                "source_id": str(source.id),
-                "source_version_id": str(version.id),
-                "act_key": raw_prov["act_key"],
-                "provision": raw_prov["provision"],
-                "unit": raw_prov["unit"],
-                "text": raw_prov["text"],
-                "official_url": raw_prov.get("official_source_url"),
-            }
-        except Exception:
-            return {
-                "status": "unavailable",
-                "message": "The live legal-text provider could not confirm this provision.",
-            }
+        def _execute() -> dict[str, object]:
+            try:
+                raw_prov = ecourts_adapter.get_provision(
+                    act_key=act_key, provision=provision, unit=unit
+                )
+                span, source, version = legal_materializer.materialize_legal_text(
+                    db=self._db,
+                    title=f"{raw_prov['act_title']} - {unit.capitalize()} {provision}",
+                    text=raw_prov["text"],
+                    source_type="statute",
+                    official_url=raw_prov.get("official_source_url")
+                    or raw_prov.get("provider_url"),
+                    heading_path=[f"{unit.capitalize()} {provision}"],
+                )
+                return {
+                    "status": "available",
+                    "evidence_span_id": str(span.id),
+                    "source_id": str(source.id),
+                    "source_version_id": str(version.id),
+                    "act_key": raw_prov["act_key"],
+                    "provision": raw_prov["provision"],
+                    "unit": raw_prov["unit"],
+                    "text": raw_prov["text"],
+                    "official_url": raw_prov.get("official_source_url"),
+                }
+            except Exception:
+                return {
+                    "status": "unavailable",
+                    "message": "The live legal-text provider could not confirm this provision.",
+                }
+
+        return self._memoize(
+            "lookup_legal_fact",
+            {"act_key": act_key, "provision": provision, "unit": unit},
+            _execute,
+        )
 
 
 def create_fact_reviewer_tools(

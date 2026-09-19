@@ -5,16 +5,18 @@ from uuid import UUID
 from sqlalchemy import func, select, update
 
 from app.agents.citation_reviewer import create_citation_reviewer_agent
+from app.agents.fact_reviewer.agent import create_fact_reviewer_agent
 from app.agents.main_agent import create_main_agent
 from app.agents.writer.agent import create_writer_agent
 from app.db.session import SessionLocal
 from app.models.agent_runs import AgentEvent, AgentRun
 from app.models.conversations import Message
 from app.schemas.agents.citation_reviewer import CitationReviewerResult
-from app.schemas.agents.fact_reviewer import FactReviewRunRequest
+from app.schemas.agents.fact_reviewer import FactReviewerResult, FactReviewRunRequest
 from app.schemas.agents.writer import WriterResult
 from app.services.drafts.draft_service import draft_service
 from app.services.reviews.checks import check_citations
+from app.services.reviews.claim_extractor import claim_extractor
 from app.services.reviews.fact_review_service import fact_review_service
 
 logger = logging.getLogger(__name__)
@@ -159,11 +161,23 @@ def process_agent_run(run_id: UUID) -> None:
                         "dimensions": dimensions,
                     },
                 )
-            elif run.agent == "fact_reviewer" or run.requested_action == "review_facts":
+            elif run.agent == "fact_reviewer" or run.requested_action in (
+                "review_facts",
+                "apply_safe_fact_fixes",
+            ):
                 mode = (
                     "apply_safe_fixes"
                     if run.requested_action == "apply_safe_fact_fixes"
                     else "review_only"
+                )
+                _append_event(
+                    db,
+                    run_id,
+                    "tool.started",
+                    {
+                        "tool": "fact_review",
+                        "summary": "Verifying factual claims against Matter records and public registries",
+                    },
                 )
                 review = fact_review_service.run(
                     db=db,
@@ -172,17 +186,108 @@ def process_agent_run(run_id: UUID) -> None:
                     request=FactReviewRunRequest(checks=["fact"], mode=mode),
                     idempotency_key=run.idempotency_key,
                 )
-                run.result = review.model_dump(mode="json")
+                for finding in review.findings:
+                    _append_event(
+                        db,
+                        run_id,
+                        "finding.created",
+                        {
+                            "finding_id": str(finding.id),
+                            "claim_id": str(finding.claim_id) if finding.claim_id else None,
+                            "dimension": finding.dimension,
+                            "status": finding.status,
+                            "claim_text": finding.claim_text,
+                            "reason": finding.reason,
+                        },
+                    )
+
+                version = draft_service.get_document_version(
+                    db=db,
+                    version_id=review.document_version_id,
+                    matter_id=run.matter_id,
+                )
+                fact_claims = claim_extractor.extract_claims(
+                    document_version_id=version.id,
+                    content_json=version.content_json,
+                )
+
+                reviewer_result = None
+                reviewer_status = "unavailable"
+                try:
+                    reviewer, _handlers = create_fact_reviewer_agent(
+                        db=db,
+                        matter_id=run.matter_id,
+                        document_version_id=review.document_version_id,
+                        claims=fact_claims,
+                        allow_fixes=(mode == "apply_safe_fixes"),
+                    )
+                    agent_prompt = (
+                        f"Perform factual verification for document version {review.document_version_id} "
+                        f"in Matter {run.matter_id}. There are {len(review.findings)} finding(s) recorded. "
+                        "Review unresolved claims and verify against official sources. "
+                        "Return a structured FactReviewerResult."
+                    )
+                    agent_result = reviewer(agent_prompt)
+                    reviewer_result = FactReviewerResult.model_validate(
+                        agent_result.structured_output
+                    )
+                    reviewer_status = "completed"
+                except Exception as exc:
+                    logger.warning(
+                        "Fact Reviewer reasoning unavailable for run %s: %s",
+                        run_id,
+                        type(exc).__name__,
+                    )
+
+                _append_event(
+                    db,
+                    run_id,
+                    "tool.completed",
+                    {
+                        "tool": "fact_review",
+                        "summary": f"Completed fact verification with {len(review.findings)} finding(s)",
+                        "summary_counts": review.summary,
+                    },
+                )
                 _append_event(
                     db,
                     run_id,
                     "artifact.ready",
                     {
-                        "document_id": str(run.document_id),
+                        "document_id": str(run.document_id) if run.document_id else None,
                         "document_version_id": str(review.document_version_id),
                         "finding_count": len(review.findings),
                     },
                 )
+                run.result = {
+                    "document_id": str(run.document_id) if run.document_id else None,
+                    "document_version_id": str(review.document_version_id),
+                    "base_version_id": str(run.base_version_id) if run.base_version_id else None,
+                    "mode": mode,
+                    "finding_count": len(review.findings),
+                    "findings": [f.model_dump(mode="json") for f in review.findings],
+                    "summary": review.summary,
+                    "reviewer_status": reviewer_status,
+                    "reviewer_report": (
+                        reviewer_result.model_dump(mode="json") if reviewer_result else None
+                    ),
+                    "created_version_id": (
+                        str(review.created_version_id) if review.created_version_id else None
+                    ),
+                    "applied_correction_ids": [str(cid) for cid in review.applied_correction_ids],
+                    "blocked_correction_ids": [str(cid) for cid in review.blocked_correction_ids],
+                    "message": (
+                        reviewer_result.message
+                        if reviewer_result
+                        else (
+                            f"Fact verification identified {len(review.findings)} finding(s). "
+                            f"Review summary: {review.summary.get('supported', 0)} supported, "
+                            f"{review.summary.get('needs_review', 0)} needs review, "
+                            f"{review.summary.get('contradicted', 0)} contradicted, "
+                            f"{review.summary.get('unresolved', 0)} unresolved."
+                        )
+                    ),
+                }
             else:
                 agent = create_main_agent()
                 result = agent(message.content)
