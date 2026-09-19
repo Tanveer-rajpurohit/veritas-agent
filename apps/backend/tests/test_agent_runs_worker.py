@@ -1,3 +1,5 @@
+import hashlib
+import json
 from unittest.mock import MagicMock
 from uuid import uuid4
 
@@ -39,12 +41,10 @@ def _seed_matter_and_draft(db):
     matter = Matter(
         id=uuid4(),
         title="Insolvency Petition Matter",
-        created_by_id=user.id,
     )
     db.add(matter)
 
     member = MatterMember(
-        id=uuid4(),
         matter_id=matter.id,
         user_id=user.id,
         role="owner",
@@ -55,7 +55,6 @@ def _seed_matter_and_draft(db):
         id=uuid4(),
         matter_id=matter.id,
         title="Section 7 Petition",
-        created_by_id=user.id,
     )
     db.add(draft)
 
@@ -75,11 +74,15 @@ def _seed_matter_and_draft(db):
         ],
     }
 
+    raw_text = json.dumps(content_json, sort_keys=True)
+    content_hash = hashlib.sha256(raw_text.encode()).hexdigest()
+
     version = DocumentVersion(
         id=uuid4(),
         draft_id=draft.id,
-        version_number=1,
+        version_no=1,
         content_json=content_json,
+        content_sha256=content_hash,
         change_summary="Initial draft",
         created_by_id="user_1",
     )
@@ -89,6 +92,7 @@ def _seed_matter_and_draft(db):
         id=uuid4(),
         matter_id=matter.id,
         title="Review Thread",
+        created_by=user.id,
     )
     db.add(thread)
 
