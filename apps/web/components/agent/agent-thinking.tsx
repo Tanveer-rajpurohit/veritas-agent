@@ -21,7 +21,6 @@ interface AgentThinkingProps {
   isThinking?: boolean;
   thoughtSummary?: string;
   steps?: AgentStep[];
-  detailedThought?: string;
   defaultExpanded?: boolean;
 }
 
@@ -38,7 +37,6 @@ export function AgentThinking({
   isThinking = false,
   thoughtSummary,
   steps = [],
-  detailedThought,
   defaultExpanded = false,
 }: AgentThinkingProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -55,8 +53,8 @@ export function AgentThinking({
           <ThinkingOrb size={15} isThinking={isThinking} />
           <span>
             {isThinking
-              ? "Thinking..."
-              : `Thought for ${formatDuration(durationSeconds)}`}
+              ? "Working..."
+              : `Activity · ${formatDuration(durationSeconds)}`}
           </span>
           <span className="text-stone-400">
             {expanded ? (
@@ -121,11 +119,6 @@ export function AgentThinking({
             </div>
           )}
 
-          {detailedThought && (
-            <div className="pt-1 text-xs text-stone-600 leading-relaxed whitespace-pre-line font-mono bg-[#f8fafc] p-3 rounded-md border border-stone-200/90 shadow-2xs">
-              {detailedThought}
-            </div>
-          )}
         </div>
       )}
     </div>

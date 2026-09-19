@@ -3,22 +3,22 @@
 import { useState } from "react";
 import {
   SlidersIcon,
-  SparklesIcon,
   BellIcon,
   UsersIcon,
 } from "./workspace-icons";
+import { AgentAvatar } from "../agent/agent-avatar";
 
 type SettingsSection = "workspace" | "ai" | "notifications" | "account";
 
 interface NavItem {
   id: SettingsSection;
   label: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
+  icon?: React.ComponentType<{ size?: number; className?: string }>;
 }
 
 const NAV_ITEMS: NavItem[] = [
   { id: "workspace", label: "Workspace", icon: SlidersIcon },
-  { id: "ai", label: "AI Assistance", icon: SparklesIcon },
+  { id: "ai", label: "AI Assistance" },
   { id: "notifications", label: "Notifications", icon: BellIcon },
   { id: "account", label: "Account", icon: UsersIcon },
 ];
@@ -89,14 +89,24 @@ export function SettingsView() {
                 onClick={() => setActiveSection(item.id)}
                 className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors cursor-pointer text-left shrink-0 md:shrink border-l-2 ${
                   isActive
-                    ? "bg-[#fef6ee] text-[#b45309] font-semibold border-[#b45309]"
-                    : "border-transparent text-stone-600 hover:bg-[#edf4fa]/60 hover:text-stone-900"
+                    ? "border-[#487aa8] bg-[#edf4fa] font-semibold text-[#2c5478]"
+                    : "border-transparent text-stone-600 hover:bg-[#edf4fa]/60 hover:text-[#2c5478]"
                 }`}
               >
-                <Icon
-                  size={14}
-                  className={isActive ? "text-[#b45309]" : "text-stone-500"}
-                />
+                {item.id === "ai" ? (
+                  <AgentAvatar
+                    size={17}
+                    color={isActive ? "#487aa8" : "#7895ad"}
+                    glow={isActive ? "rgba(72, 122, 168, 0.2)" : "transparent"}
+                  />
+                ) : (
+                  Icon && (
+                    <Icon
+                      size={14}
+                      className={isActive ? "text-[#487aa8]" : "text-stone-500"}
+                    />
+                  )
+                )}
                 <span>{item.label}</span>
               </button>
             );

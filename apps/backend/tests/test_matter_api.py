@@ -24,9 +24,26 @@ test_engine = create_engine(
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
 
+class MemoryObjectStore:
+    def __init__(self) -> None:
+        self.objects: dict[str, bytes] = {}
+
+    def put(self, key: str, content: bytes, content_type: str) -> None:
+        self.objects[key] = content
+
+    def get(self, key: str) -> bytes:
+        return self.objects[key]
+
+    def delete(self, key: str) -> None:
+        self.objects.pop(key, None)
+
+
 @pytest.fixture(autouse=True)
-def setup_test_db() -> Generator[None, None, None]:
+def setup_test_db(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
     Base.metadata.create_all(bind=test_engine)
+    object_store = MemoryObjectStore()
+    monkeypatch.setattr(storage_service, "store", object_store)
+    monkeypatch.setattr(export_storage, "store", object_store)
 
     def override_get_db() -> Generator[Session, None, None]:
         db = TestingSessionLocal()
@@ -86,9 +103,8 @@ def test_matter_isolation(client: TestClient) -> None:
 
 
 def test_upload_and_page_are_matter_scoped(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch, tmp_path
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(storage_service, "base_path", tmp_path)
     monkeypatch.setattr(
         embedding_service,
         "embed_chunks",
@@ -121,9 +137,8 @@ def test_upload_and_page_are_matter_scoped(
 
 
 def test_document_save_is_versioned_idempotent_and_scoped(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch, tmp_path
+    client: TestClient,
 ) -> None:
-    monkeypatch.setattr(export_storage, "base_path", tmp_path)
     matter_id = client.post("/api/v1/matters/", json={"title": "Drafting"}).json()["id"]
     created = client.post(f"/api/v1/matters/{matter_id}/documents", json={"title": "Working brief"})
     assert created.status_code == 201, created.text
@@ -301,9 +316,8 @@ def test_delete_matter_not_found(client: TestClient) -> None:
 
 
 def test_conflicting_records_create_stale_findings_after_edit(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch, tmp_path
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(storage_service, "base_path", tmp_path)
     monkeypatch.setattr(
         embedding_service, "embed_chunks", lambda texts: [[0.1] * 384 for _ in texts]
     )
@@ -434,7 +448,10 @@ def test_citation_identity_and_quote_checks_use_stored_legal_text(client: TestCl
         },
     )
     assert saved.status_code == 201, saved.text
-    response = client.post(f"/api/v1/document-versions/{saved.json()['id']}/checks")
+    response = client.post(
+        f"/api/v1/document-versions/{saved.json()['id']}/checks",
+        json={"checks": ["citation"], "mode": "review_only"},
+    )
     assert response.status_code == 200, response.text
     findings = response.json()
     assert [item["status"] for item in findings if item["dimension"] == "identity"] == [
@@ -449,6 +466,17 @@ def test_citation_identity_and_quote_checks_use_stored_legal_text(client: TestCl
         "unresolved",
         "unresolved",
     ]
+    assert {item["dimension"] for item in findings} == {
+        "identity",
+        "quotation",
+        "support",
+        "treatment",
+    }
+    assert all(
+        item["status"] in {"needs_review", "unresolved"}
+        for item in findings
+        if item["dimension"] in {"support", "treatment"}
+    )
     assert all(item["evidence"] for item in findings if item["status"] == "supported")
 
 
@@ -591,3 +619,62 @@ def test_writer_run_without_operations_does_not_create_a_document(
     assert state["status"] == "completed"
     assert state["result"]["document_id"] is None
     assert state["result"]["unresolved_questions"] == ["Which amount is correct?"]
+
+
+def test_writer_revision_requires_explicit_acceptance(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from types import SimpleNamespace
+
+    import app.workers.agent_runs as worker
+    from app.schemas.agents.writer import DocumentOperation, WriterResult
+
+    monkeypatch.setattr(worker, "SessionLocal", TestingSessionLocal)
+    monkeypatch.setattr(
+        worker,
+        "create_writer_agent",
+        lambda db, matter_id, allow_document_writes: (
+            lambda prompt: SimpleNamespace(
+                structured_output=WriterResult(
+                    operations=[
+                        DocumentOperation(
+                            type="insert_paragraph",
+                            position="analysis",
+                            text="Proposed revision",
+                        )
+                    ]
+                )
+            )
+        ),
+    )
+    matter_id = client.post("/api/v1/matters/", json={"title": "Proposal"}).json()["id"]
+    document = client.post(f"/api/v1/matters/{matter_id}/documents", json={"title": "Brief"}).json()
+    thread_id = client.post(f"/api/v1/matters/{matter_id}/threads", json={}).json()["id"]
+    message_id = client.post(
+        f"/api/v1/threads/{thread_id}/messages", json={"content": "Revise analysis"}
+    ).json()["id"]
+    created = client.post(
+        f"/api/v1/matters/{matter_id}/agent-runs",
+        headers={"Idempotency-Key": "revision-proposal-1"},
+        json={
+            "thread_id": thread_id,
+            "message_id": message_id,
+            "agent": "writer",
+            "requested_action": "revise_working_brief",
+            "document_id": document["id"],
+            "document_version_id": document["current_version_id"],
+        },
+    )
+    state = client.get(f"/api/v1/agent-runs/{created.json()['run_id']}").json()
+    assert state["result"]["proposal_status"] == "pending"
+    assert state["result"]["document_version_id"] is None
+
+    applied = client.post(
+        f"/api/v1/agent-runs/{created.json()['run_id']}/apply",
+        headers={"Idempotency-Key": "revision-accept-1"},
+    )
+    assert applied.status_code == 201, applied.text
+    assert applied.json()["document_version_id"] != document["current_version_id"]
+
+    rejected = client.post(f"/api/v1/agent-runs/{created.json()['run_id']}/reject")
+    assert rejected.status_code == 409

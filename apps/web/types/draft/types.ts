@@ -22,6 +22,7 @@ export interface DraftPage {
 
 export interface DraftVersion {
   version: string;
+  versionId?: string;
   label: string;
   date: string;
   summary: string;
@@ -37,6 +38,7 @@ export interface DraftDocument {
   court?: string;
   caseNumber?: string;
   currentVersion: string;
+  currentVersionId?: string;
   versions: DraftVersion[];
   contentHtml?: string;
 }

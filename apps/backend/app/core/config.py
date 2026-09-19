@@ -1,6 +1,6 @@
 import json
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -23,17 +23,14 @@ class Settings(BaseSettings):
     AWS_ACCESS_KEY_ID: str = ""
     AWS_SECRET_ACCESS_KEY: str = ""
     AWS_BEDROCK_MODEL_ID: str = "amazon.nova-lite-v1:0"
+    BUCKET_NAME: str = "veritas"
 
     DATABASE_URL: str = "postgresql+psycopg://veritas:veritas_password@localhost:5432/veritas"
-    SOURCE_STORAGE_BACKEND: str = "local"
-    SOURCE_STORAGE_PATH: str = "./data/sources"
-    EXPORT_STORAGE_PATH: str = "./data/exports"
-    EXPORT_STORAGE_BACKEND: str = "local"
+    REDIS_URL: str = "redis://localhost:6379/0"
+    OBJECT_STORAGE_BACKEND: str = "minio"
     MINIO_ENDPOINT: str = "http://localhost:9000"
     MINIO_ACCESS_KEY: str = "veritas"
     MINIO_SECRET_KEY: str = ""
-    MINIO_BUCKET: str = "veritas-sources"
-    MINIO_EXPORT_BUCKET: str = "veritas-exports"
     OCR_PROVIDER: str = "local"
 
     EMBEDDING_PROVIDER: str = "local"
@@ -51,6 +48,16 @@ class Settings(BaseSettings):
     LEGAL_SOURCE_TIMEOUT_SECONDS: float = 10.0
     LEGAL_SOURCE_MAX_RESPONSE_BYTES: int = 2000000
     LEGAL_SOURCE_CACHE_TTL_SECONDS: int = 86400
+    DATA_GOV_IN_API_KEY: str = ""
+    DATA_GOV_IN_BASE_URL: str = "https://api.data.gov.in"
+    MCA_COMPANY_MASTER_RESOURCE_ID: str = "4dbe5667-7b6b-41d7-82af-211562424d9a"
+
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = "noreply@veritaslegal.in"
+    SMTP_FROM_NAME: str = "Chambers of Veritas"
 
     @field_validator("ALLOWED_ORIGINS", mode="before")
     @classmethod
@@ -65,6 +72,27 @@ class Settings(BaseSettings):
                 return [str(origin).strip().rstrip("/") for origin in parsed if origin]
 
         return [origin.strip().rstrip("/") for origin in value.split(",") if origin.strip()]
+
+    @field_validator("OBJECT_STORAGE_BACKEND", mode="before")
+    @classmethod
+    def normalize_object_storage_backend(cls, value: str) -> str:
+        backend = value.strip().lower()
+        if backend not in {"s3", "minio"}:
+            raise ValueError("OBJECT_STORAGE_BACKEND must be 's3' or 'minio'")
+        return backend
+
+    @model_validator(mode="after")
+    def validate_object_storage(self) -> "Settings":
+        if not self.BUCKET_NAME.strip():
+            raise ValueError("BUCKET_NAME is required")
+        if self.OBJECT_STORAGE_BACKEND == "minio":
+            if not self.MINIO_ENDPOINT.strip():
+                raise ValueError("MINIO_ENDPOINT is required when MinIO is selected")
+            if not self.MINIO_ACCESS_KEY or not self.MINIO_SECRET_KEY:
+                raise ValueError("MinIO access and secret keys are required")
+        if bool(self.AWS_ACCESS_KEY_ID) != bool(self.AWS_SECRET_ACCESS_KEY):
+            raise ValueError("Both AWS access key fields are required when either is configured")
+        return self
 
     @property
     def active_agent_provider(self) -> str:

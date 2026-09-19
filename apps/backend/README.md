@@ -19,6 +19,13 @@ python -m alembic upgrade head
 python -m uvicorn app.main:app --reload --port 8000
 ```
 
+Local development uses MinIO at `http://localhost:9000`; its console is at
+`http://localhost:9001`. Sources and exports share the configured bucket under
+separate `sources/` and `exports/` prefixes. To use AWS S3, set
+`OBJECT_STORAGE_BACKEND=s3`, set `BUCKET_NAME`, and provide AWS credentials (or
+an IAM role). The application creates the local MinIO bucket when needed, but
+the AWS bucket must already exist.
+
 In a second terminal, run `python -m app.workers.agent_runs` from `apps/backend` to process queued runs after API restarts. The API also starts runs in a background task when a request succeeds. Set either Groq or Bedrock credentials before running an agent.
 
 For macOS or Linux, activate the environment with `source .venv/bin/activate` and copy the environment file with `cp .env.example .env`.

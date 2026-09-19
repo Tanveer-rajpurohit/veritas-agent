@@ -1,5 +1,14 @@
 # Agent architecture and contracts
 
+## Implementation snapshot: 19 September 2026
+
+The current runtime is catalogued in [current-agent-runtime.md](../current-agent-runtime.md). Writer
+and Citation Reviewer run as Strands specialists with typed outputs. Explicit actions are routed by
+the Python worker. Citation checks are persisted before the specialist prepares its report. The
+worker currently uses the deterministic fact-review service, although the bounded Strands Fact
+Reviewer is implemented. Main Agent still handles conversational answers without the planned
+`WorkflowPlan` output, so typed routing for ambiguous chat remains unfinished.
+
 ## Architecture
 
 The visible “agents” are roles with narrow inputs, outputs, and tools. They run inside an application-controlled workflow. Strands supports the agents-as-tools pattern, where an orchestrator calls specialists; use it for delegation while keeping state transitions in Python. [Strands pattern](https://strandsagents.com/docs/user-guide/concepts/multi-agent/agents-as-tools/)

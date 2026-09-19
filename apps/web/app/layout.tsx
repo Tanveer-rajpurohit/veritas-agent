@@ -1,6 +1,8 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import { fontMono, fontSans, fontSerif } from "./fonts";
+import { QueryProvider } from "../providers/QueryProvider";
+import { AuthProvider } from "../providers/AuthProvider";
 
 export const metadata: Metadata = {
   applicationName: "Veritas",
@@ -33,7 +35,9 @@ export default function RootLayout({
       className={`${fontSans.variable} ${fontSerif.variable} ${fontMono.variable} overflow-x-hidden`}
     >
       <body className="font-sans antialiased overflow-x-hidden">
-        {children}
+        <QueryProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </QueryProvider>
       </body>
     </html>
   );

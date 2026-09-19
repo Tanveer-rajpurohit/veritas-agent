@@ -86,6 +86,111 @@ def _quote_status(quote: str, source_text: str) -> tuple[str, str]:
     return "unresolved", "Quote was not located in the selected source passage"
 
 
+def check_citations(db: Session, version) -> list[Finding]:
+    """Check citation identity and quotation without claiming legal support or currency."""
+    db.execute(
+        update(Finding)
+        .where(
+            Finding.document_version_id == version.id,
+            Finding.dimension.in_(("identity", "quotation", "support", "treatment")),
+            Finding.stale_at.is_(None),
+        )
+        .values(status="stale", stale_at=datetime.now(UTC))
+    )
+    findings: list[Finding] = []
+    for block_index, _text, citations in _paragraphs(version.content_json):
+        for citation, quote in citations:
+            source, legal_span = _legal_citation(db, citation)
+            identified = source is not None and legal_span is not None
+            identity = Finding(
+                document_version_id=version.id,
+                block_index=block_index,
+                claim_text=citation,
+                claim_sha256=hashlib.sha256(citation.encode()).hexdigest(),
+                dimension="identity",
+                status="supported" if identified else "unresolved",
+                method="exact" if identified else "retrieval",
+                reason=(
+                    "Citation matches stored legal-source identity fields"
+                    if identified
+                    else "Citation identity was not found in the curated legal sources"
+                ),
+                limitations=[
+                    "Identity does not establish proposition support or current treatment"
+                ],
+            )
+            db.add(identity)
+            db.flush()
+            if identified:
+                db.add(
+                    FindingEvidence(
+                        finding_id=identity.id,
+                        evidence_span_id=legal_span.id,
+                        relation="source",
+                    )
+                )
+            findings.append(identity)
+
+            if isinstance(quote, str) and quote.strip():
+                status, reason = (
+                    _quote_status(quote, legal_span.quoted_text)
+                    if identified
+                    else (
+                        "unresolved",
+                        "Citation identity is unresolved, so the quote cannot be checked",
+                    )
+                )
+                quotation = Finding(
+                    document_version_id=version.id,
+                    block_index=block_index,
+                    claim_text=quote,
+                    claim_sha256=hashlib.sha256(quote.encode()).hexdigest(),
+                    dimension="quotation",
+                    status=status,
+                    method="normalized" if identified else "retrieval",
+                    reason=reason,
+                    limitations=["Compared only with the stored source text"],
+                )
+                db.add(quotation)
+                db.flush()
+                if identified:
+                    db.add(
+                        FindingEvidence(
+                            finding_id=quotation.id,
+                            evidence_span_id=legal_span.id,
+                            relation="source",
+                        )
+                    )
+                findings.append(quotation)
+
+            for dimension, reason in (
+                (
+                    "support",
+                    "A lawyer must confirm that the passage supports the draft proposition",
+                ),
+                (
+                    "treatment",
+                    "Later judicial treatment has not been checked from an authoritative source",
+                ),
+            ):
+                finding = Finding(
+                    document_version_id=version.id,
+                    block_index=block_index,
+                    claim_text=citation,
+                    claim_sha256=hashlib.sha256(citation.encode()).hexdigest(),
+                    dimension=dimension,
+                    status="needs_review" if identified else "unresolved",
+                    method="retrieval",
+                    reason=reason,
+                    limitations=["No automated legal conclusion is made"],
+                )
+                db.add(finding)
+                db.flush()
+                findings.append(finding)
+    db.commit()
+    return findings
+
+
 def check_version(db: Session, version, matter_id: UUID) -> list[Finding]:
     db.execute(
         update(Finding)

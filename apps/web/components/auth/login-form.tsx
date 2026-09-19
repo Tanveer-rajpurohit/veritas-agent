@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { useAuth } from "../../hooks/auth/useAuth";
 import { safeInternalPath, validateLoginForm } from "../../lib/validation/auth";
 import type { AuthFieldErrors } from "../../types/auth/types";
 import {
@@ -21,12 +22,12 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = safeInternalPath(searchParams.get("redirect"));
+  const { login, isLoggingIn, loginError } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<AuthFieldErrors>({});
-  const [pending, setPending] = useState(false);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -35,8 +36,12 @@ export function LoginForm() {
     if (Object.keys(failures).length > 0) {
       return;
     }
-    setPending(true);
-    window.setTimeout(() => router.push(redirectTo), 450);
+    try {
+      await login({ email: email.trim(), password, rememberMe });
+      router.replace(redirectTo === "/" ? "/workspace" : redirectTo);
+    } catch {
+      return;
+    }
   }
 
   return (
@@ -88,7 +93,13 @@ export function LoginForm() {
           Keep me signed in on this device
         </AuthCheckbox>
 
-        <AuthSubmit pending={pending} pendingLabel="Signing in…">
+        {loginError && (
+          <p role="alert" className="m-0 text-xs font-medium text-rose-700">
+            {loginError.message}
+          </p>
+        )}
+
+        <AuthSubmit pending={isLoggingIn} pendingLabel="Signing in…">
           Log in
         </AuthSubmit>
 
@@ -104,4 +115,3 @@ export function LoginForm() {
     </div>
   );
 }
-

@@ -11,6 +11,9 @@ class Finding(Base):
     __tablename__ = "findings"
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    claim_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("claims.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     document_version_id: Mapped[UUID] = mapped_column(
         Uuid, ForeignKey("document_versions.id", ondelete="CASCADE"), nullable=False, index=True
     )

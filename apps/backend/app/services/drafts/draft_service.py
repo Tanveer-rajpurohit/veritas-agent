@@ -99,6 +99,9 @@ class DraftService:
         operations: list[DocumentOperation],
         change_summary: str | None = None,
         created_by_id: str = "writer_agent",
+        user_id: UUID | None = None,
+        idempotency_key: str | None = None,
+        request_hash: str | None = None,
     ) -> DocumentVersion:
         """
         Applies validated document operations producing a new immutable DocumentVersion.
@@ -144,14 +147,22 @@ class DraftService:
             operations=operations,
         )
 
+        command_args = {}
+        if user_id is not None and idempotency_key is not None and request_hash is not None:
+            command_args = {
+                "user_id": user_id,
+                "idempotency_key": idempotency_key,
+                "request_hash": request_hash,
+            }
         return draft_repository.create_new_version(
             db=db,
             draft=draft,
             content_json=mutated_content,
             base_version_id=base_version_id,
-            created_by_type="agent" if created_by_id == "writer_agent" else "human",
+            created_by_type="agent" if created_by_id.endswith("_agent") else "human",
             created_by_id=created_by_id,
             change_summary=change_summary or f"Applied {len(operations)} document operations",
+            **command_args,
         )
 
     @staticmethod
@@ -186,10 +197,13 @@ class DraftService:
             elif op.type == "replace_block":
                 replaced = False
                 for idx, existing in enumerate(content_blocks):
-                    if (
-                        isinstance(existing, dict)
-                        and existing.get("attrs", {}).get("position") == op.position
-                    ):
+                    attrs = existing.get("attrs", {}) if isinstance(existing, dict) else {}
+                    if attrs.get("position") == op.position or attrs.get("id") == op.position:
+                        block["attrs"] = {
+                            **attrs,
+                            "position": op.position,
+                            "evidence_span_ids": [str(sid) for sid in op.evidence_span_ids],
+                        }
                         content_blocks[idx] = block
                         replaced = True
                         break

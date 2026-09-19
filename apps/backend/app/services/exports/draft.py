@@ -1,107 +1,54 @@
 import hashlib
 import json
-import os
-import tempfile
 import textwrap
 from datetime import UTC, datetime
-from pathlib import Path
 from uuid import UUID
 
-import boto3
 import pymupdf
-from botocore.exceptions import ClientError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.models.reviews import Finding, FindingEvidence, FindingResolution
 from app.models.sources import EvidenceSpan, Source
+from app.services.storage import ObjectStore, object_store
 
 
 def _validate_export_key(object_key: str) -> None:
-    path = Path(object_key)
-    if path.name != object_key or path.suffix not in {".pdf", ".json"}:
+    parts = object_key.split("/")
+    if len(parts) != 2 or parts[0] != "exports":
+        raise ValueError("Invalid export key")
+    name, separator, suffix = parts[1].rpartition(".")
+    if not separator or suffix not in {"pdf", "json"}:
         raise ValueError("Invalid export key")
     try:
-        UUID(path.stem)
+        UUID(name)
     except ValueError:
         raise ValueError("Invalid export key") from None
 
 
-class ExportStorage:
-    def __init__(self) -> None:
-        self.base_path = Path(settings.EXPORT_STORAGE_PATH).resolve()
-
-    def save(self, export_id: UUID, format: str, content: bytes) -> str:
-        self.base_path.mkdir(parents=True, exist_ok=True)
-        name = f"{export_id}.{format}"
-        descriptor, temporary = tempfile.mkstemp(dir=self.base_path, prefix=".export-")
-        try:
-            with os.fdopen(descriptor, "wb") as output:
-                output.write(content)
-                output.flush()
-                os.fsync(output.fileno())
-            Path(temporary).replace(self.base_path / name)
-        except Exception:
-            Path(temporary).unlink(missing_ok=True)
-            raise
-        return name
-
-    def read(self, object_key: str) -> bytes:
-        _validate_export_key(object_key)
-        return (self.base_path / object_key).read_bytes()
-
-    def delete(self, object_key: str) -> None:
-        _validate_export_key(object_key)
-        (self.base_path / object_key).unlink(missing_ok=True)
-
-
 class S3ExportStorage:
-    def __init__(self, client=None) -> None:
-        if not settings.MINIO_SECRET_KEY:
-            raise ValueError("MINIO_SECRET_KEY is required for S3 export storage")
-        self.client = client or boto3.client(
-            "s3",
-            endpoint_url=settings.MINIO_ENDPOINT,
-            aws_access_key_id=settings.MINIO_ACCESS_KEY,
-            aws_secret_access_key=settings.MINIO_SECRET_KEY,
-            region_name="us-east-1",
-        )
-        self.bucket = settings.MINIO_EXPORT_BUCKET
-        self._bucket_ready = False
-
-    def _ensure_bucket(self) -> None:
-        if self._bucket_ready:
-            return
-        try:
-            self.client.head_bucket(Bucket=self.bucket)
-        except ClientError as exc:
-            if exc.response.get("Error", {}).get("Code") not in {"404", "NoSuchBucket"}:
-                raise
-            self.client.create_bucket(Bucket=self.bucket)
-        self._bucket_ready = True
+    def __init__(self, store: ObjectStore | None = None) -> None:
+        self.store = store or object_store
 
     def save(self, export_id: UUID, format: str, content: bytes) -> str:
-        self._ensure_bucket()
-        object_key = f"{export_id}.{format}"
-        self.client.put_object(Bucket=self.bucket, Key=object_key, Body=content)
+        if format not in {"pdf", "json"}:
+            raise ValueError("Unsupported export format")
+        object_key = f"exports/{export_id}.{format}"
+        content_type = "application/pdf" if format == "pdf" else "application/json"
+        self.store.put(object_key, content, content_type)
         return object_key
 
     def read(self, object_key: str) -> bytes:
         _validate_export_key(object_key)
-        return self.client.get_object(Bucket=self.bucket, Key=object_key)["Body"].read()
+        return self.store.get(object_key)
 
     def delete(self, object_key: str) -> None:
         _validate_export_key(object_key)
-        self.client.delete_object(Bucket=self.bucket, Key=object_key)
+        self.store.delete(object_key)
 
 
-if settings.EXPORT_STORAGE_BACKEND == "s3":
-    export_storage = S3ExportStorage()
-elif settings.EXPORT_STORAGE_BACKEND == "local":
-    export_storage = ExportStorage()
-else:
-    raise ValueError("EXPORT_STORAGE_BACKEND must be 'local' or 's3'")
+ExportStorage = S3ExportStorage
+export_storage = S3ExportStorage()
 
 
 def build_package(db: Session, draft, version) -> dict:

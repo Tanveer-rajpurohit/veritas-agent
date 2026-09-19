@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.agents.main_agent import _build_boto_session, _build_model
+from app.agents.main_agent import _build_boto_session, build_agent_model
 from app.core.config import settings
 
 
@@ -17,7 +17,7 @@ def test_groq_model_uses_the_configured_openai_compatible_endpoint(
     monkeypatch.setattr(settings, "AGENT_TEMPERATURE", 0.2)
 
     with patch("app.agents.main_agent.OpenAIModel") as model_class:
-        _build_model()
+        build_agent_model()
 
     model_class.assert_called_once_with(
         client_args={
@@ -42,7 +42,7 @@ def test_bedrock_model_uses_the_explicit_boto_session(
         patch("app.agents.main_agent._build_boto_session", return_value=boto_session),
         patch("app.agents.main_agent.BedrockModel") as model_class,
     ):
-        _build_model()
+        build_agent_model()
 
     model_class.assert_called_once_with(
         boto_session=boto_session,

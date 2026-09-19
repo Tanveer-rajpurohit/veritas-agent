@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useId, useRef } from "react";
+import { useState, useId, useRef, useMemo } from "react";
 import { UploadIcon, CheckIcon } from "./workspace-icons";
+import { useUser, useUpdateProfile } from "../../hooks/auth/useAuth";
 
 export interface ProfileDetails {
   fullName: string;
@@ -52,25 +53,52 @@ export function ProfileView() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formId = useId();
 
-  // Saved state
-  const [savedDetails, setSavedDetails] = useState<ProfileDetails>(INITIAL_PROFILE);
-  // Form draft state
-  const [formDetails, setFormDetails] = useState<ProfileDetails>(INITIAL_PROFILE);
+  const { data: userProfile } = useUser();
+  const updateProfileMutation = useUpdateProfile();
+
+  const savedDetails: ProfileDetails = useMemo(() => {
+    if (!userProfile) return INITIAL_PROFILE;
+    return {
+      fullName: userProfile.full_name || INITIAL_PROFILE.fullName,
+      dateOfBirth: INITIAL_PROFILE.dateOfBirth,
+      profession: userProfile.law_firm || INITIAL_PROFILE.profession,
+      location: userProfile.city || INITIAL_PROFILE.location,
+      education: INITIAL_PROFILE.education,
+      yearOfPassing: INITIAL_PROFILE.yearOfPassing,
+      phone: userProfile.phone_number || INITIAL_PROFILE.phone,
+      website: INITIAL_PROFILE.website,
+      bio: INITIAL_PROFILE.bio,
+    };
+  }, [userProfile]);
+
+  const [formEdits, setFormEdits] = useState<Partial<ProfileDetails>>({});
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
-  // Username state
-  const [savedUsername, setSavedUsername] = useState(INITIAL_USERNAME);
-  const [usernameInput, setUsernameInput] = useState(INITIAL_USERNAME);
+  const formDetails: ProfileDetails = useMemo(() => {
+    return { ...savedDetails, ...formEdits };
+  }, [savedDetails, formEdits]);
+
+  const defaultUsername = useMemo(() => {
+    if (userProfile?.email) {
+      const emailPrefix = userProfile.email.split("@")[0];
+      if (emailPrefix) return emailPrefix;
+    }
+    return INITIAL_USERNAME;
+  }, [userProfile]);
+
+  const [customUsername, setCustomUsername] = useState<string | null>(null);
+  const savedUsername = customUsername !== null ? customUsername : defaultUsername;
+  const [usernameInput, setUsernameInput] = useState<string | null>(null);
+  const activeUsernameInput = usernameInput !== null ? usernameInput : savedUsername;
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [usernameStatus, setUsernameStatus] = useState<string | null>(null);
 
-  // Photo state (mock)
   const [photoUploaded, setPhotoUploaded] = useState(false);
 
-  const isDirty = JSON.stringify(formDetails) !== JSON.stringify(savedDetails);
+  const isDirty = Object.keys(formEdits).length > 0;
 
   const handleFieldChange = (field: keyof ProfileDetails, value: string) => {
-    setFormDetails((prev) => ({
+    setFormEdits((prev) => ({
       ...prev,
       [field]: value,
     }));
@@ -79,15 +107,21 @@ export function ProfileView() {
 
   const handleSaveDetails = (e: React.FormEvent) => {
     e.preventDefault();
-    setSavedDetails(formDetails);
     setSaveStatus("Changes saved successfully");
+    updateProfileMutation.mutate({
+      full_name: formDetails.fullName,
+      phone_number: formDetails.phone,
+      law_firm: formDetails.profession,
+      city: formDetails.location,
+    });
+    setFormEdits({});
     setTimeout(() => {
       setSaveStatus(null);
     }, 3500);
   };
 
   const handleDiscardDetails = () => {
-    setFormDetails(savedDetails);
+    setFormEdits({});
     setSaveStatus(null);
   };
 
@@ -96,7 +130,7 @@ export function ProfileView() {
     setUsernameError(null);
     setUsernameStatus(null);
 
-    const trimmed = usernameInput.trim();
+    const trimmed = activeUsernameInput.trim();
     if (trimmed.length < 3 || trimmed.length > 30) {
       setUsernameError("Username must be between 3 and 30 characters.");
       return;
@@ -106,7 +140,7 @@ export function ProfileView() {
       return;
     }
 
-    setSavedUsername(trimmed);
+    setCustomUsername(trimmed);
     setUsernameInput(trimmed);
     setUsernameStatus("Username updated successfully");
     setTimeout(() => {
@@ -187,22 +221,6 @@ export function ProfileView() {
                   Photo selected (mock)
                 </span>
               )}
-            </div>
-          </div>
-
-          {/* Profile completeness */}
-          <div className="mt-5 border-t border-stone-100 pt-4 flex flex-col gap-1.5">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-medium text-stone-600">
-                Profile completeness
-              </span>
-              <span className="font-semibold text-stone-900">100%</span>
-            </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-stone-100">
-              <div
-                className="h-full rounded-full bg-[#c07830] transition-all"
-                style={{ width: "100%" }}
-              />
             </div>
           </div>
         </section>
@@ -462,7 +480,7 @@ export function ProfileView() {
                 <input
                   id={`${formId}-username`}
                   type="text"
-                  value={usernameInput}
+                  value={activeUsernameInput}
                   onChange={(e) => {
                     setUsernameInput(e.target.value);
                     if (usernameError) setUsernameError(null);
@@ -491,7 +509,7 @@ export function ProfileView() {
             <div className="pt-1">
               <button
                 type="submit"
-                disabled={usernameInput.trim() === savedUsername}
+                disabled={activeUsernameInput.trim() === savedUsername}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-[#487aa8] px-3.5 py-1.5 text-xs font-medium text-white shadow-2xs hover:bg-[#3b668d] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span>@ Update username</span>
@@ -512,17 +530,15 @@ export function ProfileView() {
           </div>
 
           <div className="pt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {/* Email */}
             <div className="rounded-lg border border-stone-200/70 bg-stone-50/70 p-3.5 select-text">
               <span className="block text-[11px] font-medium text-stone-400">
                 Email
               </span>
-              <span className="mt-1 block text-xs font-medium text-stone-800 truncate" title={ACCOUNT_DETAILS.email}>
-                {ACCOUNT_DETAILS.email}
+              <span className="mt-1 block text-xs font-medium text-stone-800 truncate" title={userProfile?.email || ACCOUNT_DETAILS.email}>
+                {userProfile?.email || ACCOUNT_DETAILS.email}
               </span>
             </div>
 
-            {/* Sign-in method */}
             <div className="rounded-lg border border-stone-200/70 bg-stone-50/70 p-3.5 select-text">
               <span className="block text-[11px] font-medium text-stone-400">
                 Sign-in method
@@ -532,13 +548,14 @@ export function ProfileView() {
               </span>
             </div>
 
-            {/* Member since */}
             <div className="rounded-lg border border-stone-200/70 bg-stone-50/70 p-3.5 select-text">
               <span className="block text-[11px] font-medium text-stone-400">
                 Member since
               </span>
               <span className="mt-1 block text-xs font-medium text-stone-800">
-                {ACCOUNT_DETAILS.memberSince}
+                {userProfile?.created_at
+                  ? new Date(userProfile.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+                  : ACCOUNT_DETAILS.memberSince}
               </span>
             </div>
 

@@ -10,8 +10,8 @@ import {
   CheckIcon,
   ChevronDownIcon,
   XIcon,
-  FileTextIcon,
   SparklesIcon,
+  ColoredFileIcon,
 } from "../workspace/workspace-icons";
 
 export interface AttachedFile {
@@ -148,7 +148,7 @@ export function AgentComposer({
                 key={file.id}
                 className="flex items-center gap-1.5 rounded-md bg-[#edf4fa] px-2.5 py-1 text-xs text-[#2c5478] border border-[#cbe0f2]"
               >
-                <FileTextIcon size={12} className="text-[#487aa8]" />
+                <ColoredFileIcon filename={file.name} format={file.type} size="xs" />
                 <span className="font-medium max-w-[200px] truncate">
                   {file.name}
                 </span>

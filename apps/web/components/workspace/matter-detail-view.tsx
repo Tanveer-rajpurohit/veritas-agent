@@ -14,14 +14,26 @@ import {
   DownloadIcon,
   ExternalLinkIcon,
   EyeIcon,
-  FileTextIcon,
   PlusIcon,
   SearchIcon,
   BotIcon,
   UploadIcon,
   XIcon,
   AlertCircleIcon,
+  ColoredFileIcon,
+  FileTextIcon,
+  FolderKanbanIcon,
 } from "./workspace-icons";
+import {
+  useCreateDocument,
+  useDocuments,
+} from "../../hooks/documents/useDocuments";
+import {
+  useDownloadSource,
+  useSources,
+  useUploadSource,
+} from "../../hooks/sources/useSources";
+import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 
 interface MatterDetailViewProps {
   matter: Matter;
@@ -36,7 +48,7 @@ interface DocumentItem {
   pages: number;
   size: string;
   uploadedAt: string;
-  format: "PDF" | "XLSX" | "DOCX";
+  format: "PDF" | "TXT" | "MD";
   hasDiscrepancy?: boolean;
 }
 
@@ -131,6 +143,18 @@ export function MatterDetailView({
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [draftModalOpen, setDraftModalOpen] = useState(false);
 
+  const { data: backendDocs } = useDocuments(matter.id);
+  const createDocumentMutation = useCreateDocument(matter.id);
+  const { data: backendSources } = useSources(matter.id);
+  const uploadSourceMutation = useUploadSource();
+  const downloadSourceMutation = useDownloadSource();
+  const setActiveMatterId = useWorkspaceStore((s) => s.setActiveMatterId);
+  const setActiveDocumentId = useWorkspaceStore((s) => s.setActiveDocumentId);
+
+  useEffect(() => {
+    setActiveMatterId(matter.id);
+  }, [matter.id, setActiveMatterId]);
+
   const [newDraftTitle, setNewDraftTitle] = useState("");
   const [newDraftTemplate, setNewDraftTemplate] = useState(
     "IBC Section 7 Application (Form 1)",
@@ -141,63 +165,29 @@ export function MatterDetailView({
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const indicatorRef = useRef<HTMLDivElement>(null);
 
-  const [documents, setDocuments] = useState<DocumentItem[]>([
-    {
-      id: "doc-1",
-      name: "IBC_Section7_Form1_Petition.pdf",
-      type: "Pleadings",
-      pages: 56,
-      size: "3.2 MB",
-      uploadedAt: "Today, 10:14 AM",
-      format: "PDF",
-    },
-    {
-      id: "doc-2",
-      name: "Syndicated_Facility_Agreement_2023.pdf",
-      type: "Contracts",
-      pages: 34,
-      size: "2.1 MB",
-      uploadedAt: "Yesterday",
-      format: "PDF",
-    },
-    {
-      id: "doc-3",
-      name: "NeSL_Default_Authentication_Record.pdf",
+  const documents = useMemo<DocumentItem[]>(() => {
+    const backendItems: DocumentItem[] = (backendSources || []).map((source) => ({
+      id: source.id,
+      name: source.canonical_title,
       type: "Evidence",
-      pages: 4,
-      size: "520 KB",
-      uploadedAt: "14 May 2026",
-      format: "PDF",
-    },
-    {
-      id: "doc-4",
-      name: "Audited_Bank_Ledger_Statements.xlsx",
-      type: "Evidence",
-      pages: 12,
-      size: "840 KB",
-      uploadedAt: "10 May 2026",
-      format: "XLSX",
-      hasDiscrepancy: true,
-    },
-    {
-      id: "doc-5",
-      name: "Statutory_Demand_Notice_Section8.pdf",
-      type: "Pleadings",
-      pages: 8,
-      size: "460 KB",
-      uploadedAt: "06 May 2026",
-      format: "PDF",
-    },
-    {
-      id: "doc-6",
-      name: "NCLT_Interim_Restraint_Order.pdf",
-      type: "Orders",
-      pages: 6,
-      size: "380 KB",
-      uploadedAt: "01 May 2026",
-      format: "PDF",
-    },
-  ]);
+      pages: source.page_count ?? 0,
+      size: source.extraction_status,
+      uploadedAt: `Version ${source.version_number}`,
+      format: source.canonical_title.toLowerCase().endsWith(".md")
+        ? "MD"
+        : source.canonical_title.toLowerCase().endsWith(".txt")
+          ? "TXT"
+          : "PDF",
+    }));
+
+    const combined = backendItems;
+    const seen = new Set<string>();
+    return combined.filter((d) => {
+      if (seen.has(d.id)) return false;
+      seen.add(d.id);
+      return true;
+    });
+  }, [backendSources]);
 
   const [findingCategory, setFindingCategory] = useState<
     "all" | "citation" | "fact"
@@ -208,52 +198,18 @@ export function MatterDetailView({
   );
   const [rejectReason, setRejectReason] = useState("");
 
-  const [drafts, setDrafts] = useState<DraftItem[]>([
-    {
-      id: "draft-1",
-      title: "IBC Section 7 Application (Form 1 Petition)",
-      summary:
-        "Primary insolvency petition under Section 7 of IBC, 2016 for initiation of CIRP against Corporate Debtor default.",
-      templateType: "Form 1 Petition",
-      citationsCount: 18,
-      lastEdited: "10 mins ago by Tanveer",
-      version: "v3",
-      status: "Working Draft",
-    },
-    {
-      id: "draft-2",
-      title: "Rejoinder on Limitation under Article 137",
-      summary:
-        "Pleading countering debtor's 3-year limitation objection via balance sheet debt acknowledgment under Section 18 Limitation Act.",
-      templateType: "Limitation Brief",
-      citationsCount: 9,
-      lastEdited: "Yesterday by Tanveer",
-      version: "v1",
-      status: "Review Needed",
-    },
-    {
-      id: "draft-3",
-      title: "Synopsis and Chronological List of Dates",
-      summary:
-        "Chronological chain of transaction milestones from facility sanction to NeSL default record.",
-      templateType: "Chronology Brief",
-      citationsCount: 14,
-      lastEdited: "3 days ago",
-      version: "v2",
-      status: "Eligible for Export",
-    },
-    {
-      id: "draft-4",
-      title: "Citation Verification & Currency Memo",
-      summary:
-        "Precedent audit report validating ratio decidendi and verifying negative judicial history across cited SC benches.",
-      templateType: "Precedent Memo",
-      citationsCount: 12,
-      lastEdited: "5 days ago",
-      version: "v4",
-      status: "Eligible for Export",
-    },
-  ]);
+  const drafts = useMemo<DraftItem[]>(() => {
+    return (backendDocs ?? []).map((document) => ({
+      id: document.id,
+      title: document.title,
+      summary: "Saved matter draft with immutable version history.",
+      templateType: "Matter draft",
+      citationsCount: 0,
+      lastEdited: "Saved in workspace",
+      version: `v${document.version_no}`,
+      status: "Working Draft" as const,
+    }));
+  }, [backendDocs]);
 
   const [findings, setFindings] = useState<FindingItem[]>([
     {
@@ -390,57 +346,37 @@ export function MatterDetailView({
     });
   }, [findings, findingCategory]);
 
-  function handleUploadDocument(data: {
+  async function handleUploadDocument(data: {
     name: string;
     type: EvidenceType;
     matterId?: string;
     file?: File | null;
   }) {
-    const trimmed = data.name.trim();
-    const hasExtension =
-      trimmed.endsWith(".pdf") ||
-      trimmed.endsWith(".xlsx") ||
-      trimmed.endsWith(".docx");
-    const finalName = hasExtension ? trimmed : `${trimmed}.pdf`;
-    const derivedFormat: "PDF" | "XLSX" | "DOCX" = finalName.endsWith(".xlsx")
-      ? "XLSX"
-      : finalName.endsWith(".docx")
-        ? "DOCX"
-        : "PDF";
-
-    const newDoc: DocumentItem = {
-      id: `doc-${Date.now()}`,
-      name: finalName,
-      type: data.type,
-      pages: Math.floor(Math.random() * 20) + 4,
-      size: data.file
-        ? `${(data.file.size / (1024 * 1024)).toFixed(1)} MB`
-        : "1.8 MB",
-      uploadedAt: "Just now",
-      format: derivedFormat,
-    };
-
-    setDocuments((prev) => [newDoc, ...prev]);
+    if (!data.file) {
+      throw new Error("Choose a source file before uploading");
+    }
+    await uploadSourceMutation.mutateAsync({
+      matterId: matter.id,
+      file: data.file,
+    });
   }
 
-  function handleCreateDraftSubmit(e: React.FormEvent) {
+  async function handleDownloadSource(sourceId: string, filename: string) {
+    const blob = await downloadSourceMutation.mutateAsync(sourceId);
+    const url = URL.createObjectURL(blob);
+    const link = window.document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    window.document.body.appendChild(link);
+    link.click();
+    window.document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleCreateDraftSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!newDraftTitle.trim()) return;
-
-    const newDraft: DraftItem = {
-      id: `draft-${Date.now()}`,
-      title: newDraftTitle.trim(),
-      summary:
-        newDraftPrompt.trim() ||
-        `Draft generated from ${newDraftTemplate} template.`,
-      templateType: newDraftTemplate,
-      citationsCount: 4,
-      lastEdited: "Just now by Tanveer",
-      version: "v1",
-      status: "Working Draft",
-    };
-
-    setDrafts((prev) => [newDraft, ...prev]);
+    await createDocumentMutation.mutateAsync({ title: newDraftTitle.trim() });
     setNewDraftTitle("");
     setNewDraftPrompt("");
     setDraftModalOpen(false);
@@ -623,7 +559,33 @@ export function MatterDetailView({
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredDocs.map((doc) => (
+              {filteredDocs.length === 0 ? (
+                <div className="col-span-full flex min-h-64 flex-col items-center justify-center rounded-xl border border-dashed border-[#b9d1e5] bg-[#f8fbfe] px-6 py-10 text-center">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#cbe0f2] bg-white text-[#487aa8] shadow-2xs">
+                    <FolderKanbanIcon size={22} />
+                  </span>
+                  <h4 className="m-0 pt-4 text-sm font-semibold text-stone-900">
+                    {documents.length === 0
+                      ? "No source records yet"
+                      : "No records match these filters"}
+                  </h4>
+                  <p className="m-0 max-w-sm pt-1.5 text-xs leading-5 text-stone-500">
+                    {documents.length === 0
+                      ? "Upload the agreements, notices, orders, or evidence Veritas should use for this matter."
+                      : "Change the search or document type to see more records."}
+                  </p>
+                  {documents.length === 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setUploadModalOpen(true)}
+                      className="mt-5 inline-flex h-9 items-center gap-2 rounded-lg bg-[#487aa8] px-4 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[#3b668e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#487aa8] focus-visible:ring-offset-2"
+                    >
+                      <UploadIcon size={13} />
+                      Upload source
+                    </button>
+                  )}
+                </div>
+              ) : filteredDocs.map((doc) => (
                 <div
                   key={doc.id}
                   className="flex flex-col justify-between rounded-lg border border-stone-200 bg-white p-4 shadow-2xs hover:border-[#487aa8]/40 hover:shadow-xs transition-all"
@@ -646,9 +608,11 @@ export function MatterDetailView({
                     </div>
 
                     <div className="flex items-start gap-2.5 pt-1">
-                      <FileTextIcon
-                        size={15}
-                        className="text-[#487aa8] shrink-0 mt-0.5"
+                      <ColoredFileIcon
+                        filename={doc.name}
+                        format={doc.format}
+                        category={doc.type}
+                        size="sm"
                       />
                       <div className="min-w-0 flex-1">
                         <h4 className="m-0 text-xs font-semibold text-stone-900 truncate">
@@ -680,11 +644,12 @@ export function MatterDetailView({
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
-                        onClick={() =>
+                        onClick={() => {
+                          setActiveDocumentId(doc.id);
                           alert(
                             `Inspecting candidate evidence spans for ${doc.name}...`,
-                          )
-                        }
+                          );
+                        }}
                         className="inline-flex h-6 items-center gap-1 rounded-sm border border-stone-200 px-2 text-[10.5px] font-medium text-stone-600 hover:bg-stone-50 hover:text-stone-900 cursor-pointer"
                       >
                         <EyeIcon size={11} />
@@ -692,11 +657,8 @@ export function MatterDetailView({
                       </button>
                       <button
                         type="button"
-                        onClick={() =>
-                          alert(
-                            `Downloading reference source copy of ${doc.name}...`,
-                          )
-                        }
+                        onClick={() => void handleDownloadSource(doc.id, doc.name)}
+                        disabled={downloadSourceMutation.isPending}
                         className="flex h-6 w-6 items-center justify-center rounded-sm border border-stone-200 text-stone-500 hover:bg-stone-50 hover:text-stone-900 cursor-pointer"
                         title="Download document"
                       >
@@ -723,7 +685,28 @@ export function MatterDetailView({
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {drafts.map((draft) => (
+              {drafts.length === 0 ? (
+                <div className="col-span-full flex min-h-64 flex-col items-center justify-center rounded-xl border border-dashed border-[#b9d1e5] bg-[#f8fbfe] px-6 py-10 text-center">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#cbe0f2] bg-white text-[#487aa8] shadow-2xs">
+                    <FileTextIcon size={22} />
+                  </span>
+                  <h4 className="m-0 pt-4 text-sm font-semibold text-stone-900">
+                    No drafts yet
+                  </h4>
+                  <p className="m-0 max-w-sm pt-1.5 text-xs leading-5 text-stone-500">
+                    Create the first working draft for this matter. Veritas will
+                    keep every later version in its history.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setDraftModalOpen(true)}
+                    className="mt-5 inline-flex h-9 items-center gap-2 rounded-lg bg-[#487aa8] px-4 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[#3b668e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#487aa8] focus-visible:ring-offset-2"
+                  >
+                    <PlusIcon size={13} />
+                    Create draft
+                  </button>
+                </div>
+              ) : drafts.map((draft) => (
                 <div
                   key={draft.id}
                   className="flex flex-col justify-between rounded-lg border border-stone-200 bg-white p-4 shadow-2xs hover:border-[#487aa8]/40 hover:shadow-xs transition-all"
@@ -751,9 +734,19 @@ export function MatterDetailView({
                       </span>
                     </div>
 
-                    <h4 className="m-0 pt-0.5 text-xs font-semibold text-stone-900 line-clamp-2">
-                      {draft.title}
-                    </h4>
+                    <div className="flex items-start gap-2.5 pt-1">
+                      <ColoredFileIcon
+                        filename={draft.title}
+                        category="Draft"
+                        format="DOCX"
+                        size="sm"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <h4 className="m-0 text-xs font-semibold text-stone-900 line-clamp-2">
+                          {draft.title}
+                        </h4>
+                      </div>
+                    </div>
 
                     <p className="m-0 text-[11.5px] text-stone-500 line-clamp-2 leading-relaxed">
                       {draft.summary}

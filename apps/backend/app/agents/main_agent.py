@@ -20,7 +20,7 @@ def _build_boto_session() -> boto3.Session:
     )
 
 
-def _build_model() -> Any:
+def build_agent_model() -> Any:
     if settings.BEDROCK_AGENT_ENABLED:
         return BedrockModel(
             model_id=settings.AWS_BEDROCK_MODEL_ID,
@@ -44,7 +44,7 @@ def _build_model() -> Any:
 
 def create_main_agent() -> Agent:
     return Agent(
-        model=_build_model(),
+        model=build_agent_model(),
         system_prompt=MAIN_AGENT_SYSTEM_PROMPT,
         callback_handler=None,
     )

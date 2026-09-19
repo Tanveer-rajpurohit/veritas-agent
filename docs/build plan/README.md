@@ -6,6 +6,9 @@ Veritas is the canonical product name. CiteGuard is retained only as the histori
 
 ## Read in this order
 
+The build-plan files describe the binding target architecture. For the tools and providers already
+connected in code, see [Current agent runtime](../current-agent-runtime.md).
+
 | File | What it answers | Main reader |
 |---|---|---|
 | [idea.md](idea.md) | What problem are we solving, for whom, and why this scope? | Everyone |

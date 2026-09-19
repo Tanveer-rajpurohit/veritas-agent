@@ -21,7 +21,7 @@ import {
   PaperclipIcon,
   SearchIcon,
   PlusIcon,
-  StreamlineFileTextIcon,
+  ColoredFileIcon,
 } from "../workspace/workspace-icons";
 import { ThinkingOrb } from "./thinking-orb";
 import { AgentSideViewer, type SideViewerDocument } from "./agent-side-viewer";
@@ -432,8 +432,6 @@ export function AgentChatView({
   onNewChat,
 }: AgentChatViewProps) {
   const router = useRouter();
-  const [activeAgent, setActiveAgent] = useState<AgentRoleType>("orchestrator");
-  const [agentDropdownOpen, setAgentDropdownOpen] = useState(false);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [selectedMatterId, setSelectedMatterId] = useState<string | null>(
@@ -487,8 +485,7 @@ export function AgentChatView({
     conversationEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [activeMessages, busy]);
 
-  const currentAgent: AgentConfig =
-    AGENTS.find((a) => a.id === activeAgent) ?? AGENTS[0]!;
+  const currentAgent = AGENTS[0]!;
 
   const currentMatterId =
     selectedMatterId ||
@@ -526,12 +523,12 @@ export function AgentChatView({
       let respContent: string;
       let draft: SideViewerDocument | undefined;
 
-      if (activeAgent === "writer") {
+      if (/\b(draft|write|prepare)\b/i.test(text)) {
         respContent = `### Section 7 Form 1 Petition Drafted\n\nI have generated the petition under **Form 1 of the Insolvency and Bankruptcy (Application to Adjudicating Authority) Rules, 2016**.\n\n- **Part IV Financial Debt**: Documented principal sum of ₹42,80,00,000/- with default milestone occurring on **14th August 2021**.\n- **Limitation Ground (Article 137)**: Corporate Debtor recognized liability in signed Audited Financial Statements for FY 2021-22 and FY 2022-23, creating a fresh period of limitation under **Section 18 of the Limitation Act, 1963**.\n- **Precedent Support**: Anchored *Asset Reconstruction Company (India) Ltd. v. Bishal Jaiswal* (2021) 6 SCC 366 and *Innoventive Industries Ltd. v. ICICI Bank* (2018) 1 SCC 407.\n- **Reliefs Formulated**: Prayed for admission, moratorium under Section 14, and appointment of the proposed IRP.`;
         draft = SEED_DRAFT_DOC;
-      } else if (activeAgent === "citation_reviewer") {
-        respContent = `### Citation Review & Precedent Parity Report\n\nAll authorities referenced in your query have been cross-referenced against authoritative law reports:\n\n1. **Innoventive Industries Ltd. v. ICICI Bank (2018) 1 SCC 407**\n   - Quotation Parity: **100% exact match** (Paragraph 28 & 30).\n   - Subsequent Treatment: **Consistently followed** by Supreme Court and NCLAT; no adverse or distinguishing rulings.\n2. **Asset Reconstruction Company (India) Ltd. v. Bishal Jaiswal (2021) 6 SCC 366**\n   - Holding: Section 18 debt acknowledgment extends to balance sheet entries.\n   - Treatment: Affirmative ruling by 3-Judge Bench.`;
-      } else if (activeAgent === "fact_reviewer") {
+      } else if (/\b(citation|precedent|quote|authority)\b/i.test(text)) {
+        respContent = `### Citation review\n\nI checked each dimension separately against the sources available to this matter.\n\n1. **Innoventive Industries Ltd. v. ICICI Bank, (2018) 1 SCC 407**\n   - Identity: **Supported** by stored source metadata.\n   - Exact quotation: **Needs review** until the cited paragraph is matched against the stored judgment text.\n   - Proposition support: **Needs review** by counsel.\n   - Later treatment: **Not checked** because no authoritative treatment source is connected.\n\nI cannot confirm that this authority supports the draft proposition yet. Open the source passage or add the official judgment before relying on it.`;
+      } else if (/\b(fact|ledger|amount|date)\b/i.test(text)) {
         respContent = `### Ledger & Transaction Verification Audit\n\nAudit of Annexure B-4 bank ledger records completed:\n\n- **Principal Default**: ₹42,80,00,000/- (Discrepancy: **0.00%** across bank statements).\n- **First Default Date**: **14th August 2021** (Failure to credit Tranche-II amortization milestone).\n- **Interest Accrual**: ₹6,42,00,000/- verified at contractual rate of 14.50% per annum.`;
       } else {
         respContent = `### Synthesis & Case Analysis\n\nI have coordinated the analysis across research, drafting, and precedent verification for **${selectedMatter?.name || "the selected matter"}**.\n\n- **Statutory Grounds**: Verified threshold compliance under Section 7(5)(a) of IBC, 2016.\n- **Evidentiary Anchors**: Default date confirmed across Annexure B-4 ledger statements.\n- **Limitation**: Secured under Section 18 of Limitation Act, 1963 via balance sheet acknowledgments (*Bishal Jaiswal*).\n- **Draft Generated**: The structured Form 1 petition is ready for inspection and export below.`;
@@ -541,7 +538,7 @@ export function AgentChatView({
       const asstMsg: MessageItem = {
         id: `asst-${Date.now()}`,
         role: "assistant",
-        agentId: activeAgent,
+        agentId: "orchestrator",
         content: respContent,
         thinkingDuration: "3.2s",
         thinkingStages: [
@@ -552,13 +549,12 @@ export function AgentChatView({
           },
           {
             id: "ts-2",
-            label:
-              "Verifying statutory citations against Supreme Court law reports",
+            label: "Citation Reviewer · checking identity and exact quotation",
             status: "done",
           },
           {
             id: "ts-3",
-            label: "Synthesizing legal document with verified clause anchors",
+            label: "Main Agent · preparing the review summary and limitations",
             status: "done",
           },
         ],
@@ -652,13 +648,7 @@ export function AgentChatView({
           placeholder={
             busy
               ? "Veritas agent is thinking..."
-              : activeAgent === "writer"
-                ? "Describe what you want to draft (e.g. Draft an IBC Section 7 Form 1 Application)"
-                : activeAgent === "citation_reviewer"
-                  ? "Enter citations to verify for quotation parity and subsequent treatment..."
-                  : activeAgent === "fact_reviewer"
-                    ? "Specify bank ledgers or dates to audit for discrepancy..."
-                    : "Ask a legal query or describe a document to draft"
+              : "Ask Veritas to draft, check facts, or review citations"
           }
           rows={activeMessages.length > 0 ? 2 : 4}
           aria-label="Agent prompt"
@@ -820,53 +810,12 @@ export function AgentChatView({
   return (
     <div className="w-full h-full flex flex-col bg-white overflow-hidden relative">
       <div className="absolute top-3 left-4 z-30 flex items-center gap-2">
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setAgentDropdownOpen(!agentDropdownOpen)}
-            className="inline-flex h-9 items-center gap-2 rounded-full border border-stone-200/80 bg-[#f4f4f5] px-3 text-xs font-semibold text-stone-800 shadow-2xs transition-colors hover:bg-[#ececef] focus-visible:ring-2 focus-visible:ring-[#487aa8]/30 focus-visible:outline-none"
-            aria-label="Select active specialized agent"
-            aria-expanded={agentDropdownOpen}
-          >
-            <AgentMark agentId={currentAgent.id} compact interactive />
-            <span>{currentAgent.name}</span>
-            <ChevronDownIcon size={11} className="text-stone-400" />
-          </button>
-
-          {agentDropdownOpen && (
-            <div className="absolute left-0 top-full z-50 mt-1.5 w-72 rounded-lg border border-[#cbe0f2] bg-white p-1.5 shadow-[0_14px_36px_rgba(44,84,120,0.16)]">
-              {AGENTS.map((ag) => (
-                <button
-                  key={ag.id}
-                  type="button"
-                  onClick={() => {
-                    setActiveAgent(ag.id);
-                    setAgentDropdownOpen(false);
-                  }}
-                  className={`flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left transition-colors ${
-                    ag.id === activeAgent
-                      ? "bg-[#edf4fa] text-[#2c5478]"
-                      : "text-stone-700 hover:bg-[#f7fbfe]"
-                  }`}
-                >
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <AgentMark agentId={ag.id} />
-                    <span className="min-w-0">
-                      <span className="block text-xs font-semibold">
-                        {ag.name}
-                      </span>
-                      <span className="mt-0.5 block truncate text-[10.5px] font-normal text-stone-500">
-                        {ag.description}
-                      </span>
-                    </span>
-                  </div>
-                  {ag.id === activeAgent && (
-                    <CheckIcon size={12} className="text-[#487aa8] shrink-0" />
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
+        <div className="inline-flex h-9 items-center gap-2 rounded-full border border-[#cbe0f2] bg-[#f4f8fc] px-3 text-xs font-semibold text-[#244b6d] shadow-2xs">
+          <AgentMark agentId={currentAgent.id} compact interactive />
+          <span>Veritas</span>
+          <span className="rounded-full bg-white px-1.5 py-0.5 text-[10px] font-medium text-[#6383a0]">
+            Main Agent
+          </span>
         </div>
 
         {activeSessionId && (
@@ -970,8 +919,8 @@ export function AgentChatView({
                                   >
                                     <span>
                                       {msg.thinkingDuration
-                                        ? `Thought for ${msg.thinkingDuration}`
-                                        : "Thinking..."}
+                                        ? `Activity · ${msg.thinkingDuration}`
+                                        : "Working..."}
                                     </span>
                                     <span className="text-stone-400">
                                       {isExpanded ? (
@@ -1017,9 +966,11 @@ export function AgentChatView({
                                 }}
                                 className="mt-3.5 flex items-center gap-3.5 rounded-xl border border-stone-200 bg-white p-3 shadow-2xs hover:border-[#cbe0f2] hover:shadow-xs transition-all cursor-pointer group"
                               >
-                                <div className="w-[38px] h-[44px] shrink-0 flex items-center justify-center rounded-[7px] border border-[#dedee1] bg-[#f7f7f8] text-[#52525b] group-hover:border-[#cbe0f2] group-hover:bg-[#f2f7fc] group-hover:text-[#2c5478] transition-colors">
-                                  <StreamlineFileTextIcon size={20} />
-                                </div>
+                                <ColoredFileIcon
+                                  filename={msg.draftArtifact.title}
+                                  category="Draft"
+                                  size="md"
+                                />
                                 <div className="min-w-0 flex-1">
                                   <strong className="text-[13px] font-semibold text-stone-900 block truncate group-hover:text-[#2c5478] transition-colors">
                                     {msg.draftArtifact.title}
@@ -1034,14 +985,13 @@ export function AgentChatView({
                                 >
                                   <button
                                     type="button"
-                                    onClick={() =>
-                                      router.push(
-                                        `/drafting/${msg.draftArtifact!.id}`,
-                                      )
-                                    }
+                                    onClick={() => {
+                                      setSideViewerDoc(msg.draftArtifact!);
+                                      setSideViewerOpen(true);
+                                    }}
                                     className="h-7.5 px-3 rounded-md border border-stone-200 bg-white text-xs font-semibold text-stone-700 hover:border-[#cbe0f2] hover:bg-[#edf4fa] hover:text-[#2c5478] cursor-pointer transition-colors shadow-2xs"
                                   >
-                                    Open in editor
+                                    Open
                                   </button>
                                   <button
                                     type="button"
@@ -1082,19 +1032,6 @@ export function AgentChatView({
                                   </>
                                 )}
                               </button>
-                              {msg.draftArtifact && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSideViewerDoc(msg.draftArtifact!);
-                                    setSideViewerOpen(true);
-                                  }}
-                                  className="inline-flex items-center gap-1.5 h-6 px-2 rounded text-[11px] font-medium text-[#2c5478] hover:bg-[#edf4fa] transition-colors cursor-pointer"
-                                >
-                                  <StreamlineFileTextIcon size={13} />
-                                  <span>Preview draft</span>
-                                </button>
-                              )}
                             </div>
                           </div>
                         )}
