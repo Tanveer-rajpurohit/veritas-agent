@@ -1,28 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "../../hooks/auth/useAuth";
 import { validateRegisterForm } from "../../lib/validation/auth";
 import type { AuthFieldErrors } from "../../types/auth/types";
-import {
-  AuthDivider,
-  AuthField,
-  AuthPasswordField,
-  AuthSubmit,
-  GoogleAuthButton,
-} from "./auth-fields";
+import { AuthField, AuthPasswordField, AuthSubmit } from "./auth-fields";
 
-const linkClassName = "font-semibold text-[#487aa8] no-underline transition-colors hover:text-[#3d6991]";
+const linkClassName =
+  "font-semibold text-[#487aa8] no-underline transition-colors hover:text-[#3d6991]";
 
 export function RegisterForm() {
-  const router = useRouter();
   const { register, isRegistering, registerError } = useAuth();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<AuthFieldErrors>({});
 
   async function handleSubmit(event: React.FormEvent) {
@@ -34,10 +28,27 @@ export function RegisterForm() {
     }
     try {
       await register({ name: name.trim(), email: email.trim(), password });
-      router.replace("/workspace");
+      setRegisteredEmail(email.trim());
     } catch {
       return;
     }
+  }
+
+  if (registeredEmail) {
+    return (
+      <div className="flex flex-col gap-4 py-8">
+        <h1 className="m-0 text-3xl font-bold tracking-tight text-stone-900">
+          Verify your email
+        </h1>
+        <p className="m-0 text-sm leading-relaxed text-stone-600">
+          We sent a verification link to {registeredEmail}. Verify it before
+          logging in.
+        </p>
+        <Link href="/login" className={linkClassName}>
+          Continue to login
+        </Link>
+      </div>
+    );
   }
 
   return (
@@ -47,16 +58,16 @@ export function RegisterForm() {
           Create Account
         </h1>
         <p className="m-0 text-xs sm:text-sm leading-relaxed text-stone-600 font-sans">
-          Set up your workspace and draft your first brief with evidence beside you.
+          Set up your workspace and draft your first brief with evidence beside
+          you.
         </p>
       </div>
 
-      <div className="flex flex-col gap-3">
-        <GoogleAuthButton label="Sign up with Google" />
-        <AuthDivider text="or register with email" />
-      </div>
-
-      <form className="flex flex-col gap-3.5" onSubmit={handleSubmit} noValidate>
+      <form
+        className="flex flex-col gap-3.5"
+        onSubmit={handleSubmit}
+        noValidate
+      >
         <AuthField
           label="Full name"
           name="name"
@@ -88,7 +99,7 @@ export function RegisterForm() {
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           error={fieldErrors.password}
-          hint="Use 8 or more characters with a number or symbol."
+          hint="Use 12 or more characters."
           required
         />
 

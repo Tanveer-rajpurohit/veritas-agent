@@ -1,5 +1,4 @@
 import { fetchClient } from "../fetch";
-import { cookieStorage } from "../cookie";
 import type {
   ForgotPasswordPayload,
   LoginRequest,
@@ -7,47 +6,23 @@ import type {
   ResetPasswordPayload,
   UpdateProfilePayload,
   UserProfile,
+  VerifyEmailPayload,
 } from "../../types/auth/types";
-import type { AuthTokens } from "../../types/api/type";
-
-interface BackendAuthResponse {
-  access_token: string;
-  token_type: string;
-}
 
 export const authService = {
-  async register(payload: RegisterRequest): Promise<AuthTokens> {
-    const res = await fetchClient.post<BackendAuthResponse>(
-      "/auth/register",
-      {
-        email: payload.email,
-        password: payload.password,
-      },
-      { skipAuth: true }
-    );
-    const tokens: AuthTokens = {
-      accessToken: res.access_token,
-      tokenType: res.token_type,
-    };
-    cookieStorage.setAuthToken(tokens.accessToken);
-    return tokens;
+  register(payload: RegisterRequest): Promise<UserProfile> {
+    return fetchClient.post<UserProfile>("/auth/register", {
+      email: payload.email,
+      password: payload.password,
+      display_name: payload.name,
+    });
   },
 
-  async login(payload: LoginRequest): Promise<AuthTokens> {
-    const res = await fetchClient.post<BackendAuthResponse>(
-      "/auth/login",
-      {
-        email: payload.email,
-        password: payload.password,
-      },
-      { skipAuth: true }
-    );
-    const tokens: AuthTokens = {
-      accessToken: res.access_token,
-      tokenType: res.token_type,
-    };
-    cookieStorage.setAuthToken(tokens.accessToken);
-    return tokens;
+  login(payload: LoginRequest): Promise<void> {
+    return fetchClient.post<void>("/auth/login", {
+      email: payload.email,
+      password: payload.password,
+    });
   },
 
   getMe(): Promise<UserProfile> {
@@ -59,22 +34,24 @@ export const authService = {
   },
 
   forgotPassword(payload: ForgotPasswordPayload): Promise<{ message: string }> {
-    return fetchClient.post<{ message: string }>("/auth/forgot-password", payload, {
-      skipAuth: true,
-    });
+    return fetchClient.post<{ message: string }>(
+      "/auth/password/forgot",
+      payload,
+    );
+  },
+
+  verifyEmail(payload: VerifyEmailPayload): Promise<void> {
+    return fetchClient.post<void>("/auth/email/verify", payload);
   },
 
   resetPassword(payload: ResetPasswordPayload): Promise<{ message: string }> {
-    return fetchClient.post<{ message: string }>("/auth/reset-password", payload, {
-      skipAuth: true,
-    });
+    return fetchClient.post<{ message: string }>(
+      "/auth/password/reset",
+      payload,
+    );
   },
 
-  logout(): void {
-    cookieStorage.removeAuthToken();
-  },
-
-  isAuthenticated(): boolean {
-    return cookieStorage.hasAuthToken();
+  logout(): Promise<void> {
+    return fetchClient.post<void>("/auth/logout");
   },
 };

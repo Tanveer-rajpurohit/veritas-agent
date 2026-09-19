@@ -6,16 +6,10 @@ import { useState } from "react";
 import { useAuth } from "../../hooks/auth/useAuth";
 import { safeInternalPath, validateLoginForm } from "../../lib/validation/auth";
 import type { AuthFieldErrors } from "../../types/auth/types";
-import {
-  AuthCheckbox,
-  AuthDivider,
-  AuthField,
-  AuthPasswordField,
-  AuthSubmit,
-  GoogleAuthButton,
-} from "./auth-fields";
+import { AuthField, AuthPasswordField, AuthSubmit } from "./auth-fields";
 
-const linkClassName = "font-semibold text-[#487aa8] no-underline transition-colors hover:text-[#3d6991]";
+const linkClassName =
+  "font-semibold text-[#487aa8] no-underline transition-colors hover:text-[#3d6991]";
 const smallLinkClassName = `${linkClassName} text-xs font-medium`;
 
 export function LoginForm() {
@@ -26,18 +20,17 @@ export function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<AuthFieldErrors>({});
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    const failures = validateLoginForm({ email, password, rememberMe });
+    const failures = validateLoginForm({ email, password });
     setFieldErrors(failures);
     if (Object.keys(failures).length > 0) {
       return;
     }
     try {
-      await login({ email: email.trim(), password, rememberMe });
+      await login({ email: email.trim(), password });
       router.replace(redirectTo === "/" ? "/workspace" : redirectTo);
     } catch {
       return;
@@ -53,11 +46,6 @@ export function LoginForm() {
         <p className="m-0 text-sm leading-relaxed text-stone-600 font-sans">
           Your court matters, client files, and verified draft notes are ready.
         </p>
-      </div>
-
-      <div className="flex flex-col gap-3">
-        <GoogleAuthButton label="Continue with Google" />
-        <AuthDivider text="or continue with email" />
       </div>
 
       <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
@@ -88,10 +76,6 @@ export function LoginForm() {
           }
           required
         />
-
-        <AuthCheckbox checked={rememberMe} onChange={setRememberMe}>
-          Keep me signed in on this device
-        </AuthCheckbox>
 
         {loginError && (
           <p role="alert" className="m-0 text-xs font-medium text-rose-700">

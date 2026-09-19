@@ -1,28 +1,32 @@
-## Getting Started
+# Veritas web
 
-First, run the development server:
+Next.js frontend for the Veritas legal drafting workspace.
 
-```bash
-yarn dev
+## Local setup
+
+Run backend on `http://localhost:8000`, then start web app from repository root:
+
+```powershell
+pnpm --filter web dev
 ```
 
-Open [http://localhost:3001](http://localhost:3001) with your browser to see the result.
+Web app runs on `http://localhost:3001`. Backend configuration must include that exact origin in
+`ALLOWED_ORIGINS`; cookie-authenticated mutations also validate `Origin`/`Referer`. Set
+`APP_BASE_URL=http://localhost:3001` so verification and password-reset links open the web app.
 
-You can start editing the page by modifying `src/app/page.tsx`. The page auto-updates as you edit the file.
+API base defaults to `http://localhost:8000/api/v1`. Override only when needed:
 
-To create [API routes](https://nextjs.org/docs/app/building-your-application/routing/router-handlers) add an `api/` directory to the `app/` directory with a `route.ts` file. For individual endpoints, create a subfolder in the `api` directory, like `api/hello/route.ts` would map to [http://localhost:3001/api/hello](http://localhost:3001/api/hello).
+```text
+NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+```
 
-## Learn More
+Authentication uses backend-owned opaque `HttpOnly` session cookies. Frontend must not store access
+or refresh tokens. Every API request uses `credentials: "include"`; `/auth/me` is session truth.
 
-To learn more about Next.js, take a look at the following resources:
+## Checks
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn/foundations/about-nextjs) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_source=github.com&utm_medium=referral&utm_campaign=turborepo-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+```powershell
+pnpm --filter web lint
+pnpm --filter web check-types
+pnpm --filter web build
+```

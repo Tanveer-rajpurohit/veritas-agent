@@ -10,11 +10,12 @@ export interface ApiValidationErrorDetail {
 }
 
 export interface ApiErrorPayload {
+  error?: {
+    code: string;
+    message: string;
+    request_id?: string | null;
+    details?: unknown;
+  };
   detail?: string | ApiValidationErrorDetail[];
   message?: string;
-}
-
-export interface AuthTokens {
-  accessToken: string;
-  tokenType: string;
 }

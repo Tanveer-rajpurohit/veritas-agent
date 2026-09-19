@@ -8,14 +8,13 @@ import type {
   ResetPasswordPayload,
   UpdateProfilePayload,
   UserProfile,
+  VerifyEmailPayload,
 } from "../../types/auth/types";
-import type { AuthTokens } from "../../types/api/type";
 
 export function useUser() {
   return useQuery<UserProfile, Error>({
     queryKey: queryKeys.auth.me,
     queryFn: () => authService.getMe(),
-    enabled: authService.isAuthenticated(),
     staleTime: 60 * 1000,
     retry: false,
   });
@@ -45,14 +44,21 @@ export function useResetPassword() {
   });
 }
 
+export function useVerifyEmail() {
+  return useMutation<void, Error, VerifyEmailPayload>({
+    mutationFn: (payload) => authService.verifyEmail(payload),
+  });
+}
+
 export function useAuth() {
   const queryClient = useQueryClient();
   const userQuery = useUser();
   const updateProfileMutation = useUpdateProfile();
   const forgotPasswordMutation = useForgotPassword();
   const resetPasswordMutation = useResetPassword();
+  const verifyEmailMutation = useVerifyEmail();
 
-  const loginMutation = useMutation<AuthTokens, Error, LoginRequest>({
+  const loginMutation = useMutation<void, Error, LoginRequest>({
     mutationFn: (payload) => authService.login(payload),
     onSuccess: async () => {
       await queryClient.fetchQuery({
@@ -62,19 +68,16 @@ export function useAuth() {
     },
   });
 
-  const registerMutation = useMutation<AuthTokens, Error, RegisterRequest>({
+  const registerMutation = useMutation<UserProfile, Error, RegisterRequest>({
     mutationFn: (payload) => authService.register(payload),
-    onSuccess: async () => {
-      await queryClient.fetchQuery({
-        queryKey: queryKeys.auth.me,
-        queryFn: () => authService.getMe(),
-      });
-    },
   });
 
-  const logout = () => {
-    authService.logout();
-    queryClient.clear();
+  const logout = async () => {
+    try {
+      await authService.logout();
+    } finally {
+      queryClient.clear();
+    }
   };
 
   return {
@@ -93,11 +96,14 @@ export function useAuth() {
     forgotPassword: forgotPasswordMutation.mutateAsync,
     isSendingForgotPassword: forgotPasswordMutation.isPending,
     forgotPasswordError: forgotPasswordMutation.error,
+    verifyEmail: verifyEmailMutation.mutateAsync,
+    isVerifyingEmail: verifyEmailMutation.isPending,
+    verifyEmailError: verifyEmailMutation.error,
     resetPassword: resetPasswordMutation.mutateAsync,
     isResettingPassword: resetPasswordMutation.isPending,
     resetPasswordError: resetPasswordMutation.error,
     logout,
-    isAuthenticated: authService.isAuthenticated,
+    isAuthenticated: () => Boolean(userQuery.data),
     refetchUser: userQuery.refetch,
   };
 }

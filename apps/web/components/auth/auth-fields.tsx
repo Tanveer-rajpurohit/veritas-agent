@@ -1,11 +1,22 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useId, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from "react";
+import {
+  useId,
+  useState,
+  type ButtonHTMLAttributes,
+  type InputHTMLAttributes,
+  type ReactNode,
+} from "react";
 
 function EyeIcon({ visible }: { visible: boolean }) {
   return (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg
+      width="17"
+      height="17"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
       {visible ? (
         <path
           d="M17.94 17.94A10.6 10.6 0 0 1 12 19c-5 0-9.27-3.11-11-7.5a17.6 17.6 0 0 1 4.06-4.94M9.9 4.24A9.5 9.5 0 0 1 12 5c5 0 9.27 3.11 11 7.5a17.7 17.7 0 0 1-2.16 3.19M14.12 14.12A3 3 0 1 1 9.88 9.88M2 2l20 20"
@@ -27,23 +38,30 @@ function EyeIcon({ visible }: { visible: boolean }) {
   );
 }
 
-function CheckIcon() {
-  return (
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M4 12.5 9.5 18 20 6.5" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 function ArrowIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M5 12h14M13 6l6 6-6 6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 
-export function authInputClassName(invalid: boolean, withToggle = false): string {
+export function authInputClassName(
+  invalid: boolean,
+  withToggle = false,
+): string {
   return [
     "auth-input h-11 w-full flex-1 rounded-md border bg-stone-50/50 px-3.5",
     "text-[14px] text-stone-900 outline-none transition-all duration-150",
@@ -60,7 +78,14 @@ interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
   action?: ReactNode;
 }
 
-export function AuthField({ label, error, hint, action, id, ...props }: FieldProps) {
+export function AuthField({
+  label,
+  error,
+  hint,
+  action,
+  id,
+  ...props
+}: FieldProps) {
   const generatedId = useId();
   const fieldId = id ?? generatedId;
   const errorId = `${fieldId}-error`;
@@ -69,7 +94,10 @@ export function AuthField({ label, error, hint, action, id, ...props }: FieldPro
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-baseline justify-between gap-4">
-        <label className="text-xs font-semibold text-stone-700" htmlFor={fieldId}>
+        <label
+          className="text-xs font-semibold text-stone-700"
+          htmlFor={fieldId}
+        >
           {label}
         </label>
         {action}
@@ -96,7 +124,14 @@ export function AuthField({ label, error, hint, action, id, ...props }: FieldPro
   );
 }
 
-export function AuthPasswordField({ label, error, hint, action, id, ...props }: FieldProps) {
+export function AuthPasswordField({
+  label,
+  error,
+  hint,
+  action,
+  id,
+  ...props
+}: FieldProps) {
   const generatedId = useId();
   const fieldId = id ?? generatedId;
   const errorId = `${fieldId}-error`;
@@ -106,7 +141,10 @@ export function AuthPasswordField({ label, error, hint, action, id, ...props }: 
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-baseline justify-between gap-4">
-        <label className="text-xs font-semibold text-stone-700" htmlFor={fieldId}>
+        <label
+          className="text-xs font-semibold text-stone-700"
+          htmlFor={fieldId}
+        >
           {label}
         </label>
         {action}
@@ -142,41 +180,17 @@ export function AuthPasswordField({ label, error, hint, action, id, ...props }: 
   );
 }
 
-export function AuthCheckbox({
-  checked,
-  onChange,
-  children,
-}: {
-  checked: boolean;
-  onChange: (next: boolean) => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={checked}
-      className="group flex items-center gap-2 self-start border-0 bg-transparent p-0 text-xs text-stone-600 select-none focus:outline-none"
-      onClick={() => onChange(!checked)}
-    >
-      <span
-        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
-          checked ? "border-[#487aa8] bg-[#487aa8] text-white" : "border-stone-300 bg-white"
-        }`}
-      >
-        {checked ? <CheckIcon /> : null}
-      </span>
-      <span>{children}</span>
-    </button>
-  );
-}
-
 interface SubmitProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   pending: boolean;
   pendingLabel: string;
 }
 
-export function AuthSubmit({ pending, pendingLabel, children, ...props }: SubmitProps) {
+export function AuthSubmit({
+  pending,
+  pendingLabel,
+  children,
+  ...props
+}: SubmitProps) {
   return (
     <button
       {...props}
@@ -195,49 +209,3 @@ export function AuthSubmit({ pending, pendingLabel, children, ...props }: Submit
     </button>
   );
 }
-
-export function GoogleAuthButton({ label = "Continue with Google" }: { label?: string }) {
-  const router = useRouter();
-
-  return (
-    <button
-      type="button"
-      onClick={() => {
-        router.push("/");
-      }}
-      className="flex h-11 w-full items-center justify-center gap-3 rounded-md border border-stone-200 bg-white px-4 text-sm font-semibold text-stone-800 shadow-2xs transition-all hover:bg-stone-50 hover:border-stone-300 active:scale-[0.99] cursor-pointer"
-    >
-      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-        <path
-          fill="#4285F4"
-          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-        />
-        <path
-          fill="#34A853"
-          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-        />
-        <path
-          fill="#FBBC05"
-          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-        />
-        <path
-          fill="#EA4335"
-          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-        />
-      </svg>
-      <span>{label}</span>
-    </button>
-  );
-}
-
-export function AuthDivider({ text = "or continue with email" }: { text?: string }) {
-  return (
-    <div className="relative flex items-center justify-center my-1 w-full">
-      <div className="w-full border-t border-stone-200" />
-      <span className="absolute bg-white px-3 text-xs text-stone-500 font-medium">
-        {text}
-      </span>
-    </div>
-  );
-}
-
