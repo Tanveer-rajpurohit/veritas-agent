@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     AWS_BEDROCK_MODEL_ID: str = "amazon.nova-lite-v1:0"
 
     DATABASE_URL: str = "postgresql+psycopg://veritas:veritas_password@localhost:5432/veritas"
+    REDIS_URL: str = "redis://localhost:6379/0"
     SOURCE_STORAGE_BACKEND: str = "local"
     SOURCE_STORAGE_PATH: str = "./data/sources"
     EXPORT_STORAGE_PATH: str = "./data/exports"

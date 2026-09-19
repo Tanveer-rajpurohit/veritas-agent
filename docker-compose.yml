@@ -31,6 +31,21 @@ services:
     volumes:
       - veritas_minio_data:/data
 
+  redis:
+    image: redis:7-alpine
+    container_name: veritas-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - veritas_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
 volumes:
   veritas_pgdata:
   veritas_minio_data:
+  veritas_redis_data:

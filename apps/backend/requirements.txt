@@ -11,4 +11,5 @@ alembic>=1.14.1
 pgvector>=0.3.6
 psycopg[binary]>=3.2.4
 pymupdf>=1.25.3
+redis>=5.0.0
 sqlalchemy==2.0.54
