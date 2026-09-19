@@ -277,15 +277,11 @@ def process_agent_run(run_id: UUID) -> None:
                     "applied_correction_ids": [str(cid) for cid in review.applied_correction_ids],
                     "blocked_correction_ids": [str(cid) for cid in review.blocked_correction_ids],
                     "message": (
-                        reviewer_result.message
-                        if reviewer_result
-                        else (
-                            f"Fact verification identified {len(review.findings)} finding(s). "
-                            f"Review summary: {review.summary.get('supported', 0)} supported, "
-                            f"{review.summary.get('needs_review', 0)} needs review, "
-                            f"{review.summary.get('contradicted', 0)} contradicted, "
-                            f"{review.summary.get('unresolved', 0)} unresolved."
-                        )
+                        f"Fact verification completed with {len(review.findings)} finding(s). "
+                        f"Review summary: {review.summary.get('supported', 0)} supported, "
+                        f"{review.summary.get('needs_review', 0)} needs review, "
+                        f"{review.summary.get('contradicted', 0)} contradicted, "
+                        f"{review.summary.get('unresolved', 0)} unresolved."
                     ),
                 }
             else:

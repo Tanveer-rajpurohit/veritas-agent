@@ -125,6 +125,8 @@ def test_fact_reviewer_worker_execution_success(monkeypatch: pytest.MonkeyPatch)
             user_id=user.id,
             document_id=draft.id,
             base_version_id=version.id,
+            idempotency_key=f"key-{uuid4()}",
+            request_hash=hashlib.sha256(b"req1").hexdigest(),
         )
         db.add(run)
         db.commit()
@@ -133,12 +135,10 @@ def test_fact_reviewer_worker_execution_success(monkeypatch: pytest.MonkeyPatch)
     mock_agent = MagicMock()
     mock_agent_result = MagicMock()
     mock_agent_result.structured_output = {
-        "document_version_id": str(version.id),
-        "overall_status": "unresolved",
-        "summary": "Completed review of financial assertion.",
         "findings": [],
-        "suggested_actions": ["Attach debt invoice span"],
-        "message": "All factual assertions verified against matter evidence.",
+        "unchecked_claim_ids": [],
+        "run_limitations": ["Verified against matter documents"],
+        "correction_candidates": [],
     }
     mock_agent.return_value = mock_agent_result
 
@@ -194,6 +194,8 @@ def test_fact_reviewer_worker_execution_llm_failure_fallback(
             user_id=user.id,
             document_id=draft.id,
             base_version_id=version.id,
+            idempotency_key=f"key-{uuid4()}",
+            request_hash=hashlib.sha256(b"req2").hexdigest(),
         )
         db.add(run)
         db.commit()
