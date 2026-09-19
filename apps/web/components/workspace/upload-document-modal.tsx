@@ -306,9 +306,8 @@ export function UploadDocumentModal({
                 <div className="flex flex-col items-center">
                   <div className="flex items-center gap-2 mb-3">
                     <ColoredFileIcon format="PDF" size="sm" />
-                    <ColoredFileIcon format="DOCX" size="sm" />
-                    <ColoredFileIcon format="XLSX" size="sm" />
-                    <ColoredFileIcon category="Orders" size="sm" />
+                    <ColoredFileIcon format="TXT" size="sm" />
+                    <ColoredFileIcon format="MD" size="sm" />
                   </div>
                   <p className="m-0 text-xs font-semibold text-stone-800">
                     Drop your legal file here, or{" "}

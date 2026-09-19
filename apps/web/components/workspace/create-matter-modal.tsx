@@ -8,7 +8,7 @@ import { XIcon, BriefcaseIcon } from "./workspace-icons";
 interface CreateMatterModalProps {
   open: boolean;
   onClose: () => void;
-  onCreate: (matter: Matter) => void;
+  onCreate: (matter: Matter) => Promise<void> | void;
 }
 
 const MATTER_TYPE_OPTIONS: SelectOption<MatterType>[] = [
@@ -80,6 +80,8 @@ export function CreateMatterModal({
   const [court, setCourt] = useState("");
   const [petitioner, setPetitioner] = useState("");
   const [respondent, setRespondent] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -94,9 +96,9 @@ export function CreateMatterModal({
 
   if (!open) return null;
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || isCreating) return;
 
     const newMatter: Matter = {
       id: `matter-${Date.now()}`,
@@ -120,13 +122,21 @@ export function CreateMatterModal({
       citationsCount: 0,
     };
 
-    onCreate(newMatter);
-    setName("");
-    setCaseNumber("");
-    setCourt("");
-    setPetitioner("");
-    setRespondent("");
-    onClose();
+    setIsCreating(true);
+    setCreateError(null);
+    try {
+      await onCreate(newMatter);
+      setName("");
+      setCaseNumber("");
+      setCourt("");
+      setPetitioner("");
+      setRespondent("");
+      onClose();
+    } catch (error) {
+      setCreateError(error instanceof Error ? error.message : "Could not create matter");
+    } finally {
+      setIsCreating(false);
+    }
   }
 
   return (
@@ -284,6 +294,11 @@ export function CreateMatterModal({
           </div>
 
           <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-stone-100">
+            {createError && (
+              <p role="alert" className="mr-auto m-0 text-xs font-medium text-rose-700">
+                {createError}
+              </p>
+            )}
             <button
               type="button"
               onClick={onClose}
@@ -293,10 +308,11 @@ export function CreateMatterModal({
             </button>
             <button
               type="submit"
+              disabled={isCreating}
               className="inline-flex h-9.5 items-center gap-1.5 rounded-lg bg-[#487aa8] px-5 text-xs font-semibold text-white shadow-2xs transition-[background-color,box-shadow] hover:bg-[#3b668e] focus-visible:ring-2 focus-visible:ring-[#487aa8] focus-visible:ring-offset-2 focus-visible:outline-none cursor-pointer"
             >
               <BriefcaseIcon size={13} />
-              <span>Create Matter</span>
+              <span>{isCreating ? "Creating…" : "Create Matter"}</span>
             </button>
           </div>
         </form>

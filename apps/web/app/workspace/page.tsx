@@ -12,7 +12,6 @@ import {
   UploadDocumentModal,
   type EvidenceType,
 } from "../../components/workspace/upload-document-modal";
-import { SEED_MATTERS } from "../../lib/workspace-data";
 import type { Matter } from "../../types/workspace/types";
 import { PanelLeftIcon } from "../../components/workspace/workspace-icons";
 import { useMatters, useCreateMatter, useDeleteMatter } from "../../hooks/matters/useMatters";
@@ -31,7 +30,6 @@ function WorkspaceContent() {
   const setActiveMatterId = useWorkspaceStore((s) => s.setActiveMatterId);
 
   const [collapsed, setCollapsed] = useState<boolean>(false);
-  const [createdMatters, setCreatedMatters] = useState<Matter[]>([]);
   const [deletedIds, setDeletedIds] = useState<string[]>([]);
   const [updatedActivities, setUpdatedActivities] = useState<
     Record<string, { lastActivity: string; updatedAt: number }>
@@ -54,7 +52,7 @@ function WorkspaceContent() {
       health: "Healthy",
     }));
 
-    const combined = [...createdMatters, ...backendItems, ...SEED_MATTERS];
+    const combined = backendItems;
     const deletedSet = new Set(deletedIds);
     const seen = new Set<string>();
     return combined
@@ -70,35 +68,24 @@ function WorkspaceContent() {
           ? { ...m, lastActivity: override.lastActivity, updatedAt: override.updatedAt }
           : m;
       });
-  }, [backendMatters, createdMatters, deletedIds, updatedActivities]);
+  }, [backendMatters, deletedIds, updatedActivities]);
 
   const [selectedMatter, setSelectedMatter] = useState<Matter | null>(() => {
-    if (matterIdParam) {
-      return SEED_MATTERS.find((m) => m.id === matterIdParam) || null;
-    }
     return null;
   });
-  const [prevParam, setPrevParam] = useState<string | null>(matterIdParam);
+  const currentMatter =
+    selectedMatter ??
+    (matterIdParam
+      ? matters.find((matter) => matter.id === matterIdParam) ?? null
+      : null);
   const [createOpen, setCreateOpen] = useState<boolean>(false);
   const [uploadOpen, setUploadOpen] = useState<boolean>(false);
   const [activeNav, setActiveNav] = useState<string>("home");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  if (matterIdParam !== prevParam) {
-    setPrevParam(matterIdParam);
-    if (matterIdParam) {
-      const match = matters.find((m) => m.id === matterIdParam);
-      if (match) {
-        setSelectedMatter(match);
-      }
-    }
-  }
-
   const handleCreateMatter = useCallback(
-    (newMatter: Matter) => {
-      setCreatedMatters((prev) => [newMatter, ...prev]);
-      setCreateOpen(false);
-      createMatterMutation.mutate({
+    async (newMatter: Matter) => {
+      await createMatterMutation.mutateAsync({
         title: newMatter.name,
         case_number: newMatter.caseNumber,
         court: newMatter.court,
@@ -186,16 +173,16 @@ function WorkspaceContent() {
 
   const handleSendToAgent = useCallback(
     (item?: { title: string; type: "document" | "draft" }) => {
-      if (selectedMatter) {
+      if (currentMatter) {
         const query = item
-          ? `?matterId=${selectedMatter.id}&refTitle=${encodeURIComponent(item.title)}&refType=${item.type}`
-          : `?matterId=${selectedMatter.id}`;
+          ? `?matterId=${currentMatter.id}&refTitle=${encodeURIComponent(item.title)}&refType=${item.type}`
+          : `?matterId=${currentMatter.id}`;
         router.push(`/agent${query}`);
       } else {
         router.push("/agent");
       }
     },
-    [router, selectedMatter],
+    [currentMatter, router],
   );
 
   const handleOpenMobileNav = useCallback(() => {
@@ -226,9 +213,9 @@ function WorkspaceContent() {
       </button>
 
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-stone-200/90 bg-white pt-11 shadow-2xs md:pt-0">
-        {selectedMatter ? (
+        {currentMatter ? (
           <MatterDetailView
-            matter={selectedMatter}
+            matter={currentMatter}
             onBack={() => {
               setSelectedMatter(null);
               setActiveMatterId(null);
