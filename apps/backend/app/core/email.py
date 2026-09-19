@@ -1,7 +1,7 @@
 import asyncio
-from email.message import EmailMessage
 import logging
 import smtplib
+from email.message import EmailMessage
 
 from app.core.config import settings
 
