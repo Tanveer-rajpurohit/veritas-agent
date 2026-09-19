@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useForgotPassword } from "../../hooks/auth/useAuth";
 import { validatePasswordResetForm } from "../../lib/validation/auth";
 import type { AuthFieldErrors } from "../../types/auth/types";
 import { AuthField, AuthSubmit } from "./auth-fields";
@@ -9,9 +10,9 @@ import { AuthField, AuthSubmit } from "./auth-fields";
 const linkClassName = "font-semibold text-primary no-underline transition-colors hover:text-ink-accent";
 
 export function ForgotPasswordForm() {
+  const forgotPasswordMutation = useForgotPassword();
   const [email, setEmail] = useState("");
   const [fieldErrors, setFieldErrors] = useState<AuthFieldErrors>({});
-  const [pending, setPending] = useState(false);
   const [shake, setShake] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
 
@@ -23,11 +24,12 @@ export function ForgotPasswordForm() {
       setShake(true);
       return;
     }
-    setPending(true);
-    window.setTimeout(() => {
-      setPending(false);
+    try {
+      await forgotPasswordMutation.mutateAsync({ email: email.trim() });
       setSentTo(email.trim());
-    }, 450);
+    } catch {
+      return;
+    }
   }
 
   if (sentTo) {
@@ -77,7 +79,20 @@ export function ForgotPasswordForm() {
           required
         />
 
-        <AuthSubmit pending={pending} pendingLabel="Sending link…">
+        {forgotPasswordMutation.error && (
+          <p
+            role="alert"
+            aria-live="polite"
+            className="m-0 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium leading-5 text-rose-700"
+          >
+            {forgotPasswordMutation.error.message}
+          </p>
+        )}
+
+        <AuthSubmit
+          pending={forgotPasswordMutation.isPending}
+          pendingLabel="Sending link…"
+        >
           Send reset link
         </AuthSubmit>
 

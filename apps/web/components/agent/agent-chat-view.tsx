@@ -9,7 +9,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { useRouter } from "next/navigation";
-import { SEED_MATTERS } from "../../lib/workspace-data";
+import type { Matter } from "../../types/workspace/types";
 import {
   ArrowUpIcon,
   CheckIcon,
@@ -418,6 +418,7 @@ const SUGGESTIONS = [
 ];
 
 interface AgentChatViewProps {
+  matters: Matter[];
   initialMatterId?: string | null;
   sessionId?: string | null;
   onOpenMatter?: (matterId: string) => void;
@@ -426,6 +427,7 @@ interface AgentChatViewProps {
 }
 
 export function AgentChatView({
+  matters,
   initialMatterId = null,
   sessionId = null,
   onOpenMatter,
@@ -490,9 +492,9 @@ export function AgentChatView({
   const currentMatterId =
     selectedMatterId ||
     (activeSessionId ? DEMO_SESSIONS[activeSessionId]?.matterId : null);
-  const selectedMatter = SEED_MATTERS.find((m) => m.id === currentMatterId);
+  const selectedMatter = matters.find((m) => m.id === currentMatterId);
 
-  const filteredMatters = SEED_MATTERS.filter(
+  const filteredMatters = matters.filter(
     (m) =>
       m.name.toLowerCase().includes(matterSearch.toLowerCase()) ||
       m.caseNumber.toLowerCase().includes(matterSearch.toLowerCase()),

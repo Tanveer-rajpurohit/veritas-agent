@@ -8,10 +8,11 @@ import {
   UploadDocumentModal,
   type EvidenceType,
 } from "../../components/workspace/upload-document-modal";
-import { SEED_MATTERS } from "../../lib/workspace-data";
 import type { Matter } from "../../types/workspace/types";
 import { PanelLeftIcon } from "../../components/workspace/workspace-icons";
 import { AgentChatView } from "../../components/agent/agent-chat-view";
+import { useCreateMatter, useMatters } from "../../hooks/matters/useMatters";
+import { useUploadSource } from "../../hooks/sources/useSources";
 
 const SESSIONS_MAP = [
   { id: "chat-1", title: "IBC Sec 7 Financial Debt Claim" },
@@ -28,15 +29,41 @@ function AgentClientContent() {
   const sessionParam = searchParams.get("c");
 
   const [collapsed, setCollapsed] = useState<boolean>(false);
-  const [matters, setMatters] = useState<Matter[]>(SEED_MATTERS);
+  const { data: backendMatters } = useMatters();
+  const createMatterMutation = useCreateMatter();
+  const uploadSourceMutation = useUploadSource();
+  const matters: Matter[] = (backendMatters ?? []).map((matter) => ({
+    id: matter.id,
+    name: matter.title,
+    caseNumber: matter.case_number ?? "Not assigned",
+    court: matter.court ?? "Forum not selected",
+    stage: (matter.stage as Matter["stage"]) || "Drafting",
+    practiceArea: matter.matter_type,
+    lastActivity: `Updated ${new Intl.DateTimeFormat("en-IN").format(new Date(matter.updated_at))}`,
+    updatedAt: new Date(matter.updated_at).getTime(),
+    petitioner: "Client",
+    respondent: "Not specified",
+    matterType: (matter.matter_type as Matter["matterType"]) || "Insolvency (IBC)",
+    createdDate: new Intl.DateTimeFormat("en-IN").format(new Date(matter.created_at)),
+    health: "Healthy",
+  }));
   const [createOpen, setCreateOpen] = useState<boolean>(false);
   const [uploadOpen, setUploadOpen] = useState<boolean>(false);
   const [mobileNavOpen, setMobileNavOpen] = useState<boolean>(false);
 
-  const handleCreateMatter = useCallback((newMatter: Matter) => {
-    setMatters((prev) => [newMatter, ...prev]);
-    setCreateOpen(false);
-  }, []);
+  const handleCreateMatter = useCallback(
+    async (newMatter: Matter) => {
+      await createMatterMutation.mutateAsync({
+        title: newMatter.name,
+        case_number: newMatter.caseNumber,
+        court: newMatter.court,
+        matter_type: newMatter.matterType,
+        stage: newMatter.stage,
+      });
+      setCreateOpen(false);
+    },
+    [createMatterMutation],
+  );
 
   const handleToggleSidebar = useCallback(() => {
     setCollapsed((prev) => !prev);
@@ -51,28 +78,21 @@ function AgentClientContent() {
   }, []);
 
   const handleUploadDocument = useCallback(
-    (data: {
+    async (data: {
       name: string;
       type: EvidenceType;
       matterId?: string;
       file?: File | null;
     }) => {
-      if (data.matterId) {
-        setMatters((prev) =>
-          prev.map((m) =>
-            m.id === data.matterId
-              ? {
-                  ...m,
-                  lastActivity: "Evidence uploaded just now",
-                  updatedAt: Date.now(),
-                }
-              : m,
-          ),
-        );
+      if (!data.matterId || !data.file) {
+        throw new Error("Select a matter and source file before uploading");
       }
-      setUploadOpen(false);
+      await uploadSourceMutation.mutateAsync({
+        matterId: data.matterId,
+        file: data.file,
+      });
     },
-    [],
+    [uploadSourceMutation],
   );
 
   const handleSelectNav = useCallback(
@@ -138,6 +158,7 @@ function AgentClientContent() {
           onOpenMatter={handleOpenMatter}
           onSelectChatSession={handleSelectChatSession}
           onNewChat={handleNewChat}
+          matters={matters}
         />
       </main>
 

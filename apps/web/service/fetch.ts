@@ -102,7 +102,8 @@ export async function request<T>(
   } catch (err) {
     throw new ApiError(
       0,
-      err instanceof Error ? err.message : "Network request failed"
+      "Cannot reach the Veritas API. Check that the backend is running and try again.",
+      err instanceof Error ? err.message : undefined
     );
   }
 
