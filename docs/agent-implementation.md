@@ -53,14 +53,20 @@ name, source title, result counts, dimensions, limitations, and safe error code.
 
 ## Citation result
 
-Citation review returns `finding_ids`, the document version, a dimension/status map, a safe summary,
-and suggested next actions. Fetch findings from:
+Citation review first persists deterministic findings, then invokes the bounded Strands Citation
+Reviewer to synthesize a typed report. The run returns `finding_ids`, the document version, every
+status observed per dimension, `reviewer_status`, and `reviewer_report`. If inference is unavailable,
+the findings remain available and no report is fabricated. Fetch findings from:
 
 `GET /api/v1/document-versions/{version_id}/findings`
 
 Citation evidence includes `source_title`, `source_url`, and `source_url_verified`. A verified URL
 means HTTPS plus an approved legal-source host; it does not mean the proposition or legal treatment
 was verified. Render identity, quotation, support, and treatment as separate rows.
+
+The specialist tools are `get_citation_findings`, `lookup_statute`, `search_cases`, and
+`fetch_case`. The document version is fixed server-side. `fetch_case` accepts only a candidate
+returned by `search_cases` in the same run.
 
 ## Writer proposal: preview, accept, reject
 

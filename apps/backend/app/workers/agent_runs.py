@@ -4,11 +4,13 @@ from uuid import UUID
 
 from sqlalchemy import func, select, update
 
+from app.agents.citation_reviewer import create_citation_reviewer_agent
 from app.agents.main_agent import create_main_agent
 from app.agents.writer.agent import create_writer_agent
 from app.db.session import SessionLocal
 from app.models.agent_runs import AgentEvent, AgentRun
 from app.models.conversations import Message
+from app.schemas.agents.citation_reviewer import CitationReviewerResult
 from app.schemas.agents.fact_reviewer import FactReviewRunRequest
 from app.schemas.agents.writer import WriterResult
 from app.services.drafts.draft_service import draft_service
@@ -104,20 +106,47 @@ def process_agent_run(run_id: UUID) -> None:
                     {"tool": "citation_review", "summary": "Checking stored legal authorities"},
                 )
                 findings = check_citations(db, version)
-                dimensions = {item.dimension: item.status for item in findings}
+                dimensions: dict[str, list[str]] = {}
+                for item in findings:
+                    dimensions.setdefault(item.dimension, []).append(item.status)
+                reviewer_result = None
+                reviewer_status = "unavailable"
+                try:
+                    reviewer, _handlers = create_citation_reviewer_agent(db, version.id)
+                    agent_result = reviewer(
+                        "Review the persisted citation findings for document version "
+                        f"{version.id}. Return all four dimensions and precise next actions."
+                    )
+                    reviewer_result = CitationReviewerResult.model_validate(
+                        agent_result.structured_output
+                    )
+                    reviewer_status = "completed"
+                except Exception as exc:
+                    logger.warning(
+                        "Citation Reviewer summary unavailable for run %s: %s",
+                        run_id,
+                        type(exc).__name__,
+                    )
                 run.result = {
                     "document_id": str(run.document_id),
                     "document_version_id": str(version.id),
                     "finding_ids": [str(item.id) for item in findings],
                     "dimensions": dimensions,
-                    "suggested_actions": [
-                        "Add or open the official judgment when identity or quotation is unresolved.",
-                        "Have counsel confirm proposition support and later treatment before reviewed export.",
-                        "Edit or remove a citation when the stored quotation is contradicted.",
+                    "reviewer_status": reviewer_status,
+                    "reviewer_report": (
+                        reviewer_result.model_dump(mode="json") if reviewer_result else None
+                    ),
+                    "suggested_actions": reviewer_result.suggested_actions
+                    if reviewer_result
+                    else [
+                        "Open unresolved findings and attach an authoritative source.",
+                        "Have counsel review proposition support and later legal treatment.",
                     ],
-                    "message": (
-                        "Citation review completed. Unresolved and needs-review dimensions "
-                        "require a source or lawyer confirmation."
+                    "message": reviewer_result.message
+                    if reviewer_result
+                    else (
+                        "Citation checks were saved, but the Citation Reviewer summary is "
+                        "unavailable. Open the findings to review unresolved dimensions."
                     ),
                 }
                 _append_event(
