@@ -50,17 +50,8 @@ def process_agent_run(run_id: UUID) -> None:
                     context.append(f"Sources selected by the user: {', '.join(run.source_ids)}")
                 result = agent("\n\n".join(context))
                 proposal = WriterResult.model_validate(result.structured_output)
-                if not proposal.operations:
+                if not proposal.operations or run.document_id is not None:
                     version = None
-                elif run.document_id is not None:
-                    version = draft_service.propose_document_ops(
-                        db=db,
-                        matter_id=run.matter_id,
-                        draft_id=run.document_id,
-                        base_version_id=run.base_version_id,
-                        operations=proposal.operations,
-                        created_by_id="writer_agent",
-                    )
                 else:
                     version = draft_service.create_draft(
                         db=db,
@@ -70,8 +61,23 @@ def process_agent_run(run_id: UUID) -> None:
                         created_by_id="writer_agent",
                     )
                 run.result = {
-                    "document_id": str(version.draft_id) if version else None,
+                    "document_id": (
+                        str(version.draft_id)
+                        if version
+                        else str(run.document_id)
+                        if run.document_id
+                        else None
+                    ),
                     "document_version_id": str(version.id) if version else None,
+                    "base_version_id": str(run.base_version_id) if run.base_version_id else None,
+                    "proposed_operations": [
+                        operation.model_dump(mode="json") for operation in proposal.operations
+                    ]
+                    if run.document_id is not None
+                    else [],
+                    "proposal_status": "pending"
+                    if run.document_id and proposal.operations
+                    else None,
                     "assumptions": proposal.assumptions,
                     "unresolved_questions": proposal.unresolved_questions,
                 }
@@ -104,6 +110,11 @@ def process_agent_run(run_id: UUID) -> None:
                     "document_version_id": str(version.id),
                     "finding_ids": [str(item.id) for item in findings],
                     "dimensions": dimensions,
+                    "suggested_actions": [
+                        "Add or open the official judgment when identity or quotation is unresolved.",
+                        "Have counsel confirm proposition support and later treatment before reviewed export.",
+                        "Edit or remove a citation when the stored quotation is contradicted.",
+                    ],
                     "message": (
                         "Citation review completed. Unresolved and needs-review dimensions "
                         "require a source or lawyer confirmation."

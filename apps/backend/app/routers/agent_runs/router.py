@@ -14,11 +14,13 @@ from app.core.auth import current_user
 from app.db.session import get_db
 from app.models.agent_runs import AgentEvent, AgentRun
 from app.models.conversations import Message
-from app.models.matters import User
+from app.models.matters import MatterMember, User
 from app.models.sources import Source
 from app.repositories.drafts.draft_repository import draft_repository
 from app.repositories.matters import MatterRepository
 from app.routers.conversations.router import owned_thread
+from app.schemas.agents.writer import DocumentOperation
+from app.services.drafts.draft_service import draft_service
 from app.workers.agent_runs import process_agent_run
 
 router = APIRouter(prefix="/api/v1", tags=["Agent Runs"])
@@ -52,6 +54,18 @@ class RunResponse(BaseModel):
     result: dict | None
     error_code: str | None
     created_at: datetime
+
+
+class ApplyProposalResponse(BaseModel):
+    run_id: UUID
+    proposal_status: Literal["accepted"]
+    document_id: UUID
+    document_version_id: UUID
+
+
+class RejectProposalResponse(BaseModel):
+    run_id: UUID
+    proposal_status: Literal["rejected"]
 
 
 def _response(run: AgentRun) -> RunResponse:
@@ -172,6 +186,96 @@ def create_run(
 @router.get("/agent-runs/{run_id}", response_model=RunResponse)
 def get_run(run_id: UUID, db: DbSession, user: CurrentUser) -> RunResponse:
     return _response(_owned_run(db, run_id, user.id))
+
+
+@router.post("/agent-runs/{run_id}/apply", response_model=ApplyProposalResponse, status_code=201)
+def apply_writer_proposal(
+    run_id: UUID,
+    db: DbSession,
+    user: CurrentUser,
+    idempotency_key: Annotated[str, Header(min_length=1, max_length=128)],
+) -> ApplyProposalResponse:
+    run = _owned_run(db, run_id, user.id)
+    if run.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Agent run not found")
+    membership = db.scalar(
+        select(MatterMember).where(
+            MatterMember.matter_id == run.matter_id,
+            MatterMember.user_id == user.id,
+        )
+    )
+    if membership is None or membership.role not in {"owner", "editor"}:
+        raise HTTPException(status_code=403, detail="Editor access is required to apply edits")
+    if run.status != "completed" or run.agent != "writer" or not run.document_id:
+        raise HTTPException(status_code=409, detail="This run has no applicable document proposal")
+    result = dict(run.result or {})
+    if result.get("proposal_status") == "accepted" and result.get("document_version_id"):
+        return ApplyProposalResponse(
+            run_id=run.id,
+            proposal_status="accepted",
+            document_id=run.document_id,
+            document_version_id=UUID(result["document_version_id"]),
+        )
+    if result.get("proposal_status") == "rejected":
+        raise HTTPException(status_code=409, detail="This proposal was rejected")
+    raw_operations = result.get("proposed_operations") or []
+    if not raw_operations:
+        raise HTTPException(status_code=409, detail="This run has no proposed edits")
+    operations = [DocumentOperation.model_validate(item) for item in raw_operations]
+    request_hash = hashlib.sha256(
+        json.dumps(raw_operations, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    try:
+        version = draft_service.propose_document_ops(
+            db=db,
+            matter_id=run.matter_id,
+            draft_id=run.document_id,
+            base_version_id=run.base_version_id,
+            operations=operations,
+            change_summary="Accepted Writer proposal",
+            created_by_id=str(user.id),
+            user_id=user.id,
+            idempotency_key=idempotency_key,
+            request_hash=request_hash,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=409, detail="Document changed before this proposal was applied"
+        ) from exc
+    result.update(
+        proposal_status="accepted",
+        document_version_id=str(version.id),
+    )
+    run.result = result
+    db.add(run)
+    db.commit()
+    return ApplyProposalResponse(
+        run_id=run.id,
+        proposal_status="accepted",
+        document_id=run.document_id,
+        document_version_id=version.id,
+    )
+
+
+@router.post("/agent-runs/{run_id}/reject", response_model=RejectProposalResponse)
+def reject_writer_proposal(
+    run_id: UUID,
+    db: DbSession,
+    user: CurrentUser,
+) -> RejectProposalResponse:
+    run = _owned_run(db, run_id, user.id)
+    if run.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Agent run not found")
+    result = dict(run.result or {})
+    if run.status != "completed" or run.agent != "writer" or not result.get("proposed_operations"):
+        raise HTTPException(status_code=409, detail="This run has no document proposal")
+    if result.get("proposal_status") == "accepted":
+        raise HTTPException(status_code=409, detail="An accepted proposal cannot be rejected")
+    result["proposal_status"] = "rejected"
+    run.result = result
+    db.add(run)
+    db.commit()
+    return RejectProposalResponse(run_id=run.id, proposal_status="rejected")
 
 
 @router.get("/agent-runs/{run_id}/events")

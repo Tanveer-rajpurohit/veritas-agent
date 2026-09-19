@@ -99,6 +99,9 @@ class DraftService:
         operations: list[DocumentOperation],
         change_summary: str | None = None,
         created_by_id: str = "writer_agent",
+        user_id: UUID | None = None,
+        idempotency_key: str | None = None,
+        request_hash: str | None = None,
     ) -> DocumentVersion:
         """
         Applies validated document operations producing a new immutable DocumentVersion.
@@ -144,6 +147,13 @@ class DraftService:
             operations=operations,
         )
 
+        command_args = {}
+        if user_id is not None and idempotency_key is not None and request_hash is not None:
+            command_args = {
+                "user_id": user_id,
+                "idempotency_key": idempotency_key,
+                "request_hash": request_hash,
+            }
         return draft_repository.create_new_version(
             db=db,
             draft=draft,
@@ -152,6 +162,7 @@ class DraftService:
             created_by_type="agent" if created_by_id.endswith("_agent") else "human",
             created_by_id=created_by_id,
             change_summary=change_summary or f"Applied {len(operations)} document operations",
+            **command_args,
         )
 
     @staticmethod

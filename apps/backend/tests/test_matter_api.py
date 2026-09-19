@@ -605,3 +605,62 @@ def test_writer_run_without_operations_does_not_create_a_document(
     assert state["status"] == "completed"
     assert state["result"]["document_id"] is None
     assert state["result"]["unresolved_questions"] == ["Which amount is correct?"]
+
+
+def test_writer_revision_requires_explicit_acceptance(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from types import SimpleNamespace
+
+    import app.workers.agent_runs as worker
+    from app.schemas.agents.writer import DocumentOperation, WriterResult
+
+    monkeypatch.setattr(worker, "SessionLocal", TestingSessionLocal)
+    monkeypatch.setattr(
+        worker,
+        "create_writer_agent",
+        lambda db, matter_id, allow_document_writes: (
+            lambda prompt: SimpleNamespace(
+                structured_output=WriterResult(
+                    operations=[
+                        DocumentOperation(
+                            type="insert_paragraph",
+                            position="analysis",
+                            text="Proposed revision",
+                        )
+                    ]
+                )
+            )
+        ),
+    )
+    matter_id = client.post("/api/v1/matters/", json={"title": "Proposal"}).json()["id"]
+    document = client.post(f"/api/v1/matters/{matter_id}/documents", json={"title": "Brief"}).json()
+    thread_id = client.post(f"/api/v1/matters/{matter_id}/threads", json={}).json()["id"]
+    message_id = client.post(
+        f"/api/v1/threads/{thread_id}/messages", json={"content": "Revise analysis"}
+    ).json()["id"]
+    created = client.post(
+        f"/api/v1/matters/{matter_id}/agent-runs",
+        headers={"Idempotency-Key": "revision-proposal-1"},
+        json={
+            "thread_id": thread_id,
+            "message_id": message_id,
+            "agent": "writer",
+            "requested_action": "revise_working_brief",
+            "document_id": document["id"],
+            "document_version_id": document["current_version_id"],
+        },
+    )
+    state = client.get(f"/api/v1/agent-runs/{created.json()['run_id']}").json()
+    assert state["result"]["proposal_status"] == "pending"
+    assert state["result"]["document_version_id"] is None
+
+    applied = client.post(
+        f"/api/v1/agent-runs/{created.json()['run_id']}/apply",
+        headers={"Idempotency-Key": "revision-accept-1"},
+    )
+    assert applied.status_code == 201, applied.text
+    assert applied.json()["document_version_id"] != document["current_version_id"]
+
+    rejected = client.post(f"/api/v1/agent-runs/{created.json()['run_id']}/reject")
+    assert rejected.status_code == 409
