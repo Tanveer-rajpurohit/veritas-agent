@@ -162,9 +162,7 @@ def test_fact_reviewer_worker_execution_success(monkeypatch: pytest.MonkeyPatch)
         assert "message" in updated_run.result
 
         events = db.scalars(
-            select(AgentEvent)
-            .where(AgentEvent.run_id == run_id)
-            .order_by(AgentEvent.sequence)
+            select(AgentEvent).where(AgentEvent.run_id == run_id).order_by(AgentEvent.sequence)
         ).all()
         event_types = [e.event_type for e in events]
         assert "task.started" in event_types
@@ -220,9 +218,7 @@ def test_fact_reviewer_worker_execution_llm_failure_fallback(
         assert len(updated_run.result["findings"]) >= 1
 
         events = db.scalars(
-            select(AgentEvent)
-            .where(AgentEvent.run_id == run_id)
-            .order_by(AgentEvent.sequence)
+            select(AgentEvent).where(AgentEvent.run_id == run_id).order_by(AgentEvent.sequence)
         ).all()
         event_types = [e.event_type for e in events]
         assert "task.started" in event_types

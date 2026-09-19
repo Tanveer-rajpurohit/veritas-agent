@@ -185,9 +185,7 @@ def create_document(
 
 
 @router.get("/matters/{matter_id}/documents", response_model=list[DocumentResponse])
-def list_documents(
-    matter_id: UUID, db: DbSession, user: CurrentUser
-) -> list[DocumentResponse]:
+def list_documents(matter_id: UUID, db: DbSession, user: CurrentUser) -> list[DocumentResponse]:
     if MatterRepository(db).get_by_id(matter_id, user.id) is None:
         raise HTTPException(status_code=404, detail="Matter not found")
     drafts = draft_repository.list_drafts_by_matter(db, matter_id)
@@ -254,9 +252,7 @@ def update_document(
 
 
 @router.delete("/documents/{document_id}", status_code=204)
-def delete_document(
-    document_id: UUID, db: DbSession, user: CurrentUser
-) -> None:
+def delete_document(document_id: UUID, db: DbSession, user: CurrentUser) -> None:
     draft = _owned_draft(db, document_id, user.id)
     draft_repository.delete_draft(db, draft)
 

@@ -35,9 +35,10 @@ def verify_password(password: str, stored: str) -> bool:
 
 
 def auth_secret() -> bytes:
-    if len(settings.AUTH_SECRET) < 32:
+    secret = settings.AUTH_SECRET.strip()
+    if not secret or len(secret) < 32 or "replace" in secret.lower():
         raise HTTPException(status_code=503, detail="Authentication is not configured")
-    return settings.AUTH_SECRET.encode()
+    return secret.encode()
 
 
 def issue_token(user_id: UUID) -> str:

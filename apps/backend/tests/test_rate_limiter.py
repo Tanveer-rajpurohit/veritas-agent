@@ -18,8 +18,7 @@ def _build_mock_request(
     path: str = "/api/v1/test",
 ) -> Request:
     header_list = [
-        (k.lower().encode("latin-1"), v.encode("latin-1"))
-        for k, v in (headers or {}).items()
+        (k.lower().encode("latin-1"), v.encode("latin-1")) for k, v in (headers or {}).items()
     ]
     scope = {
         "type": "http",

@@ -143,3 +143,23 @@ def test_forgot_and_reset_password_flow(
     )
     assert new_login.status_code == 200
     assert "access_token" in new_login.json()
+
+
+def test_auth_secret_rejects_missing_short_or_placeholder(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = TestClient(app)
+    creds = {"email": "advocate_test@veritas.in", "password": "super-secure-password-123"}
+
+    # Missing secret
+    monkeypatch.setattr(settings, "AUTH_SECRET", "")
+    res = client.post("/api/v1/auth/register", json=creds)
+    assert res.status_code == 503
+
+    # Short secret (< 32 chars)
+    monkeypatch.setattr(settings, "AUTH_SECRET", "short-secret")
+    res = client.post("/api/v1/auth/register", json=creds)
+    assert res.status_code == 503
+
+    # Placeholder secret
+    monkeypatch.setattr(settings, "AUTH_SECRET", "replace-with-a-long-random-secret")
+    res = client.post("/api/v1/auth/register", json=creds)
+    assert res.status_code == 503

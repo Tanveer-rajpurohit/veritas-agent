@@ -58,12 +58,8 @@ def test_list_documents_empty_and_populated(client: TestClient) -> None:
     assert res_empty.status_code == 200
     assert res_empty.json() == []
 
-    client.post(
-        f"/api/v1/matters/{matter_id}/documents", json={"title": "Petition"}
-    )
-    client.post(
-        f"/api/v1/matters/{matter_id}/documents", json={"title": "Rejoinder"}
-    )
+    client.post(f"/api/v1/matters/{matter_id}/documents", json={"title": "Petition"})
+    client.post(f"/api/v1/matters/{matter_id}/documents", json={"title": "Rejoinder"})
 
     res_populated = client.get(f"/api/v1/matters/{matter_id}/documents")
     assert res_populated.status_code == 200
@@ -86,9 +82,7 @@ def test_update_document_title_success(client: TestClient) -> None:
         f"/api/v1/matters/{matter['id']}/documents", json={"title": "Old Draft Title"}
     ).json()
 
-    update_res = client.patch(
-        f"/api/v1/documents/{doc['id']}", json={"title": "New Final Brief"}
-    )
+    update_res = client.patch(f"/api/v1/documents/{doc['id']}", json={"title": "New Final Brief"})
     assert update_res.status_code == 200
     updated = update_res.json()
     assert updated["title"] == "New Final Brief"

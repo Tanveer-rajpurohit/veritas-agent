@@ -1,7 +1,11 @@
 import json
+from pathlib import Path
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
+_DEFAULT_ENV_FILE = _BACKEND_DIR / ".env"
 
 
 class Settings(BaseSettings):
@@ -30,7 +34,7 @@ class Settings(BaseSettings):
     OBJECT_STORAGE_BACKEND: str = "minio"
     MINIO_ENDPOINT: str = "http://localhost:9000"
     MINIO_ACCESS_KEY: str = "veritas"
-    MINIO_SECRET_KEY: str = ""
+    MINIO_SECRET_KEY: str = "replace-with-minio-password"
     OCR_PROVIDER: str = "local"
 
     EMBEDDING_PROVIDER: str = "local"
@@ -85,11 +89,25 @@ class Settings(BaseSettings):
     def validate_object_storage(self) -> "Settings":
         if not self.BUCKET_NAME.strip():
             raise ValueError("BUCKET_NAME is required")
-        if self.OBJECT_STORAGE_BACKEND == "minio":
-            if not self.MINIO_ENDPOINT.strip():
+        if self.ENVIRONMENT == "production":
+            if not self.AUTH_SECRET or len(self.AUTH_SECRET) < 32 or "replace" in self.AUTH_SECRET:
+                raise ValueError(
+                    "AUTH_SECRET must be at least 32 characters and not a placeholder in production"
+                )
+            if self.OBJECT_STORAGE_BACKEND == "minio":
+                if not self.MINIO_ENDPOINT.strip():
+                    raise ValueError("MINIO_ENDPOINT is required when MinIO is selected")
+                if (
+                    not self.MINIO_ACCESS_KEY
+                    or not self.MINIO_SECRET_KEY
+                    or "replace" in self.MINIO_SECRET_KEY
+                ):
+                    raise ValueError(
+                        "Valid MinIO access and secret keys are required in production"
+                    )
+        else:
+            if self.OBJECT_STORAGE_BACKEND == "minio" and not self.MINIO_ENDPOINT.strip():
                 raise ValueError("MINIO_ENDPOINT is required when MinIO is selected")
-            if not self.MINIO_ACCESS_KEY or not self.MINIO_SECRET_KEY:
-                raise ValueError("MinIO access and secret keys are required")
         if bool(self.AWS_ACCESS_KEY_ID) != bool(self.AWS_SECRET_ACCESS_KEY):
             raise ValueError("Both AWS access key fields are required when either is configured")
         return self
@@ -105,7 +123,7 @@ class Settings(BaseSettings):
         return self.GROQ_MODEL
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(_DEFAULT_ENV_FILE, ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )

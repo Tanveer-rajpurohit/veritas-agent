@@ -190,13 +190,20 @@ class FactReviewerToolHandlers:
             for raw in findings:
                 finding_item = ProposedFactFinding.model_validate(raw)
                 if finding_item.claim_id not in self._claim_map:
-                    raise ValueError(f"Finding references unknown claim_id: {finding_item.claim_id}")
+                    raise ValueError(
+                        f"Finding references unknown claim_id: {finding_item.claim_id}"
+                    )
 
                 claim = self._claim_map[finding_item.claim_id]
 
-                if finding_item.status in {"supported", "contradicted"} and not finding_item.evidence:
+                if (
+                    finding_item.status in {"supported", "contradicted"}
+                    and not finding_item.evidence
+                ):
                     finding_item.status = "unresolved"
-                    finding_item.reason = "No authoritative evidence span provided to support finding."
+                    finding_item.reason = (
+                        "No authoritative evidence span provided to support finding."
+                    )
 
                 span_ids = [link.evidence_span_id for link in finding_item.evidence]
                 if span_ids:
