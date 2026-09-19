@@ -14,14 +14,16 @@ import {
   DownloadIcon,
   ExternalLinkIcon,
   EyeIcon,
-  FileTextIcon,
   PlusIcon,
   SearchIcon,
   BotIcon,
   UploadIcon,
   XIcon,
   AlertCircleIcon,
+  ColoredFileIcon,
 } from "./workspace-icons";
+import { useDocuments } from "../../hooks/documents/useDocuments";
+import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 
 interface MatterDetailViewProps {
   matter: Matter;
@@ -39,6 +41,64 @@ interface DocumentItem {
   format: "PDF" | "XLSX" | "DOCX";
   hasDiscrepancy?: boolean;
 }
+
+const INITIAL_DOCUMENTS: DocumentItem[] = [
+  {
+    id: "doc-1",
+    name: "IBC_Section7_Form1_Petition.pdf",
+    type: "Pleadings",
+    pages: 56,
+    size: "3.2 MB",
+    uploadedAt: "Today, 10:14 AM",
+    format: "PDF",
+  },
+  {
+    id: "doc-2",
+    name: "Syndicated_Facility_Agreement_2023.pdf",
+    type: "Contracts",
+    pages: 34,
+    size: "2.1 MB",
+    uploadedAt: "Yesterday",
+    format: "PDF",
+  },
+  {
+    id: "doc-3",
+    name: "NeSL_Default_Authentication_Record.pdf",
+    type: "Evidence",
+    pages: 4,
+    size: "520 KB",
+    uploadedAt: "14 May 2026",
+    format: "PDF",
+  },
+  {
+    id: "doc-4",
+    name: "Audited_Bank_Ledger_Statements.xlsx",
+    type: "Evidence",
+    pages: 12,
+    size: "840 KB",
+    uploadedAt: "10 May 2026",
+    format: "XLSX",
+    hasDiscrepancy: true,
+  },
+  {
+    id: "doc-5",
+    name: "Statutory_Demand_Notice_Section8.pdf",
+    type: "Pleadings",
+    pages: 8,
+    size: "460 KB",
+    uploadedAt: "06 May 2026",
+    format: "PDF",
+  },
+  {
+    id: "doc-6",
+    name: "NCLT_Interim_Restraint_Order.pdf",
+    type: "Orders",
+    pages: 6,
+    size: "380 KB",
+    uploadedAt: "01 May 2026",
+    format: "PDF",
+  },
+];
 
 interface DraftItem {
   id: string;
@@ -131,6 +191,14 @@ export function MatterDetailView({
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [draftModalOpen, setDraftModalOpen] = useState(false);
 
+  const { data: backendDocs } = useDocuments(matter.id);
+  const setActiveMatterId = useWorkspaceStore((s) => s.setActiveMatterId);
+  const setActiveDocumentId = useWorkspaceStore((s) => s.setActiveDocumentId);
+
+  useEffect(() => {
+    setActiveMatterId(matter.id);
+  }, [matter.id, setActiveMatterId]);
+
   const [newDraftTitle, setNewDraftTitle] = useState("");
   const [newDraftTemplate, setNewDraftTemplate] = useState(
     "IBC Section 7 Application (Form 1)",
@@ -141,63 +209,27 @@ export function MatterDetailView({
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const indicatorRef = useRef<HTMLDivElement>(null);
 
-  const [documents, setDocuments] = useState<DocumentItem[]>([
-    {
-      id: "doc-1",
-      name: "IBC_Section7_Form1_Petition.pdf",
+  const [localUploadedDocs, setLocalUploadedDocs] = useState<DocumentItem[]>([]);
+
+  const documents = useMemo<DocumentItem[]>(() => {
+    const backendItems: DocumentItem[] = (backendDocs || []).map((bd) => ({
+      id: bd.id,
+      name: bd.title,
       type: "Pleadings",
-      pages: 56,
-      size: "3.2 MB",
-      uploadedAt: "Today, 10:14 AM",
+      pages: 1,
+      size: "Cloud sync",
+      uploadedAt: "Recently synced",
       format: "PDF",
-    },
-    {
-      id: "doc-2",
-      name: "Syndicated_Facility_Agreement_2023.pdf",
-      type: "Contracts",
-      pages: 34,
-      size: "2.1 MB",
-      uploadedAt: "Yesterday",
-      format: "PDF",
-    },
-    {
-      id: "doc-3",
-      name: "NeSL_Default_Authentication_Record.pdf",
-      type: "Evidence",
-      pages: 4,
-      size: "520 KB",
-      uploadedAt: "14 May 2026",
-      format: "PDF",
-    },
-    {
-      id: "doc-4",
-      name: "Audited_Bank_Ledger_Statements.xlsx",
-      type: "Evidence",
-      pages: 12,
-      size: "840 KB",
-      uploadedAt: "10 May 2026",
-      format: "XLSX",
-      hasDiscrepancy: true,
-    },
-    {
-      id: "doc-5",
-      name: "Statutory_Demand_Notice_Section8.pdf",
-      type: "Pleadings",
-      pages: 8,
-      size: "460 KB",
-      uploadedAt: "06 May 2026",
-      format: "PDF",
-    },
-    {
-      id: "doc-6",
-      name: "NCLT_Interim_Restraint_Order.pdf",
-      type: "Orders",
-      pages: 6,
-      size: "380 KB",
-      uploadedAt: "01 May 2026",
-      format: "PDF",
-    },
-  ]);
+    }));
+
+    const combined = [...localUploadedDocs, ...backendItems, ...INITIAL_DOCUMENTS];
+    const seen = new Set<string>();
+    return combined.filter((d) => {
+      if (seen.has(d.id)) return false;
+      seen.add(d.id);
+      return true;
+    });
+  }, [backendDocs, localUploadedDocs]);
 
   const [findingCategory, setFindingCategory] = useState<
     "all" | "citation" | "fact"
@@ -420,7 +452,7 @@ export function MatterDetailView({
       format: derivedFormat,
     };
 
-    setDocuments((prev) => [newDoc, ...prev]);
+    setLocalUploadedDocs((prev) => [newDoc, ...prev]);
   }
 
   function handleCreateDraftSubmit(e: React.FormEvent) {
@@ -646,9 +678,11 @@ export function MatterDetailView({
                     </div>
 
                     <div className="flex items-start gap-2.5 pt-1">
-                      <FileTextIcon
-                        size={15}
-                        className="text-[#487aa8] shrink-0 mt-0.5"
+                      <ColoredFileIcon
+                        filename={doc.name}
+                        format={doc.format}
+                        category={doc.type}
+                        size="sm"
                       />
                       <div className="min-w-0 flex-1">
                         <h4 className="m-0 text-xs font-semibold text-stone-900 truncate">
@@ -680,11 +714,12 @@ export function MatterDetailView({
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
-                        onClick={() =>
+                        onClick={() => {
+                          setActiveDocumentId(doc.id);
                           alert(
                             `Inspecting candidate evidence spans for ${doc.name}...`,
-                          )
-                        }
+                          );
+                        }}
                         className="inline-flex h-6 items-center gap-1 rounded-sm border border-stone-200 px-2 text-[10.5px] font-medium text-stone-600 hover:bg-stone-50 hover:text-stone-900 cursor-pointer"
                       >
                         <EyeIcon size={11} />
@@ -751,9 +786,19 @@ export function MatterDetailView({
                       </span>
                     </div>
 
-                    <h4 className="m-0 pt-0.5 text-xs font-semibold text-stone-900 line-clamp-2">
-                      {draft.title}
-                    </h4>
+                    <div className="flex items-start gap-2.5 pt-1">
+                      <ColoredFileIcon
+                        filename={draft.title}
+                        category="Draft"
+                        format="DOCX"
+                        size="sm"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <h4 className="m-0 text-xs font-semibold text-stone-900 line-clamp-2">
+                          {draft.title}
+                        </h4>
+                      </div>
+                    </div>
 
                     <p className="m-0 text-[11.5px] text-stone-500 line-clamp-2 leading-relaxed">
                       {draft.summary}

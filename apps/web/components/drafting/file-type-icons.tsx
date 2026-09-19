@@ -80,3 +80,7 @@ export function MarkdownDocIcon({
     </svg>
   );
 }
+
+export { ColoredFileIcon } from "../ui/colored-file-icon";
+export type { ColoredFileIconProps, FileCategory, FileFormat, IconSize } from "../ui/colored-file-icon";
+

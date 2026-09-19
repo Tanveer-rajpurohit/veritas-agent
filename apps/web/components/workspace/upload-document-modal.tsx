@@ -6,8 +6,8 @@ import { CustomSelect, type SelectOption } from "./custom-select";
 import {
   XIcon,
   UploadIcon,
-  FileTextIcon,
   ShieldCheckIcon,
+  ColoredFileIcon,
 } from "./workspace-icons";
 
 export type EvidenceType = "Pleadings" | "Evidence" | "Orders" | "Contracts";
@@ -267,11 +267,13 @@ export function UploadDocumentModal({
               }`}
             >
               {selectedFile ? (
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#edf4fa] text-[#487aa8] border border-[#cbe0f2]">
-                    <FileTextIcon size={18} />
-                  </div>
-                  <div className="min-w-0 text-left">
+                <div className="flex items-center gap-3 w-full max-w-sm">
+                  <ColoredFileIcon
+                    filename={selectedFile.name}
+                    category={category}
+                    size="md"
+                  />
+                  <div className="min-w-0 flex-1 text-left">
                     <p className="m-0 text-xs font-semibold text-stone-900 truncate">
                       {selectedFile.name}
                     </p>
@@ -286,15 +288,18 @@ export function UploadDocumentModal({
                       e.stopPropagation();
                       setSelectedFile(null);
                     }}
-                    className="ml-3 rounded-md p-1 text-stone-400 hover:bg-stone-200/60 hover:text-stone-700 cursor-pointer"
+                    className="ml-2 rounded-md p-1 text-stone-400 hover:bg-stone-200/60 hover:text-stone-700 cursor-pointer shrink-0"
                   >
                     <XIcon size={13} />
                   </button>
                 </div>
               ) : (
                 <div className="flex flex-col items-center">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#edf4fa] text-[#487aa8] mb-2 border border-[#cbe0f2]">
-                    <UploadIcon size={18} />
+                  <div className="flex items-center gap-2 mb-3">
+                    <ColoredFileIcon format="PDF" size="sm" />
+                    <ColoredFileIcon format="DOCX" size="sm" />
+                    <ColoredFileIcon format="XLSX" size="sm" />
+                    <ColoredFileIcon category="Orders" size="sm" />
                   </div>
                   <p className="m-0 text-xs font-semibold text-stone-800">
                     Drop your legal file here, or{" "}

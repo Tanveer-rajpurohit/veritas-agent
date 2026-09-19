@@ -21,7 +21,7 @@ import {
   PaperclipIcon,
   SearchIcon,
   PlusIcon,
-  StreamlineFileTextIcon,
+  ColoredFileIcon,
 } from "../workspace/workspace-icons";
 import { ThinkingOrb } from "./thinking-orb";
 import { AgentSideViewer, type SideViewerDocument } from "./agent-side-viewer";
@@ -966,9 +966,11 @@ export function AgentChatView({
                                 }}
                                 className="mt-3.5 flex items-center gap-3.5 rounded-xl border border-stone-200 bg-white p-3 shadow-2xs hover:border-[#cbe0f2] hover:shadow-xs transition-all cursor-pointer group"
                               >
-                                <div className="w-[38px] h-[44px] shrink-0 flex items-center justify-center rounded-[7px] border border-[#dedee1] bg-[#f7f7f8] text-[#52525b] group-hover:border-[#cbe0f2] group-hover:bg-[#f2f7fc] group-hover:text-[#2c5478] transition-colors">
-                                  <StreamlineFileTextIcon size={20} />
-                                </div>
+                                <ColoredFileIcon
+                                  filename={msg.draftArtifact.title}
+                                  category="Draft"
+                                  size="md"
+                                />
                                 <div className="min-w-0 flex-1">
                                   <strong className="text-[13px] font-semibold text-stone-900 block truncate group-hover:text-[#2c5478] transition-colors">
                                     {msg.draftArtifact.title}
@@ -983,14 +985,13 @@ export function AgentChatView({
                                 >
                                   <button
                                     type="button"
-                                    onClick={() =>
-                                      router.push(
-                                        `/drafting/${msg.draftArtifact!.id}`,
-                                      )
-                                    }
+                                    onClick={() => {
+                                      setSideViewerDoc(msg.draftArtifact!);
+                                      setSideViewerOpen(true);
+                                    }}
                                     className="h-7.5 px-3 rounded-md border border-stone-200 bg-white text-xs font-semibold text-stone-700 hover:border-[#cbe0f2] hover:bg-[#edf4fa] hover:text-[#2c5478] cursor-pointer transition-colors shadow-2xs"
                                   >
-                                    Open in editor
+                                    Open
                                   </button>
                                   <button
                                     type="button"
@@ -1031,19 +1032,6 @@ export function AgentChatView({
                                   </>
                                 )}
                               </button>
-                              {msg.draftArtifact && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSideViewerDoc(msg.draftArtifact!);
-                                    setSideViewerOpen(true);
-                                  }}
-                                  className="inline-flex items-center gap-1.5 h-6 px-2 rounded text-[11px] font-medium text-[#2c5478] hover:bg-[#edf4fa] transition-colors cursor-pointer"
-                                >
-                                  <StreamlineFileTextIcon size={13} />
-                                  <span>Preview draft</span>
-                                </button>
-                              )}
                             </div>
                           </div>
                         )}

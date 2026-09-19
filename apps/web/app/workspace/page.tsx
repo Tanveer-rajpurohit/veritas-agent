@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, Suspense } from "react";
+import { useState, useCallback, Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppSidebar } from "../../components/workspace/app-sidebar";
 import { WorkspaceDashboard } from "../../components/workspace/workspace-dashboard";
@@ -15,14 +15,61 @@ import {
 import { SEED_MATTERS } from "../../lib/workspace-data";
 import type { Matter } from "../../types/workspace/types";
 import { PanelLeftIcon } from "../../components/workspace/workspace-icons";
+import { useMatters, useCreateMatter, useDeleteMatter } from "../../hooks/matters/useMatters";
+import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 
 function WorkspaceContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const matterIdParam = searchParams.get("matterId");
 
+  const { data: backendMatters } = useMatters();
+  const createMatterMutation = useCreateMatter();
+  const deleteMatterMutation = useDeleteMatter();
+  const setActiveMatterId = useWorkspaceStore((s) => s.setActiveMatterId);
+
   const [collapsed, setCollapsed] = useState<boolean>(false);
-  const [matters, setMatters] = useState<Matter[]>(SEED_MATTERS);
+  const [createdMatters, setCreatedMatters] = useState<Matter[]>([]);
+  const [deletedIds, setDeletedIds] = useState<string[]>([]);
+  const [updatedActivities, setUpdatedActivities] = useState<
+    Record<string, { lastActivity: string; updatedAt: number }>
+  >({});
+
+  const matters = useMemo<Matter[]>(() => {
+    const backendItems: Matter[] = (backendMatters || []).map((bm) => ({
+      id: bm.id,
+      name: bm.title,
+      caseNumber: bm.case_number || `MATTER-${bm.id.slice(0, 6).toUpperCase()}`,
+      court: bm.court || "National Company Law Tribunal",
+      stage: (bm.stage as Matter["stage"]) || "Drafting",
+      practiceArea: bm.matter_type || "Insolvency (IBC)",
+      lastActivity: `Updated ${new Date(bm.updated_at).toLocaleDateString()}`,
+      updatedAt: new Date(bm.updated_at).getTime(),
+      petitioner: "Petitioner Corp",
+      respondent: "Corporate Debtor",
+      matterType: (bm.matter_type as Matter["matterType"]) || "Insolvency (IBC)",
+      createdDate: new Date(bm.created_at).toLocaleDateString(),
+      health: "Healthy",
+    }));
+
+    const combined = [...createdMatters, ...backendItems, ...SEED_MATTERS];
+    const deletedSet = new Set(deletedIds);
+    const seen = new Set<string>();
+    return combined
+      .filter((m) => {
+        if (deletedSet.has(m.id)) return false;
+        if (seen.has(m.id)) return false;
+        seen.add(m.id);
+        return true;
+      })
+      .map((m) => {
+        const override = updatedActivities[m.id];
+        return override
+          ? { ...m, lastActivity: override.lastActivity, updatedAt: override.updatedAt }
+          : m;
+      });
+  }, [backendMatters, createdMatters, deletedIds, updatedActivities]);
+
   const [selectedMatter, setSelectedMatter] = useState<Matter | null>(() => {
     if (matterIdParam) {
       return SEED_MATTERS.find((m) => m.id === matterIdParam) || null;
@@ -45,20 +92,38 @@ function WorkspaceContent() {
     }
   }
 
-  const handleCreateMatter = useCallback((newMatter: Matter) => {
-    setMatters((prev) => [newMatter, ...prev]);
-    setCreateOpen(false);
-  }, []);
+  const handleCreateMatter = useCallback(
+    (newMatter: Matter) => {
+      setCreatedMatters((prev) => [newMatter, ...prev]);
+      setCreateOpen(false);
+      createMatterMutation.mutate({
+        title: newMatter.name,
+        case_number: newMatter.caseNumber,
+        court: newMatter.court,
+        matter_type: newMatter.matterType,
+        stage: newMatter.stage,
+      });
+    },
+    [createMatterMutation],
+  );
 
-  const handleDeleteMatter = useCallback((id: string) => {
-    setMatters((prev) => prev.filter((m) => m.id !== id));
-    setSelectedMatter((curr: Matter | null) => (curr?.id === id ? null : curr));
-  }, []);
+  const handleDeleteMatter = useCallback(
+    (id: string) => {
+      setDeletedIds((prev) => [...prev, id]);
+      setSelectedMatter((curr: Matter | null) => (curr?.id === id ? null : curr));
+      deleteMatterMutation.mutate(id);
+    },
+    [deleteMatterMutation],
+  );
 
-  const handleSelectMatter = useCallback((matter: Matter) => {
-    setSelectedMatter(matter);
-    setMobileNavOpen(false);
-  }, []);
+  const handleSelectMatter = useCallback(
+    (matter: Matter) => {
+      setSelectedMatter(matter);
+      setActiveMatterId(matter.id);
+      setMobileNavOpen(false);
+    },
+    [setActiveMatterId],
+  );
 
   const handleToggleSidebar = useCallback(() => {
     setCollapsed((prev) => !prev);
@@ -80,17 +145,14 @@ function WorkspaceContent() {
       file?: File | null;
     }) => {
       if (data.matterId) {
-        setMatters((prev) =>
-          prev.map((m) =>
-            m.id === data.matterId
-              ? {
-                  ...m,
-                  lastActivity: "Evidence uploaded just now",
-                  updatedAt: Date.now(),
-                }
-              : m,
-          ),
-        );
+        const now = Date.now();
+        setUpdatedActivities((prev) => ({
+          ...prev,
+          [data.matterId!]: {
+            lastActivity: "Evidence uploaded just now",
+            updatedAt: now,
+          },
+        }));
       }
       setUploadOpen(false);
     },
@@ -108,9 +170,10 @@ function WorkspaceContent() {
       setActiveNav(nav);
       if (nav === "home" || nav === "profile" || nav === "settings") {
         setSelectedMatter(null);
+        setActiveMatterId(null);
       }
     },
-    [router],
+    [router, setActiveMatterId],
   );
 
   const handleSendToAgent = useCallback(
@@ -158,7 +221,10 @@ function WorkspaceContent() {
         {selectedMatter ? (
           <MatterDetailView
             matter={selectedMatter}
-            onBack={() => setSelectedMatter(null)}
+            onBack={() => {
+              setSelectedMatter(null);
+              setActiveMatterId(null);
+            }}
             onSendToAgent={handleSendToAgent}
           />
         ) : activeNav === "profile" ? (

@@ -1072,3 +1072,7 @@ export function BellIcon({ size = 15, className = "" }: IconProps) {
     </svg>
   );
 }
+
+export { ColoredFileIcon } from "../ui/colored-file-icon";
+export type { ColoredFileIconProps, FileCategory, FileFormat, IconSize } from "../ui/colored-file-icon";
+
