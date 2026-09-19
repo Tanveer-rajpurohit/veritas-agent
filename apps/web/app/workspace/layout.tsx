@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { ProtectedRoute } from "../../components/auth/protected-route";
 
 export const metadata: Metadata = {
   title: "Matter Workspace",
@@ -12,5 +13,5 @@ export const metadata: Metadata = {
 };
 
 export default function WorkspaceLayout({ children }: { children: ReactNode }) {
-  return children;
+  return <ProtectedRoute>{children}</ProtectedRoute>;
 }

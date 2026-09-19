@@ -21,6 +21,8 @@ import {
   XIcon,
   AlertCircleIcon,
   ColoredFileIcon,
+  FileTextIcon,
+  FolderKanbanIcon,
 } from "./workspace-icons";
 import {
   useCreateDocument,
@@ -557,7 +559,33 @@ export function MatterDetailView({
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredDocs.map((doc) => (
+              {filteredDocs.length === 0 ? (
+                <div className="col-span-full flex min-h-64 flex-col items-center justify-center rounded-xl border border-dashed border-[#b9d1e5] bg-[#f8fbfe] px-6 py-10 text-center">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#cbe0f2] bg-white text-[#487aa8] shadow-2xs">
+                    <FolderKanbanIcon size={22} />
+                  </span>
+                  <h4 className="m-0 pt-4 text-sm font-semibold text-stone-900">
+                    {documents.length === 0
+                      ? "No source records yet"
+                      : "No records match these filters"}
+                  </h4>
+                  <p className="m-0 max-w-sm pt-1.5 text-xs leading-5 text-stone-500">
+                    {documents.length === 0
+                      ? "Upload the agreements, notices, orders, or evidence Veritas should use for this matter."
+                      : "Change the search or document type to see more records."}
+                  </p>
+                  {documents.length === 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setUploadModalOpen(true)}
+                      className="mt-5 inline-flex h-9 items-center gap-2 rounded-lg bg-[#487aa8] px-4 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[#3b668e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#487aa8] focus-visible:ring-offset-2"
+                    >
+                      <UploadIcon size={13} />
+                      Upload source
+                    </button>
+                  )}
+                </div>
+              ) : filteredDocs.map((doc) => (
                 <div
                   key={doc.id}
                   className="flex flex-col justify-between rounded-lg border border-stone-200 bg-white p-4 shadow-2xs hover:border-[#487aa8]/40 hover:shadow-xs transition-all"
@@ -657,7 +685,28 @@ export function MatterDetailView({
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {drafts.map((draft) => (
+              {drafts.length === 0 ? (
+                <div className="col-span-full flex min-h-64 flex-col items-center justify-center rounded-xl border border-dashed border-[#b9d1e5] bg-[#f8fbfe] px-6 py-10 text-center">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#cbe0f2] bg-white text-[#487aa8] shadow-2xs">
+                    <FileTextIcon size={22} />
+                  </span>
+                  <h4 className="m-0 pt-4 text-sm font-semibold text-stone-900">
+                    No drafts yet
+                  </h4>
+                  <p className="m-0 max-w-sm pt-1.5 text-xs leading-5 text-stone-500">
+                    Create the first working draft for this matter. Veritas will
+                    keep every later version in its history.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setDraftModalOpen(true)}
+                    className="mt-5 inline-flex h-9 items-center gap-2 rounded-lg bg-[#487aa8] px-4 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[#3b668e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#487aa8] focus-visible:ring-offset-2"
+                  >
+                    <PlusIcon size={13} />
+                    Create draft
+                  </button>
+                </div>
+              ) : drafts.map((draft) => (
                 <div
                   key={draft.id}
                   className="flex flex-col justify-between rounded-lg border border-stone-200 bg-white p-4 shadow-2xs hover:border-[#487aa8]/40 hover:shadow-xs transition-all"

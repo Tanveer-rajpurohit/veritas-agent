@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useAuth } from "../../hooks/auth/useAuth";
 import { validateRegisterForm } from "../../lib/validation/auth";
 import type { AuthFieldErrors } from "../../types/auth/types";
 import {
@@ -17,12 +18,12 @@ const linkClassName = "font-semibold text-[#487aa8] no-underline transition-colo
 
 export function RegisterForm() {
   const router = useRouter();
+  const { register, isRegistering, registerError } = useAuth();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fieldErrors, setFieldErrors] = useState<AuthFieldErrors>({});
-  const [pending, setPending] = useState(false);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -31,8 +32,12 @@ export function RegisterForm() {
     if (Object.keys(failures).length > 0) {
       return;
     }
-    setPending(true);
-    window.setTimeout(() => router.push("/"), 450);
+    try {
+      await register({ name: name.trim(), email: email.trim(), password });
+      router.replace("/workspace");
+    } catch {
+      return;
+    }
   }
 
   return (
@@ -87,7 +92,13 @@ export function RegisterForm() {
           required
         />
 
-        <AuthSubmit pending={pending} pendingLabel="Creating account…">
+        {registerError && (
+          <p role="alert" className="m-0 text-xs font-medium text-rose-700">
+            {registerError.message}
+          </p>
+        )}
+
+        <AuthSubmit pending={isRegistering} pendingLabel="Creating account…">
           Create account
         </AuthSubmit>
 
@@ -103,4 +114,3 @@ export function RegisterForm() {
     </div>
   );
 }
-

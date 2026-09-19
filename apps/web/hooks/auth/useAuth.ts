@@ -54,15 +54,21 @@ export function useAuth() {
 
   const loginMutation = useMutation<AuthTokens, Error, LoginRequest>({
     mutationFn: (payload) => authService.login(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.auth.me });
+    onSuccess: async () => {
+      await queryClient.fetchQuery({
+        queryKey: queryKeys.auth.me,
+        queryFn: () => authService.getMe(),
+      });
     },
   });
 
   const registerMutation = useMutation<AuthTokens, Error, RegisterRequest>({
     mutationFn: (payload) => authService.register(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.auth.me });
+    onSuccess: async () => {
+      await queryClient.fetchQuery({
+        queryKey: queryKeys.auth.me,
+        queryFn: () => authService.getMe(),
+      });
     },
   });
 

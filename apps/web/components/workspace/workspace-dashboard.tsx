@@ -3,6 +3,10 @@
 import type { Matter } from "../../types/workspace";
 import { ActionCards } from "./action-cards";
 import { MatterTable } from "./matter-table";
+import {
+  FolderKanbanIcon,
+  PlusIcon,
+} from "./workspace-icons";
 
 interface WorkspaceDashboardProps {
   matters: Matter[];
@@ -35,20 +39,46 @@ export function WorkspaceDashboard({
         </p>
       </header>
 
-      <div className="pb-7">
-        <ActionCards
-          onOpenCreateMatter={onOpenCreateMatter}
-          onOpenUpload={onOpenUpload}
-        />
-      </div>
-
-      <div>
-        <MatterTable
-          matters={matters}
-          onSelectMatter={onSelectMatter}
-          onDeleteMatter={onDeleteMatter}
-        />
-      </div>
+      {matters.length === 0 ? (
+        <section className="flex min-h-[420px] flex-1 items-center justify-center rounded-xl border border-dashed border-[#b9d1e5] bg-[#f8fbfe] px-6 py-14 text-center">
+          <div className="flex max-w-md flex-col items-center">
+            <span className="flex h-16 w-16 items-center justify-center rounded-2xl border border-[#cbe0f2] bg-white text-[#487aa8] shadow-sm">
+              <FolderKanbanIcon size={30} />
+            </span>
+            <h2 className="m-0 pt-5 font-display text-xl font-semibold text-stone-950">
+              Start your first matter
+            </h2>
+            <p className="m-0 max-w-sm pt-2 text-sm leading-6 text-stone-500">
+              Create a private matter workspace, then add the records Veritas
+              will use for drafting and verification.
+            </p>
+            <div className="pt-6">
+              <button
+                type="button"
+                onClick={onOpenCreateMatter}
+                className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#487aa8] px-4 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[#3b668e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#487aa8] focus-visible:ring-offset-2"
+              >
+                <PlusIcon size={14} />
+                Create matter
+              </button>
+            </div>
+          </div>
+        </section>
+      ) : (
+        <>
+          <div className="pb-7">
+            <ActionCards
+              onOpenCreateMatter={onOpenCreateMatter}
+              onOpenUpload={onOpenUpload}
+            />
+          </div>
+          <MatterTable
+            matters={matters}
+            onSelectMatter={onSelectMatter}
+            onDeleteMatter={onDeleteMatter}
+          />
+        </>
+      )}
     </div>
   );
 }
