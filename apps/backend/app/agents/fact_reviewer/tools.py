@@ -243,7 +243,7 @@ class FactReviewerToolHandlers:
         try:
             result = company_master_adapter.lookup_by_cin(cin)
             record = result["record"]
-            company_name = str(record.get("company_name") or record.get("companyname") or cin)
+            company_name = str(record.get("CompanyName") or cin)
             evidence_text = json.dumps(
                 {
                     "provider": result["provider"],

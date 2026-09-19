@@ -48,7 +48,7 @@ class CompanyMasterAdapter:
             "format": "json",
             "offset": 0,
             "limit": 2,
-            "filters[corporate_identification_number]": clean_cin,
+            "filters[CIN]": clean_cin,
         }
         try:
             with self._get_client() as client:
@@ -69,8 +69,7 @@ class CompanyMasterAdapter:
         exact_matches = [
             record
             for record in records
-            if isinstance(record, dict)
-            and str(record.get("corporate_identification_number") or "").upper() == clean_cin
+            if isinstance(record, dict) and str(record.get("CIN") or "").upper() == clean_cin
         ]
         if len(exact_matches) != 1:
             raise ValueError("Company registry did not return one exact CIN match")

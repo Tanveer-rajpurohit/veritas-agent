@@ -8,16 +8,16 @@ def test_company_master_lookup_returns_one_exact_cin() -> None:
     cin = "U12345DL2020PTC123456"
 
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.params["filters[corporate_identification_number]"] == cin
+        assert request.url.params["filters[CIN]"] == cin
         return httpx.Response(
             200,
             json={
                 "updated_date": "2026-07-22",
                 "records": [
                     {
-                        "corporate_identification_number": cin,
-                        "company_name": "Example Private Limited",
-                        "company_status": "Active",
+                        "CIN": cin,
+                        "CompanyName": "Example Private Limited",
+                        "CompanyStatus": "Active",
                     }
                 ],
             },
@@ -30,7 +30,7 @@ def test_company_master_lookup_returns_one_exact_cin() -> None:
     result = CompanyMasterAdapter(client=client).lookup_by_cin(cin.lower())
 
     assert result["cin"] == cin
-    assert result["record"]["company_status"] == "Active"
+    assert result["record"]["CompanyStatus"] == "Active"
     assert result["updated_date"] == "2026-07-22"
 
 
