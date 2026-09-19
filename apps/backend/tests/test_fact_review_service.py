@@ -179,7 +179,16 @@ def test_fact_review_blocks_unsafe_fix_in_apply_safe_fixes() -> None:
         id=uuid4(),
         draft_id=draft.id,
         version_no=1,
-        content_json={"type": "doc", "content": [{"type": "paragraph", "attrs": {"id": "p1"}, "content": [{"type": "text", "text": "Debt ₹4.85 crore"}]}]},
+        content_json={
+            "type": "doc",
+            "content": [
+                {
+                    "type": "paragraph",
+                    "attrs": {"id": "p1"},
+                    "content": [{"type": "text", "text": "Debt ₹4.85 crore"}],
+                }
+            ],
+        },
         content_sha256="sha",
     )
     db.add(doc_ver)
@@ -205,7 +214,9 @@ def test_fact_review_applies_unambiguous_safe_fix() -> None:
     db.add_all([user, matter, MatterMember(matter_id=matter.id, user_id=user.id, role="owner")])
     db.flush()
 
-    _create_test_source(db, matter.id, "Facility Agreement", "Sanctioned facility amount is ₹4.85 crore.")
+    _create_test_source(
+        db, matter.id, "Facility Agreement", "Sanctioned facility amount is ₹4.85 crore."
+    )
 
     # Draft contains clear typo: ₹4.58 crore
     draft = Draft(id=uuid4(), matter_id=matter.id, title="Typo Draft")
@@ -215,7 +226,16 @@ def test_fact_review_applies_unambiguous_safe_fix() -> None:
         id=uuid4(),
         draft_id=draft.id,
         version_no=1,
-        content_json={"type": "doc", "content": [{"type": "paragraph", "attrs": {"id": "p1"}, "content": [{"type": "text", "text": "Debt ₹4.58 crore."}]}]},
+        content_json={
+            "type": "doc",
+            "content": [
+                {
+                    "type": "paragraph",
+                    "attrs": {"id": "p1"},
+                    "content": [{"type": "text", "text": "Debt ₹4.58 crore."}],
+                }
+            ],
+        },
         content_sha256="sha-1",
     )
     db.add(doc_ver)

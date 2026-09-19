@@ -186,10 +186,13 @@ class DraftService:
             elif op.type == "replace_block":
                 replaced = False
                 for idx, existing in enumerate(content_blocks):
-                    if (
-                        isinstance(existing, dict)
-                        and existing.get("attrs", {}).get("position") == op.position
-                    ):
+                    attrs = existing.get("attrs", {}) if isinstance(existing, dict) else {}
+                    if attrs.get("position") == op.position or attrs.get("id") == op.position:
+                        block["attrs"] = {
+                            **attrs,
+                            "position": op.position,
+                            "evidence_span_ids": [str(sid) for sid in op.evidence_span_ids],
+                        }
                         content_blocks[idx] = block
                         replaced = True
                         break

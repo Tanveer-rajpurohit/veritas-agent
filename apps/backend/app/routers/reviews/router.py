@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -15,7 +15,12 @@ from app.models.reviews import Finding, FindingEvidence, FindingResolution
 from app.models.sources import EvidenceSpan, SourcePage
 from app.repositories.drafts.draft_repository import draft_repository
 from app.repositories.matters import MatterRepository
+from app.schemas.agents.fact_reviewer import (
+    FactReviewRunRequest,
+    FactReviewRunResponse,
+)
 from app.services.reviews.checks import check_version
+from app.services.reviews.fact_review_service import fact_review_service
 
 router = APIRouter(prefix="/api/v1", tags=["Review"])
 DbSession = Annotated[Session, Depends(get_db)]
@@ -32,6 +37,7 @@ class FindingEvidenceResponse(BaseModel):
 
 class FindingResponse(BaseModel):
     id: UUID
+    claim_id: UUID | None = None
     document_version_id: UUID
     block_index: int
     claim_text: str
@@ -87,6 +93,7 @@ def _response(db: Session, finding: Finding) -> FindingResponse:
     ]
     return FindingResponse(
         id=finding.id,
+        claim_id=finding.claim_id,
         document_version_id=finding.document_version_id,
         block_index=finding.block_index,
         claim_text=finding.claim_text,
@@ -103,25 +110,65 @@ def _response(db: Session, finding: Finding) -> FindingResponse:
     )
 
 
-@router.post("/document-versions/{version_id}/checks", response_model=list[FindingResponse])
-def run_checks(version_id: UUID, db: DbSession, user: CurrentUser) -> list[FindingResponse]:
+@router.post(
+    "/document-versions/{version_id}/checks",
+    response_model=FactReviewRunResponse | list[FindingResponse],
+)
+def run_checks(
+    version_id: UUID,
+    db: DbSession,
+    user: CurrentUser,
+    payload: FactReviewRunRequest | None = None,
+    idempotency_key: Annotated[str | None, Header(min_length=1, max_length=128)] = None,
+) -> FactReviewRunResponse | list[FindingResponse]:
     version = _owned_version(db, version_id, user.id)
     draft = draft_repository.get_draft_by_id(db, version.draft_id)
+    if draft is None:
+        raise HTTPException(status_code=404, detail="Draft not found")
+
     latest = draft_repository.get_latest_version(db, draft.id)
     if latest.id != version.id:
         raise HTTPException(status_code=409, detail="Checks require the current version")
+
+    if payload is not None and "fact" in payload.checks:
+        return fact_review_service.run(
+            db=db,
+            version_id=version.id,
+            user_id=user.id,
+            request=payload,
+            idempotency_key=idempotency_key,
+        )
+
+    if payload is not None and "fact" not in payload.checks and "citation" in payload.checks:
+        findings = check_version(db, version, draft.matter_id)
+        return [_response(db, finding) for finding in findings]
+
     findings = check_version(db, version, draft.matter_id)
     return [_response(db, finding) for finding in findings]
 
 
 @router.get("/document-versions/{version_id}/findings", response_model=list[FindingResponse])
-def list_findings(version_id: UUID, db: DbSession, user: CurrentUser) -> list[FindingResponse]:
+def list_findings(
+    version_id: UUID,
+    db: DbSession,
+    user: CurrentUser,
+    dimension: Annotated[str | None, Query()] = None,
+    status: Annotated[str | None, Query()] = None,
+    is_stale: Annotated[bool | None, Query()] = None,
+) -> list[FindingResponse]:
     _owned_version(db, version_id, user.id)
-    findings = db.scalars(
-        select(Finding)
-        .where(Finding.document_version_id == version_id)
-        .order_by(Finding.checked_at.desc())
-    ).all()
+    query = select(Finding).where(Finding.document_version_id == version_id)
+    if dimension:
+        query = query.where(Finding.dimension == dimension)
+    if status:
+        query = query.where(Finding.status == status)
+    if is_stale is not None:
+        if is_stale:
+            query = query.where(Finding.stale_at.is_not(None))
+        else:
+            query = query.where(Finding.stale_at.is_(None))
+
+    findings = db.scalars(query.order_by(Finding.checked_at.desc())).all()
     return [_response(db, finding) for finding in findings]
 
 

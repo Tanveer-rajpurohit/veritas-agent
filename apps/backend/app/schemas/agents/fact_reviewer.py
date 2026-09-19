@@ -67,7 +67,9 @@ class FactReviewerResult(BaseModel):
     findings: list[ProposedFactFinding] = Field(default_factory=list, max_length=100)
     unchecked_claim_ids: list[UUID] = Field(default_factory=list, max_length=100)
     run_limitations: list[str] = Field(default_factory=list, max_length=10)
-    correction_candidates: list[FactCorrectionCandidate] = Field(default_factory=list, max_length=50)
+    correction_candidates: list[FactCorrectionCandidate] = Field(
+        default_factory=list, max_length=50
+    )
 
 
 class FactReviewRunRequest(BaseModel):

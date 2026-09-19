@@ -40,7 +40,9 @@ class ClaimExtractor:
                 text_parts.append(child.get("text", ""))
                 for mark in child.get("marks", []):
                     if mark.get("type") == "citation":
-                        citations.append((child.get("text", ""), mark.get("attrs", {}).get("quote")))
+                        citations.append(
+                            (child.get("text", ""), mark.get("attrs", {}).get("quote"))
+                        )
             elif child_type == "citationRef":
                 attrs = child.get("attrs", {})
                 display = attrs.get("display", "")
@@ -175,7 +177,18 @@ class ClaimExtractor:
                 unit = match.group("unit").lower()
                 num = match.group("num")
                 act_raw = match.group("act")
-                act_key = "constitution" if act_raw and "constitution" in act_raw.lower() else "ibc"
+                if act_raw and "constitution" in act_raw.lower():
+                    act_key = "constitution"
+                elif act_raw and ("insolvency" in act_raw.lower() or act_raw.lower() == "ibc"):
+                    act_key = "ibc"
+                elif act_raw and "companies" in act_raw.lower():
+                    act_key = "companies_act"
+                elif unit == "article":
+                    act_key = "constitution"
+                else:
+                    # A bare section/rule has no trustworthy Act identity. Keep it as an
+                    # ordinary proposition instead of silently looking up the IBC.
+                    continue
 
                 norm = NormalizedFact(
                     kind="legal_text",

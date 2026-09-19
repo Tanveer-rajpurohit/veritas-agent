@@ -65,17 +65,13 @@ def test_checks_endpoint_requires_auth() -> None:
     assert resp.status_code == 401
 
 
-def test_checks_endpoint_rejects_nonexistent_version(
-    auth_client: tuple[TestClient, User]
-) -> None:
+def test_checks_endpoint_rejects_nonexistent_version(auth_client: tuple[TestClient, User]) -> None:
     client, _ = auth_client
     resp = client.post(f"/api/v1/document-versions/{uuid4()}/checks")
     assert resp.status_code == 404
 
 
-def test_checks_endpoint_synthetic_conflict_api_flow(
-    auth_client: tuple[TestClient, User]
-) -> None:
+def test_checks_endpoint_synthetic_conflict_api_flow(auth_client: tuple[TestClient, User]) -> None:
     client, user = auth_client
     db = TestingSessionLocal()
 

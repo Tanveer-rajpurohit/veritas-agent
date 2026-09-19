@@ -59,10 +59,13 @@ class FactReviewerToolHandlers:
         self._record_tool_call()
         req_version_id = UUID(document_version_id)
         if req_version_id != self._document_version_id:
-            raise ValueError("Requested document_version_id does not match the active review target")
+            raise ValueError(
+                "Requested document_version_id does not match the active review target"
+            )
 
         filtered = [
-            c for c in self._claims
+            c
+            for c in self._claims
             if not block_ids or c.block_id in block_ids or str(c.block_index) in block_ids
         ]
         return {
@@ -138,7 +141,9 @@ class FactReviewerToolHandlers:
         self._record_tool_call()
         req_version_id = UUID(document_version_id)
         if req_version_id != self._document_version_id:
-            raise ValueError("Requested document_version_id does not match the active review target")
+            raise ValueError(
+                "Requested document_version_id does not match the active review target"
+            )
 
         if len(findings) > 100:
             raise ValueError("A single submission cannot exceed 100 findings")
@@ -304,7 +309,9 @@ class FactReviewerToolHandlers:
     ) -> dict[str, object]:
         self._record_tool_call()
         try:
-            raw_prov = ecourts_adapter.get_provision(act_key=act_key, provision=provision, unit=unit)
+            raw_prov = ecourts_adapter.get_provision(
+                act_key=act_key, provision=provision, unit=unit
+            )
             span, source, version = legal_materializer.materialize_legal_text(
                 db=self._db,
                 title=f"{raw_prov['act_title']} - {unit.capitalize()} {provision}",
@@ -324,10 +331,10 @@ class FactReviewerToolHandlers:
                 "text": raw_prov["text"],
                 "official_url": raw_prov.get("official_source_url"),
             }
-        except Exception as exc:
+        except Exception:
             return {
                 "status": "unavailable",
-                "error": str(exc),
+                "message": "The live legal-text provider could not confirm this provision.",
             }
 
 
@@ -398,7 +405,9 @@ def create_fact_reviewer_tools(
         idempotency_key: str,
     ) -> dict[str, object]:
         """Request bounded safe corrections against the document, delegating mutations to Writer."""
-        return handlers.request_fact_fix(document_version_id, correction_candidate_ids, idempotency_key)
+        return handlers.request_fact_fix(
+            document_version_id, correction_candidate_ids, idempotency_key
+        )
 
     @tool(name="lookup_legal_fact")
     def lookup_legal_fact(

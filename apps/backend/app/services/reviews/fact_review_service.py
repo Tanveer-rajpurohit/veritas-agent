@@ -48,9 +48,7 @@ class FactReviewService:
             raise HTTPException(status_code=404, detail="Version not found")
         return version, draft.matter_id
 
-    def _persist_claims(
-        self, db: Session, claims: list[FactClaim]
-    ) -> list[Claim]:
+    def _persist_claims(self, db: Session, claims: list[FactClaim]) -> list[Claim]:
         persisted_claims: list[Claim] = []
         for c in claims:
             existing = db.scalar(
@@ -85,7 +83,9 @@ class FactReviewService:
 
     def _index_matter_evidence(
         self, db: Session, matter_id: UUID
-    ) -> tuple[dict[Decimal, list[tuple[UUID, EvidenceSpan, str]]], list[tuple[UUID, EvidenceSpan, str]]]:
+    ) -> tuple[
+        dict[Decimal, list[tuple[UUID, EvidenceSpan, str]]], list[tuple[UUID, EvidenceSpan, str]]
+    ]:
         sources = db.scalars(select(Source).where(Source.matter_id == matter_id)).all()
         evidence_by_amount: dict[Decimal, list[tuple[UUID, EvidenceSpan, str]]] = {}
         all_spans: list[tuple[UUID, EvidenceSpan, str]] = []
@@ -143,10 +143,15 @@ class FactReviewService:
         if latest_version.id != version.id:
             raise HTTPException(status_code=409, detail="Checks require the current version")
 
-        # Mark non-stale findings on this version stale
+        # Replace only this reviewer's earlier fact results. Citation and other review
+        # dimensions remain valid until their own checker reruns or the draft changes.
         db.execute(
             update(Finding)
-            .where(Finding.document_version_id == version.id, Finding.stale_at.is_(None))
+            .where(
+                Finding.document_version_id == version.id,
+                Finding.dimension.in_(("fact_consistency", "identity")),
+                Finding.stale_at.is_(None),
+            )
             .values(status="stale", stale_at=datetime.now(UTC))
         )
         db.flush()
@@ -158,7 +163,15 @@ class FactReviewService:
             block_ids=request.block_ids,
         )
         persisted_claims = self._persist_claims(db, fact_claims)
-        claim_model_map = {c.id: c for c in persisted_claims}
+        persisted_by_location = {
+            (c.block_index, c.from_offset, c.to_offset, c.claim_sha256): c for c in persisted_claims
+        }
+        for claim in fact_claims:
+            stored = persisted_by_location[
+                (claim.block_index, claim.from_offset, claim.to_offset, claim.claim_sha256)
+            ]
+            claim.id = stored.id
+        claim_model_map = {c.id: c for c in fact_claims}
 
         evidence_by_amount, all_matter_spans = self._index_matter_evidence(db, matter_id)
 
@@ -178,7 +191,9 @@ class FactReviewService:
                         distinct_sources_by_amount[amt] = {t[0] for t in tuples}
 
                     all_distinct_sources = {
-                        s_id for sources_set in distinct_sources_by_amount.values() for s_id in sources_set
+                        s_id
+                        for sources_set in distinct_sources_by_amount.values()
+                        for s_id in sources_set
                     }
 
                     # Multi-source conflict condition: multiple distinct sources reporting conflicting amounts
@@ -282,7 +297,9 @@ class FactReviewService:
                         tuples = evidence_by_amount[single_val]
                         canonical_rep = f"₹{single_val:,.2f}".rstrip("0").rstrip(".")
                         reason = f"Draft amount differs from client record amount {canonical_rep}"
-                        limitations = ["Client records are evidence of what a record says; not proof of underlying real-world fact."]
+                        limitations = [
+                            "Client records are evidence of what a record says; not proof of underlying real-world fact."
+                        ]
 
                         finding = Finding(
                             claim_id=claim_id,
@@ -333,7 +350,9 @@ class FactReviewService:
                             status="unresolved",
                             method="retrieval",
                             reason="No matching client records found in this Matter for this amount",
-                            limitations=["This check does not establish whether the underlying debt exists."],
+                            limitations=[
+                                "This check does not establish whether the underlying debt exists."
+                            ],
                             checked_at=datetime.now(UTC),
                             stale_at=None,
                         )
@@ -348,13 +367,16 @@ class FactReviewService:
                 provision = str(meta.get("provision", "7"))
 
                 try:
-                    raw_prov = ecourts_adapter.get_provision(act_key=act_key, provision=provision, unit=unit)
+                    raw_prov = ecourts_adapter.get_provision(
+                        act_key=act_key, provision=provision, unit=unit
+                    )
                     span, source, v_rec = legal_materializer.materialize_legal_text(
                         db=db,
                         title=f"{raw_prov['act_title']} - {unit.capitalize()} {provision}",
                         text=raw_prov["text"],
                         source_type="statute",
-                        official_url=raw_prov.get("official_source_url") or raw_prov.get("provider_url"),
+                        official_url=raw_prov.get("official_source_url")
+                        or raw_prov.get("provider_url"),
                         heading_path=[f"{unit.capitalize()} {provision}"],
                     )
                     finding = Finding(
@@ -569,19 +591,37 @@ class FactReviewService:
 
             if safe_candidates:
                 operations: list[DocumentOperation] = []
+                blocks = version.content_json.get("content", [])
                 for cand in safe_candidates:
                     claim_obj = claim_model_map.get(cand.claim_id)
-                    pos = claim_obj.block_id or str(claim_obj.block_index) if claim_obj else "0"
+                    if claim_obj is None or claim_obj.block_index >= len(blocks):
+                        blocked_correction_ids.append(cand.candidate_id)
+                        continue
+                    block = blocks[claim_obj.block_index]
+                    original_text, _ = claim_extractor._extract_text_and_citations(block)
+                    if original_text[claim_obj.from_offset : claim_obj.to_offset] != claim_obj.text:
+                        blocked_correction_ids.append(cand.candidate_id)
+                        continue
+                    replacement_block = (
+                        original_text[: claim_obj.from_offset]
+                        + cand.replacement_text
+                        + original_text[claim_obj.to_offset :]
+                    )
+                    pos = claim_obj.block_id or str(claim_obj.block_index)
                     operations.append(
                         DocumentOperation(
                             type="replace_block",
                             position=pos,
-                            text=cand.replacement_text,
+                            text=replacement_block,
                             evidence_span_ids=cand.evidence_span_ids,
                         )
                     )
                     applied_correction_ids.append(cand.candidate_id)
 
+                if not operations:
+                    safe_candidates = []
+
+            if safe_candidates:
                 new_version = draft_service.propose_document_ops(
                     db=db,
                     matter_id=matter_id,
@@ -618,10 +658,18 @@ class FactReviewService:
                     applied_correction_ids=applied_correction_ids,
                     blocked_correction_ids=blocked_correction_ids,
                     summary={
-                        "supported": sum(1 for f in recheck_response.findings if f.status == "supported"),
-                        "contradicted": sum(1 for f in recheck_response.findings if f.status == "contradicted"),
-                        "unresolved": sum(1 for f in recheck_response.findings if f.status == "unresolved"),
-                        "needs_review": sum(1 for f in recheck_response.findings if f.status == "needs_review"),
+                        "supported": sum(
+                            1 for f in recheck_response.findings if f.status == "supported"
+                        ),
+                        "contradicted": sum(
+                            1 for f in recheck_response.findings if f.status == "contradicted"
+                        ),
+                        "unresolved": sum(
+                            1 for f in recheck_response.findings if f.status == "unresolved"
+                        ),
+                        "needs_review": sum(
+                            1 for f in recheck_response.findings if f.status == "needs_review"
+                        ),
                     },
                 )
 
