@@ -24,9 +24,26 @@ test_engine = create_engine(
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
 
+class MemoryObjectStore:
+    def __init__(self) -> None:
+        self.objects: dict[str, bytes] = {}
+
+    def put(self, key: str, content: bytes, content_type: str) -> None:
+        self.objects[key] = content
+
+    def get(self, key: str) -> bytes:
+        return self.objects[key]
+
+    def delete(self, key: str) -> None:
+        self.objects.pop(key, None)
+
+
 @pytest.fixture(autouse=True)
-def setup_test_db() -> Generator[None, None, None]:
+def setup_test_db(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
     Base.metadata.create_all(bind=test_engine)
+    object_store = MemoryObjectStore()
+    monkeypatch.setattr(storage_service, "store", object_store)
+    monkeypatch.setattr(export_storage, "store", object_store)
 
     def override_get_db() -> Generator[Session, None, None]:
         db = TestingSessionLocal()
@@ -86,9 +103,8 @@ def test_matter_isolation(client: TestClient) -> None:
 
 
 def test_upload_and_page_are_matter_scoped(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch, tmp_path
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(storage_service, "base_path", tmp_path)
     monkeypatch.setattr(
         embedding_service,
         "embed_chunks",
@@ -121,9 +137,8 @@ def test_upload_and_page_are_matter_scoped(
 
 
 def test_document_save_is_versioned_idempotent_and_scoped(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch, tmp_path
+    client: TestClient,
 ) -> None:
-    monkeypatch.setattr(export_storage, "base_path", tmp_path)
     matter_id = client.post("/api/v1/matters/", json={"title": "Drafting"}).json()["id"]
     created = client.post(f"/api/v1/matters/{matter_id}/documents", json={"title": "Working brief"})
     assert created.status_code == 201, created.text
@@ -301,9 +316,8 @@ def test_delete_matter_not_found(client: TestClient) -> None:
 
 
 def test_conflicting_records_create_stale_findings_after_edit(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch, tmp_path
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(storage_service, "base_path", tmp_path)
     monkeypatch.setattr(
         embedding_service, "embed_chunks", lambda texts: [[0.1] * 384 for _ in texts]
     )
