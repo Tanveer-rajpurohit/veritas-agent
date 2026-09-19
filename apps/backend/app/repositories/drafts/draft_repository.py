@@ -30,6 +30,50 @@ class DraftRepository:
             query = query.filter(Draft.matter_id == matter_id)
         return query.first()
 
+    def list_drafts_by_matter(
+        self,
+        db: Session,
+        matter_id: UUID,
+    ) -> list[Draft]:
+        return (
+            db.query(Draft)
+            .filter(Draft.matter_id == matter_id)
+            .order_by(Draft.created_at.desc())
+            .all()
+        )
+
+    def list_versions_by_draft(
+        self,
+        db: Session,
+        draft_id: UUID,
+    ) -> list[DocumentVersion]:
+        return (
+            db.query(DocumentVersion)
+            .filter(DocumentVersion.draft_id == draft_id)
+            .order_by(DocumentVersion.version_no.desc())
+            .all()
+        )
+
+    def update_draft_title(
+        self,
+        db: Session,
+        draft: Draft,
+        title: str,
+    ) -> Draft:
+        draft.title = title
+        db.add(draft)
+        db.commit()
+        db.refresh(draft)
+        return draft
+
+    def delete_draft(
+        self,
+        db: Session,
+        draft: Draft,
+    ) -> None:
+        db.delete(draft)
+        db.commit()
+
     def get_version_by_id(
         self,
         db: Session,

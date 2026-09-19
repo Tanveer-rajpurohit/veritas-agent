@@ -25,6 +25,11 @@ class CreateDocument(BaseModel):
     title: str = Field(min_length=1, max_length=255)
 
 
+class UpdateDocument(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    title: str = Field(min_length=1, max_length=255)
+
+
 class SaveVersion(BaseModel):
     model_config = ConfigDict(extra="forbid")
     base_version_id: UUID
@@ -179,6 +184,30 @@ def create_document(
     )
 
 
+@router.get("/matters/{matter_id}/documents", response_model=list[DocumentResponse])
+def list_documents(
+    matter_id: UUID, db: DbSession, user: CurrentUser
+) -> list[DocumentResponse]:
+    if MatterRepository(db).get_by_id(matter_id, user.id) is None:
+        raise HTTPException(status_code=404, detail="Matter not found")
+    drafts = draft_repository.list_drafts_by_matter(db, matter_id)
+    responses: list[DocumentResponse] = []
+    for draft in drafts:
+        version = draft_repository.get_latest_version(db, draft.id)
+        if version is not None:
+            responses.append(
+                DocumentResponse(
+                    id=draft.id,
+                    matter_id=draft.matter_id,
+                    title=draft.title,
+                    current_version_id=version.id,
+                    version_no=version.version_no,
+                    content=version.content_json,
+                )
+            )
+    return responses
+
+
 @router.get("/documents/{document_id}", response_model=DocumentResponse)
 def get_document(document_id: UUID, db: DbSession, user: CurrentUser) -> DocumentResponse:
     draft = _owned_draft(db, document_id, user.id)
@@ -200,6 +229,45 @@ def get_document_version(version_id: UUID, db: DbSession, user: CurrentUser) -> 
         raise HTTPException(status_code=404, detail="Version not found")
     _owned_draft(db, version.draft_id, user.id)
     return _version_response(version)
+
+
+@router.patch("/documents/{document_id}", response_model=DocumentResponse)
+def update_document(
+    document_id: UUID, payload: UpdateDocument, db: DbSession, user: CurrentUser
+) -> DocumentResponse:
+    draft = _owned_draft(db, document_id, user.id)
+    clean_title = payload.title.strip()
+    if not clean_title:
+        raise HTTPException(status_code=422, detail="Title cannot be empty")
+    draft = draft_repository.update_draft_title(db, draft, clean_title)
+    version = draft_repository.get_latest_version(db, draft.id)
+    if version is None:
+        raise HTTPException(status_code=404, detail="Version not found")
+    return DocumentResponse(
+        id=draft.id,
+        matter_id=draft.matter_id,
+        title=draft.title,
+        current_version_id=version.id,
+        version_no=version.version_no,
+        content=version.content_json,
+    )
+
+
+@router.delete("/documents/{document_id}", status_code=204)
+def delete_document(
+    document_id: UUID, db: DbSession, user: CurrentUser
+) -> None:
+    draft = _owned_draft(db, document_id, user.id)
+    draft_repository.delete_draft(db, draft)
+
+
+@router.get("/documents/{document_id}/versions", response_model=list[VersionResponse])
+def list_document_versions(
+    document_id: UUID, db: DbSession, user: CurrentUser
+) -> list[VersionResponse]:
+    _owned_draft(db, document_id, user.id)
+    versions = draft_repository.list_versions_by_draft(db, document_id)
+    return [_version_response(v) for v in versions]
 
 
 @router.post("/documents/{document_id}/versions", response_model=VersionResponse, status_code=201)
