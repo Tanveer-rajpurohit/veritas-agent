@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     AWS_ACCESS_KEY_ID: str = ""
     AWS_SECRET_ACCESS_KEY: str = ""
     AWS_BEDROCK_MODEL_ID: str = "amazon.nova-lite-v1:0"
+    BUCKET_NAME: str = "s3-bucket-tanveer-2026"
 
     DATABASE_URL: str = "postgresql+psycopg://veritas:veritas_password@localhost:5432/veritas"
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -55,6 +56,13 @@ class Settings(BaseSettings):
     DATA_GOV_IN_API_KEY: str = ""
     DATA_GOV_IN_BASE_URL: str = "https://api.data.gov.in"
     MCA_COMPANY_MASTER_RESOURCE_ID: str = "4dbe5667-7b6b-41d7-82af-211562424d9a"
+
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = "noreply@veritaslegal.in"
+    SMTP_FROM_NAME: str = "Chambers of Veritas"
 
     @field_validator("ALLOWED_ORIGINS", mode="before")
     @classmethod
