@@ -186,33 +186,33 @@ async def forgot_password(
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Reset your Veritas Legal password</title>
 </head>
-<body style="margin: 0; padding: 40px 20px; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; line-height: 1.6; -webkit-font-smoothing: antialiased;">
-  <div style="max-width: 520px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 36px 32px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-    <div style="margin-bottom: 28px; border-bottom: 2px solid #0f172a; padding-bottom: 16px;">
-      <span style="font-family: Georgia, 'Times New Roman', serif; font-size: 24px; font-weight: 700; letter-spacing: -0.5px; color: #0f172a;">
-        VERITAS <span style="font-weight: 400; font-size: 15px; color: #c8963e; letter-spacing: 2px; text-transform: uppercase; margin-left: 6px;">Legal Drafting</span>
-      </span>
+<body style="margin: 0; padding: 48px 24px; background-color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1c1917; line-height: 1.6; -webkit-font-smoothing: antialiased;">
+  <div style="max-width: 560px; margin: 0 auto;">
+    <div style="padding-bottom: 16px; border-bottom: 2px solid #1c1917; margin-bottom: 32px;">
+      <span style="font-family: Georgia, 'Times New Roman', serif; font-size: 24px; font-weight: 700; letter-spacing: -0.4px; color: #1c1917;">VERITAS</span>
+      <span style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 11px; font-weight: 600; color: #b45309; letter-spacing: 1.5px; text-transform: uppercase; margin-left: 10px; padding: 2px 6px; background-color: #fef3c7; border-radius: 3px;">LEGAL INTELLIGENCE</span>
     </div>
 
-    <p style="margin: 0 0 16px; font-size: 16px; font-weight: 600; color: #0f172a;">
-      Password Reset Request
-    </p>
-    <p style="margin: 0 0 16px; font-size: 14px; color: #334155; line-height: 1.6;">
-      We received a request to reset the password for your Veritas account (<strong>{email_clean}</strong>). Use the verification code below to complete your password reset:
+    <h1 style="margin: 0 0 14px; font-family: Georgia, 'Times New Roman', serif; font-size: 22px; font-weight: 600; color: #1c1917; line-height: 1.3;">
+      Security Verification
+    </h1>
+    <p style="margin: 0 0 20px; font-size: 15px; color: #44403c; line-height: 1.6;">
+      You requested a password reset for your Veritas workspace account associated with <strong style="color: #1c1917;">{email_clean}</strong>. Enter the single-use verification code below to authorize the credential update:
     </p>
 
-    <div style="margin: 28px 0; text-align: center; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 20px;">
-      <span style="display: inline-block; font-size: 34px; font-weight: 700; letter-spacing: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: #0f172a;">
+    <div style="margin: 28px 0; padding: 20px 0; border-top: 1px dashed #d6d3d1; border-bottom: 1px dashed #d6d3d1;">
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: #78716c; margin-bottom: 8px;">Single-Use Authorization Code</div>
+      <div style="font-size: 38px; font-weight: 700; letter-spacing: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: #1c1917;">
         {code}
-      </span>
+      </div>
     </div>
 
-    <p style="margin: 0 0 16px; font-size: 13px; color: #64748b; line-height: 1.5;">
-      This security verification code is valid for <strong>10 minutes</strong>. If you did not initiate this request, please disregard this email or contact your firm administrator immediately.
+    <p style="margin: 0 0 16px; font-size: 13.5px; color: #57534e; line-height: 1.6;">
+      This verification code is valid for <strong style="color: #b45309;">10 minutes</strong>. If you did not initiate this request, your credentials remain secure and no further action is required.
     </p>
 
-    <div style="margin-top: 36px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8;">
-      Chambers of Veritas · Evidence-first legal drafting and verification workspace.
+    <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e7e5e4; font-size: 12px; color: #a8a29e; line-height: 1.5;">
+      Chambers of Veritas &middot; Evidence-First Legal Drafting and Verification Workspace &middot; Confidential
     </div>
   </div>
 </body>

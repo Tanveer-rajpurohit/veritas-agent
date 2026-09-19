@@ -1,6 +1,13 @@
 import { fetchClient } from "../fetch";
 import { cookieStorage } from "../cookie";
-import type { LoginRequest, RegisterRequest } from "../../types/auth/types";
+import type {
+  ForgotPasswordPayload,
+  LoginRequest,
+  RegisterRequest,
+  ResetPasswordPayload,
+  UpdateProfilePayload,
+  UserProfile,
+} from "../../types/auth/types";
 import type { AuthTokens } from "../../types/api/type";
 
 interface BackendAuthResponse {
@@ -41,6 +48,26 @@ export const authService = {
     };
     cookieStorage.setAuthToken(tokens.accessToken);
     return tokens;
+  },
+
+  getMe(): Promise<UserProfile> {
+    return fetchClient.get<UserProfile>("/auth/me");
+  },
+
+  updateProfile(payload: UpdateProfilePayload): Promise<UserProfile> {
+    return fetchClient.patch<UserProfile>("/auth/me", payload);
+  },
+
+  forgotPassword(payload: ForgotPasswordPayload): Promise<{ message: string }> {
+    return fetchClient.post<{ message: string }>("/auth/forgot-password", payload, {
+      skipAuth: true,
+    });
+  },
+
+  resetPassword(payload: ResetPasswordPayload): Promise<{ message: string }> {
+    return fetchClient.post<{ message: string }>("/auth/reset-password", payload, {
+      skipAuth: true,
+    });
   },
 
   logout(): void {
