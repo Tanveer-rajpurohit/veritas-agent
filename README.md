@@ -69,6 +69,9 @@ The backend also participates in the Turborepo development command, so `pnpm dev
 
 Start with [the build-plan index](docs/build%20plan/README.md), then read the [master specification](docs/build%20plan/veritas-master-doc.md), [MVP plan](docs/build%20plan/mvp.md), and [AI implementation brief](docs/build%20plan/main.md).
 
+For the agent code that is running now, including every tool and provider mapping, read the
+[current agent runtime](docs/current-agent-runtime.md).
+
 ## Hackathon scope
 
 The target demo is one English IBC matter, two synthetic records containing a deliberate factual conflict, one editable brief, citation and fact findings linked to exact evidence, stale-on-edit behavior, and draft PDF/JSON export. The planned submission track is AWS Build It with Best UI consideration.

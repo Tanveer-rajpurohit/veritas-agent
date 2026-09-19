@@ -1,5 +1,13 @@
 # Data and source catalog
 
+## Runtime status: 19 September 2026
+
+See [current-agent-runtime.md](../current-agent-runtime.md) for the exact agent-to-tool mapping.
+PostgreSQL Matter evidence, the curated template registry, live eCourtsIndia statute lookup and
+discovery, and authenticated Indian Kanoon case search/full text are connected. The IBBI registry
+tool currently reports `unavailable`; official court PDF retrieval, InIRAC, OpenNyAI, InLegalBERT,
+and generic web search are not runtime data sources.
+
 ## Source hierarchy
 
 “Authoritative” is task-specific. Official enacted text and court orders are preferred for quotation and final review. Search indexes and model-derived datasets are discovery tools. A source's presence proves only that it contains text; it does not prove the proposition made from it.
