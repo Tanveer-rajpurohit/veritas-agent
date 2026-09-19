@@ -42,13 +42,14 @@ def test_fact_reviewer_tool_count_and_names() -> None:
         document_version_id=version_id,
         allow_fixes=False,
     )
-    assert len(tools_without_fix) == 6
+    assert len(tools_without_fix) == 7
     names_without = [t.tool_spec.get("name") for t in tools_without_fix]
     assert "get_review_claims" in names_without
     assert "search_matter_evidence" in names_without
     assert "materialize_fact_evidence" in names_without
     assert "submit_fact_findings" in names_without
     assert "lookup_public_registry" in names_without
+    assert "lookup_company_master" in names_without
     assert "lookup_legal_fact" in names_without
     assert "request_fact_fix" not in names_without
 
@@ -58,7 +59,7 @@ def test_fact_reviewer_tool_count_and_names() -> None:
         document_version_id=version_id,
         allow_fixes=True,
     )
-    assert len(tools_with_fix) == 7
+    assert len(tools_with_fix) == 8
     names_with = [t.tool_spec.get("name") for t in tools_with_fix]
     assert "request_fact_fix" in names_with
 

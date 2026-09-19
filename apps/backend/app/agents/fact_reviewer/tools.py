@@ -1,4 +1,5 @@
 import hashlib
+import json
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
@@ -16,7 +17,7 @@ from app.schemas.agents.fact_reviewer import (
 from app.schemas.agents.writer import DocumentOperation
 from app.schemas.sources import CreateEvidenceSpanRequest
 from app.services.drafts import draft_service
-from app.services.legal_sources import ecourts_adapter, legal_materializer
+from app.services.legal_sources import company_master_adapter, ecourts_adapter, legal_materializer
 from app.services.sources.retrieval import retrieval_service
 
 
@@ -233,6 +234,54 @@ class FactReviewerToolHandlers:
             "passages": [],
         }
 
+    def lookup_company_master(self, claim_id: str, cin: str) -> dict[str, object]:
+        self._record_tool_call()
+        cid = UUID(claim_id)
+        if cid not in self._claim_map:
+            raise ValueError(f"Claim ID {claim_id} is not part of this document version")
+
+        try:
+            result = company_master_adapter.lookup_by_cin(cin)
+            record = result["record"]
+            company_name = str(record.get("company_name") or record.get("companyname") or cin)
+            evidence_text = json.dumps(
+                {
+                    "provider": result["provider"],
+                    "retrieved_for_cin": result["cin"],
+                    "dataset_updated_date": result.get("updated_date"),
+                    "record": record,
+                    "limitations": result["limitations"],
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+            span, source, version = legal_materializer.materialize_legal_text(
+                db=self._db,
+                title=f"MCA Company Master Data - {company_name}",
+                text=evidence_text,
+                source_type="registry_record",
+                official_url=result["source_url"],
+                authority_level="official_primary",
+                heading_path=["Company Master Data"],
+            )
+            return {
+                "status": "available",
+                "claim_id": claim_id,
+                "evidence_span_id": str(span.id),
+                "source_id": str(source.id),
+                "source_version_id": str(version.id),
+                **result,
+            }
+        except Exception:
+            return {
+                "status": "unavailable",
+                "claim_id": claim_id,
+                "message": "The MCA Company Master Data provider could not confirm this CIN.",
+                "limitations": [
+                    "Do not treat an unavailable or missing registry result as a contradiction."
+                ],
+            }
+
     def request_fact_fix(
         self,
         document_version_id: str,
@@ -398,6 +447,13 @@ def create_fact_reviewer_tools(
         """Query an allowlisted official public registry (e.g. IBBI public announcement) for public facts."""
         return handlers.lookup_public_registry(claim_id, registry, query)
 
+    @tool(name="lookup_company_master")
+    def lookup_company_master(claim_id: str, cin: str) -> dict[str, object]:
+        """Look up official MCA company master fields for one exact CIN via data.gov.in."""
+        if not cin.strip():
+            raise ValueError("cin cannot be empty")
+        return handlers.lookup_company_master(claim_id, cin)
+
     @tool(name="request_fact_fix")
     def request_fact_fix(
         document_version_id: str,
@@ -424,6 +480,7 @@ def create_fact_reviewer_tools(
         materialize_fact_evidence,
         submit_fact_findings,
         lookup_public_registry,
+        lookup_company_master,
         lookup_legal_fact,
     ]
     if allow_fixes:

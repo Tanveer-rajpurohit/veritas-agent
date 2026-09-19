@@ -101,6 +101,14 @@ may still contain unresolved findings. Use “I could not confirm this citation 
 sources” and identify the missing source or human review. Never display “verified” from a search hit,
 a URL, model memory, or one aggregate score.
 
+## Public company facts
+
+Fact Reviewer can call `lookup_company_master` with an exact CIN. The backend queries the MCA
+Company Master Data resource on data.gov.in and stores the returned record as versioned global
+evidence. The result may support only fields present in that record, such as company identity,
+registration status, registered office, and capital. It cannot verify debt, default, notice delivery,
+or insolvency status. An unavailable or missing record remains unresolved.
+
 ## Export from the agent page
 
 The document-preview export buttons must use the backend rather than generating a trusted-looking

@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     LEGAL_SOURCE_TIMEOUT_SECONDS: float = 10.0
     LEGAL_SOURCE_MAX_RESPONSE_BYTES: int = 2000000
     LEGAL_SOURCE_CACHE_TTL_SECONDS: int = 86400
+    DATA_GOV_IN_API_KEY: str = ""
+    DATA_GOV_IN_BASE_URL: str = "https://api.data.gov.in"
+    MCA_COMPANY_MASTER_RESOURCE_ID: str = "4dbe5667-7b6b-41d7-82af-211562424d9a"
 
     @field_validator("ALLOWED_ORIGINS", mode="before")
     @classmethod

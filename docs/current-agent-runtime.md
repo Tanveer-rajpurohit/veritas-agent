@@ -15,7 +15,7 @@ design remains in [build plan/agents.md](build%20plan/agents.md), and source res
 | Main Agent | Strands model for conversational answers; Python worker routes explicit actions | 0 | User message and application-supplied context |
 | Writer | Strands specialist with typed `WriterResult` | 10 | Matter records, stored evidence, draft versions, template registry, eCourtsIndia, Indian Kanoon |
 | Citation Reviewer | Deterministic checks followed by a Strands specialist report | 4 | Persisted citation findings, stored legal evidence, eCourtsIndia, Indian Kanoon |
-| Fact Reviewer | Deterministic review service in the worker; a bounded Strands specialist also exists | 6 read/review tools, plus 1 optional fix tool | Matter records, stored evidence, eCourtsIndia legal text; IBBI tool is currently unavailable |
+| Fact Reviewer | Deterministic review service in the worker; a bounded Strands specialist also exists | 7 read/review tools, plus 1 optional fix tool | Matter records, stored evidence, MCA Company Master Data, eCourtsIndia legal text; IBBI tool is currently unavailable |
 
 The inference provider is selected through configuration. `BEDROCK_AGENT_ENABLED=true` uses Amazon
 Bedrock. When it is false, the runtime uses Groq through its OpenAI-compatible endpoint. The model
@@ -105,6 +105,7 @@ tools are implemented for bounded specialist runs, but they are not yet the work
 | `materialize_fact_evidence` | Source retrieval service | Immutable evidence spans for selected passages |
 | `submit_fact_findings` | PostgreSQL findings service inside the scoped handler | Validated findings tied to the active version and owned evidence |
 | `lookup_public_registry` | Planned IBBI adapter | Currently returns `unavailable`; it does not call a live API |
+| `lookup_company_master` | MCA Company Master Data through data.gov.in | Exact company record for one CIN, stored as a versioned global evidence span |
 | `lookup_legal_fact` | eCourtsIndia provision API | Exact Article, Section, or Rule wording stored as evidence |
 | `request_fact_fix` | Draft service, enabled only when `allow_fixes=true` | A new immutable version for pre-registered safe candidates; ambiguous fixes are blocked |
 
@@ -119,6 +120,7 @@ visible, and the agent does not choose which record is true.
 | Local/S3-compatible storage | Original uploads and exports | Local configuration or object-store credentials | Objects are not model tools; access goes through application services |
 | eCourtsIndia | Live statute lookup and statute/case discovery | Keyless | Private secondary service; no full judgment fetch in this adapter |
 | Indian Kanoon | Case search and full judgment text | `INDIAN_KANOON_API_TOKEN` | Paid/limited service; preserve attribution and verify against official orders |
+| MCA Company Master Data | Company identity, registration, status, office, and capital fields | `DATA_GOV_IN_API_KEY` | Dataset fields may be stale; it cannot prove private transaction or insolvency facts |
 | Curated template registry | Draft shape and required factual questions | None | Drafting guidance only, not legal authority |
 | Groq | Default model inference when Bedrock is disabled | `GROQ_API_KEY` | Model output requires schema and business validation |
 | Amazon Bedrock | Optional model inference | AWS credentials and region | Enabled only with `BEDROCK_AGENT_ENABLED=true` |
@@ -143,7 +145,7 @@ visible, and the agent does not choose which record is true.
 - Main Agent does not yet return the planned typed `WorkflowPlan` for ambiguous requests.
 - The worker's Fact Reviewer path currently uses the deterministic service instead of the Strands
   specialist.
-- `lookup_public_registry` has no live IBBI integration.
+- `lookup_public_registry` has no live IBBI integration. MCA company lookup is live and separate.
 - Later-treatment checking has no authoritative citator service. It remains `needs_review` unless a
   suitable source and human assessment are available.
 - Official court PDF retrieval is not automated. Indian Kanoon text is a fallback, not final proof.
