@@ -18,7 +18,7 @@ from app.models.matters import User
 from app.models.sources import Source
 from app.repositories.drafts.draft_repository import draft_repository
 from app.repositories.matters import MatterRepository
-from app.routers.conversations import owned_thread
+from app.routers.conversations.router import owned_thread
 from app.workers.agent_runs import process_agent_run
 
 router = APIRouter(prefix="/api/v1", tags=["Agent Runs"])
@@ -30,11 +30,17 @@ class CreateRun(BaseModel):
     model_config = ConfigDict(extra="forbid")
     thread_id: UUID
     message_id: UUID
-    agent: Literal["main", "writer"]
+    agent: Literal["main", "writer", "fact_reviewer"]
     document_id: UUID | None = None
     document_version_id: UUID | None = None
     source_ids: list[UUID] = Field(default_factory=list, max_length=20)
-    requested_action: Literal["answer", "prepare_working_brief", "revise_working_brief"]
+    requested_action: Literal[
+        "answer",
+        "prepare_working_brief",
+        "revise_working_brief",
+        "review_facts",
+        "apply_safe_fact_fixes",
+    ]
 
 
 class RunResponse(BaseModel):
@@ -80,10 +86,16 @@ def create_run(
     allowed_actions = {
         "main": {"answer"},
         "writer": {"prepare_working_brief", "revise_working_brief"},
+        "fact_reviewer": {"review_facts", "apply_safe_fact_fixes"},
     }
     if payload.requested_action not in allowed_actions[payload.agent]:
         raise HTTPException(status_code=422, detail="Action is not supported by this agent")
-    if payload.requested_action == "revise_working_brief" and payload.document_id is None:
+    document_required_actions = {
+        "revise_working_brief",
+        "review_facts",
+        "apply_safe_fact_fixes",
+    }
+    if payload.requested_action in document_required_actions and payload.document_id is None:
         raise HTTPException(status_code=422, detail="A document is required for revision")
     thread = owned_thread(db, payload.thread_id, user.id)
     message = db.get(Message, payload.message_id)

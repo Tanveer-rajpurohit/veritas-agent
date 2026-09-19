@@ -1,15 +1,22 @@
 from collections.abc import AsyncIterator
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 
+from app.core.auth import current_user
 from app.core.config import settings
 from app.main import app
+from app.models.matters import User
 
 
 @pytest.fixture
 def client() -> TestClient:
-    return TestClient(app)
+    app.dependency_overrides[current_user] = lambda: User(
+        id=uuid4(), email="agent-test@example.com", password_hash="unused"
+    )
+    yield TestClient(app)
+    app.dependency_overrides.clear()
 
 
 def test_health_routes_remain_available(client: TestClient) -> None:

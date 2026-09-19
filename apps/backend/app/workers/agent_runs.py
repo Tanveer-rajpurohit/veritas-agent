@@ -9,8 +9,10 @@ from app.agents.writer.agent import create_writer_agent
 from app.db.session import SessionLocal
 from app.models.agent_runs import AgentEvent, AgentRun
 from app.models.conversations import Message
+from app.schemas.agents.fact_reviewer import FactReviewRunRequest
 from app.schemas.agents.writer import WriterResult
 from app.services.drafts.draft_service import draft_service
+from app.services.reviews.fact_review_service import fact_review_service
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +84,30 @@ def process_agent_run(run_id: UUID) -> None:
                             "document_version_id": str(version.id),
                         },
                     )
+            elif run.agent == "fact_reviewer":
+                mode = (
+                    "apply_safe_fixes"
+                    if run.requested_action == "apply_safe_fact_fixes"
+                    else "review_only"
+                )
+                review = fact_review_service.run(
+                    db=db,
+                    version_id=run.base_version_id,
+                    user_id=run.user_id,
+                    request=FactReviewRunRequest(checks=["fact"], mode=mode),
+                    idempotency_key=run.idempotency_key,
+                )
+                run.result = review.model_dump(mode="json")
+                _append_event(
+                    db,
+                    run_id,
+                    "artifact.ready",
+                    {
+                        "document_id": str(run.document_id),
+                        "document_version_id": str(review.document_version_id),
+                        "finding_count": len(review.findings),
+                    },
+                )
             else:
                 agent = create_main_agent()
                 result = agent(message.content)

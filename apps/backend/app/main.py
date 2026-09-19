@@ -8,15 +8,15 @@ import app.models  # noqa: F401
 from app.core.config import settings
 from app.db.init_db import init_db
 from app.routers.agent.router import router as agent_router
-from app.routers.agent_runs import router as agent_runs_router
-from app.routers.auth import router as auth_router
-from app.routers.conversations import router as conversations_router
-from app.routers.documents import router as documents_router
-from app.routers.exports import router as exports_router
+from app.routers.agent_runs.router import router as agent_runs_router
+from app.routers.auth.router import router as auth_router
+from app.routers.conversations.router import router as conversations_router
+from app.routers.documents.router import router as documents_router
+from app.routers.exports.router import router as exports_router
 from app.routers.health.router import router as health_router
 from app.routers.matters.router import router as matter_router
-from app.routers.reviews import router as reviews_router
-from app.routers.sources import router as sources_router
+from app.routers.reviews.router import router as reviews_router
+from app.routers.sources.router import router as sources_router
 
 
 @asynccontextmanager
