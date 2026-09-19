@@ -8,6 +8,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.models.drafts import DocumentVersion
+from app.models.matters import MatterMember
 from app.models.reviews.claim import Claim
 from app.models.reviews.finding import Finding, FindingEvidence, FindingResolution
 from app.models.sources.evidence import EvidenceSpan
@@ -150,6 +151,7 @@ class FactReviewService:
             .where(
                 Finding.document_version_id == version.id,
                 Finding.dimension.in_(("fact_consistency", "identity")),
+                Finding.claim_id.is_not(None),
                 Finding.stale_at.is_(None),
             )
             .values(status="stale", stale_at=datetime.now(UTC))
@@ -200,12 +202,12 @@ class FactReviewService:
                     is_conflict = len(evidence_by_amount) > 1 and len(all_distinct_sources) > 1
 
                     if is_conflict:
-                        status = "contradicted"
-                        method = "exact"
+                        status = "needs_review"
+                        method = "retrieval"
                         amounts_str = ", ".join(
                             f"₹{amt:,.2f}".rstrip("0").rstrip(".") for amt in evidence_by_amount
                         )
-                        reason = f"Matter records contain conflicting amounts: {amounts_str}."
+                        reason = f"Matter records contain multiple amounts: {amounts_str}."
                         limitations = [
                             "Conflicting records remain visible together; the system does not pick a winner."
                         ]
@@ -233,7 +235,7 @@ class FactReviewService:
                                 if span.id in seen_spans:
                                     continue
                                 seen_spans.add(span.id)
-                                relation = "supports" if amt == claim_val else "contradicts"
+                                relation = "supports" if amt == claim_val else "mentions"
                                 db.add(
                                     FindingEvidence(
                                         finding_id=finding.id,
@@ -291,14 +293,14 @@ class FactReviewService:
                         findings.append(finding)
 
                     elif evidence_by_amount:
-                        status = "contradicted"
-                        method = "exact"
+                        status = "needs_review"
+                        method = "retrieval"
                         single_val = next(iter(evidence_by_amount.keys()))
                         tuples = evidence_by_amount[single_val]
                         canonical_rep = f"₹{single_val:,.2f}".rstrip("0").rstrip(".")
-                        reason = f"Draft amount differs from client record amount {canonical_rep}"
+                        reason = f"A Matter record contains {canonical_rep}, but its proposition context was not established"
                         limitations = [
-                            "Client records are evidence of what a record says; not proof of underlying real-world fact."
+                            "A different amount alone does not contradict this claim; match the party, event, date, and instrument before correction."
                         ]
 
                         finding = Finding(
@@ -325,7 +327,7 @@ class FactReviewService:
                                 FindingEvidence(
                                     finding_id=finding.id,
                                     evidence_span_id=span.id,
-                                    relation="contradicts",
+                                    relation="mentions",
                                 )
                             )
                         findings.append(finding)
@@ -335,8 +337,8 @@ class FactReviewService:
                                 claim_id=claim_id,
                                 replacement_text=canonical_rep,
                                 evidence_span_ids=span_ids,
-                                safety="safe",
-                                reason=f"Unambiguous single client record establishes {canonical_rep}",
+                                safety="requires_human_choice",
+                                reason="The amount is not proposition-scoped and cannot be applied automatically.",
                             )
                         )
                     else:
@@ -579,12 +581,22 @@ class FactReviewService:
         db.commit()
 
         # Handle apply_safe_fixes mode
-        source_version_id = version.id
+        source_version_id = None
         created_version_id: UUID | None = None
         applied_correction_ids: list[UUID] = []
         blocked_correction_ids: list[UUID] = []
 
         if request.mode == "apply_safe_fixes":
+            membership = db.scalar(
+                select(MatterMember).where(
+                    MatterMember.matter_id == matter_id,
+                    MatterMember.user_id == user_id,
+                )
+            )
+            if membership is None or membership.role not in {"owner", "editor"}:
+                raise HTTPException(
+                    status_code=403, detail="Editor access is required to modify a draft"
+                )
             safe_candidates = [c for c in correction_candidates if c.safety == "safe"]
             blocked_candidates = [c for c in correction_candidates if c.safety != "safe"]
             blocked_correction_ids = [c.candidate_id for c in blocked_candidates]

@@ -71,5 +71,6 @@ def test_extract_claims_block_filtering() -> None:
     }
 
     claims = claim_extractor.extract_claims(version_id, content_json, block_ids=["block-a"])
-    assert len(claims) == 1
+    assert len(claims) == 2
+    assert {claim.kind for claim in claims} == {"monetary_amount", "event"}
     assert claims[0].text == "₹10 lakh"

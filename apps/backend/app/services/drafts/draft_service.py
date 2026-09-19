@@ -149,7 +149,7 @@ class DraftService:
             draft=draft,
             content_json=mutated_content,
             base_version_id=base_version_id,
-            created_by_type="agent" if created_by_id == "writer_agent" else "human",
+            created_by_type="agent" if created_by_id.endswith("_agent") else "human",
             created_by_id=created_by_id,
             change_summary=change_summary or f"Applied {len(operations)} document operations",
         )

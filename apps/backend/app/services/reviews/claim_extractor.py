@@ -63,7 +63,7 @@ class ClaimExtractor:
 
         for block_index, block in enumerate(blocks):
             block_type = block.get("type")
-            if block_type not in {"paragraph", "heading"}:
+            if block_type != "paragraph":
                 continue
 
             block_id = block.get("attrs", {}).get("id") or str(block_index)
@@ -75,8 +75,6 @@ class ClaimExtractor:
             if not block_text_stripped:
                 continue
 
-            found_any_atomic = False
-
             # 1. Extract monetary amounts
             for match in AMOUNT_PATTERN.finditer(block_text):
                 matched_text = match.group(0)
@@ -84,7 +82,6 @@ class ClaimExtractor:
                 if not parsed:
                     continue
 
-                found_any_atomic = True
                 norm = NormalizedFact(
                     kind="monetary_amount",
                     raw_value=matched_text,
@@ -117,7 +114,6 @@ class ClaimExtractor:
                     if not parsed_d:
                         continue
 
-                    found_any_atomic = True
                     norm = NormalizedFact(
                         kind="date",
                         raw_value=matched_text,
@@ -155,7 +151,6 @@ class ClaimExtractor:
                     metadata={"identifier": identifier_val},
                 )
                 claim_sha256 = hashlib.sha256(matched_text.strip().encode()).hexdigest()
-                found_any_atomic = True
                 claims.append(
                     FactClaim(
                         id=uuid4(),
@@ -199,7 +194,6 @@ class ClaimExtractor:
                     metadata={"act_key": act_key, "unit": unit, "provision": num},
                 )
                 claim_sha256 = hashlib.sha256(matched_text.strip().encode()).hexdigest()
-                found_any_atomic = True
                 claims.append(
                     FactClaim(
                         id=uuid4(),
@@ -215,8 +209,8 @@ class ClaimExtractor:
                     )
                 )
 
-            # 5. If no atomic entity was detected, record the proposition as an event claim
-            if not found_any_atomic:
+            # Keep the full proposition: isolated values do not capture who did what.
+            if block_text_stripped:
                 norm = NormalizedFact(
                     kind="event",
                     raw_value=block_text_stripped,

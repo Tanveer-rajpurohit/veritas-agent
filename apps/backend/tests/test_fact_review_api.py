@@ -205,18 +205,18 @@ def test_checks_endpoint_synthetic_conflict_api_flow(auth_client: tuple[TestClie
     assert len(data["findings"]) >= 1
 
     amt_finding = next(f for f in data["findings"] if f["claim_text"] == "₹4.85 crore")
-    assert amt_finding["status"] == "contradicted"
+    assert amt_finding["status"] == "needs_review"
     assert len(amt_finding["evidence"]) == 2
 
     # Call GET /document-versions/{version_id}/findings with filters
     list_resp = client.get(
         f"/api/v1/document-versions/{doc_ver.id}/findings",
-        params={"dimension": "fact_consistency", "status": "contradicted"},
+        params={"dimension": "fact_consistency", "status": "needs_review"},
     )
     assert list_resp.status_code == 200
     findings_list = list_resp.json()
     assert len(findings_list) >= 1
-    assert all(f["status"] == "contradicted" for f in findings_list)
+    assert all(f["status"] == "needs_review" for f in findings_list)
 
     # Cross-matter authorization check: another user cannot access this version
     other_user_resp = client.post(

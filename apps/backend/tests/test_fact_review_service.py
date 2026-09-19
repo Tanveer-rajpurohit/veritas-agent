@@ -10,7 +10,6 @@ from sqlalchemy.pool import StaticPool
 from app.db.base import Base
 from app.models.drafts import DocumentVersion, Draft
 from app.models.matters import Matter, MatterMember, User
-from app.models.reviews import Finding
 from app.models.sources import Source, SourceChunk, SourcePage, SourceVersion
 from app.schemas.agents.fact_reviewer import FactReviewRunRequest
 from app.services.reviews.fact_review_service import fact_review_service
@@ -145,15 +144,15 @@ def test_fact_review_synthetic_conflict_fixture() -> None:
     assert len(response.findings) >= 1
 
     amt_finding = next(f for f in response.findings if f.claim_text == "₹4.85 crore")
-    assert amt_finding.status == "contradicted"
-    assert amt_finding.method == "exact"
-    assert "conflicting amounts" in amt_finding.reason.lower()
+    assert amt_finding.status == "needs_review"
+    assert amt_finding.method == "retrieval"
+    assert "multiple amounts" in amt_finding.reason.lower()
 
     # Both evidence spans must be attached!
     assert len(amt_finding.evidence) == 2
     relations = {e.relation for e in amt_finding.evidence}
     assert "supports" in relations
-    assert "contradicts" in relations
+    assert "mentions" in relations
 
     # Correction candidate must require human choice
     assert len(response.correction_candidates) >= 1
@@ -207,7 +206,7 @@ def test_fact_review_blocks_unsafe_fix_in_apply_safe_fixes() -> None:
     assert len(response.applied_correction_ids) == 0
 
 
-def test_fact_review_applies_unambiguous_safe_fix() -> None:
+def test_fact_review_does_not_apply_unscoped_amount_fix() -> None:
     db = TestingSessionLocal()
     user = User(id=uuid4(), email="lawyer3@example.com", password_hash="hash")
     matter = Matter(id=uuid4(), title="Typo Matter")
@@ -248,14 +247,6 @@ def test_fact_review_applies_unambiguous_safe_fix() -> None:
         request=FactReviewRunRequest(checks=["fact"], mode="apply_safe_fixes"),
     )
 
-    assert response.created_version_id is not None
-    assert len(response.applied_correction_ids) == 1
-    assert len(response.blocked_correction_ids) == 0
-
-    # Old version findings are marked stale
-    old_findings = db.query(Finding).filter(Finding.document_version_id == doc_ver.id).all()
-    assert all(f.stale_at is not None for f in old_findings)
-
-    # Recheck on new version yields supported
-    new_findings = response.findings
-    assert any(f.status == "supported" for f in new_findings)
+    assert response.created_version_id is None
+    assert len(response.applied_correction_ids) == 0
+    assert len(response.blocked_correction_ids) == 1

@@ -130,7 +130,7 @@ def run_checks(
     if latest.id != version.id:
         raise HTTPException(status_code=409, detail="Checks require the current version")
 
-    if payload is not None and "fact" in payload.checks:
+    if payload is not None and payload.checks == ["fact"]:
         return fact_review_service.run(
             db=db,
             version_id=version.id,
@@ -139,9 +139,14 @@ def run_checks(
             idempotency_key=idempotency_key,
         )
 
-    if payload is not None and "fact" not in payload.checks and "citation" in payload.checks:
+    if payload is not None and payload.checks == ["citation"]:
         findings = check_version(db, version, draft.matter_id)
         return [_response(db, finding) for finding in findings]
+
+    if payload is not None:
+        raise HTTPException(
+            status_code=422, detail="Run one supported check at a time: fact or citation"
+        )
 
     findings = check_version(db, version, draft.matter_id)
     return [_response(db, finding) for finding in findings]
