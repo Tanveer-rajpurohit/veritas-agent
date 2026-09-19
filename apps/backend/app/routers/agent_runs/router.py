@@ -30,7 +30,7 @@ class CreateRun(BaseModel):
     model_config = ConfigDict(extra="forbid")
     thread_id: UUID
     message_id: UUID
-    agent: Literal["main", "writer", "fact_reviewer"]
+    agent: Literal["main", "writer", "citation_reviewer", "fact_reviewer"]
     document_id: UUID | None = None
     document_version_id: UUID | None = None
     source_ids: list[UUID] = Field(default_factory=list, max_length=20)
@@ -40,6 +40,7 @@ class CreateRun(BaseModel):
         "revise_working_brief",
         "review_facts",
         "apply_safe_fact_fixes",
+        "review_citations",
     ]
 
 
@@ -84,8 +85,9 @@ def create_run(
     if MatterRepository(db).get_by_id(matter_id, user.id) is None:
         raise HTTPException(status_code=404, detail="Matter not found")
     allowed_actions = {
-        "main": {"answer"},
+        "main": {"answer", "review_citations", "review_facts"},
         "writer": {"prepare_working_brief", "revise_working_brief"},
+        "citation_reviewer": {"review_citations"},
         "fact_reviewer": {"review_facts", "apply_safe_fact_fixes"},
     }
     if payload.requested_action not in allowed_actions[payload.agent]:
@@ -94,6 +96,7 @@ def create_run(
         "revise_working_brief",
         "review_facts",
         "apply_safe_fact_fixes",
+        "review_citations",
     }
     if payload.requested_action in document_required_actions and payload.document_id is None:
         raise HTTPException(status_code=422, detail="A document is required for revision")

@@ -12,6 +12,7 @@ from app.models.conversations import Message
 from app.schemas.agents.fact_reviewer import FactReviewRunRequest
 from app.schemas.agents.writer import WriterResult
 from app.services.drafts.draft_service import draft_service
+from app.services.reviews.checks import check_citations
 from app.services.reviews.fact_review_service import fact_review_service
 
 logger = logging.getLogger(__name__)
@@ -84,7 +85,41 @@ def process_agent_run(run_id: UUID) -> None:
                             "document_version_id": str(version.id),
                         },
                     )
-            elif run.agent == "fact_reviewer":
+            elif run.agent == "citation_reviewer" or run.requested_action == "review_citations":
+                version = draft_service.get_document_version(
+                    db=db,
+                    version_id=run.base_version_id,
+                    matter_id=run.matter_id,
+                )
+                _append_event(
+                    db,
+                    run_id,
+                    "tool.started",
+                    {"tool": "citation_review", "summary": "Checking stored legal authorities"},
+                )
+                findings = check_citations(db, version)
+                dimensions = {item.dimension: item.status for item in findings}
+                run.result = {
+                    "document_id": str(run.document_id),
+                    "document_version_id": str(version.id),
+                    "finding_ids": [str(item.id) for item in findings],
+                    "dimensions": dimensions,
+                    "message": (
+                        "Citation review completed. Unresolved and needs-review dimensions "
+                        "require a source or lawyer confirmation."
+                    ),
+                }
+                _append_event(
+                    db,
+                    run_id,
+                    "tool.completed",
+                    {
+                        "tool": "citation_review",
+                        "summary": f"Created {len(findings)} citation findings",
+                        "dimensions": dimensions,
+                    },
+                )
+            elif run.agent == "fact_reviewer" or run.requested_action == "review_facts":
                 mode = (
                     "apply_safe_fixes"
                     if run.requested_action == "apply_safe_fact_fixes"

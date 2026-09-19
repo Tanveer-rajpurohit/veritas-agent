@@ -19,7 +19,7 @@ from app.schemas.agents.fact_reviewer import (
     FactReviewRunRequest,
     FactReviewRunResponse,
 )
-from app.services.reviews.checks import check_version
+from app.services.reviews.checks import check_citations, check_version
 from app.services.reviews.fact_review_service import fact_review_service
 
 router = APIRouter(prefix="/api/v1", tags=["Review"])
@@ -140,7 +140,7 @@ def run_checks(
         )
 
     if payload is not None and payload.checks == ["citation"]:
-        findings = check_version(db, version, draft.matter_id)
+        findings = check_citations(db, version)
         return [_response(db, finding) for finding in findings]
 
     if payload is not None:
