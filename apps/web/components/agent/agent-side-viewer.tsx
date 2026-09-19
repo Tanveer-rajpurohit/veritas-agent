@@ -30,6 +30,8 @@ import {
   PdfDocIcon,
   MarkdownDocIcon,
 } from "../drafting/file-type-icons";
+import { useCreateExport } from "../../hooks/exports/useExports";
+import { exportService } from "../../service/exports/exportService";
 
 export type { DraftPage, DraftVersion };
 export type SideViewerDocument = DraftDocument;
@@ -106,16 +108,83 @@ export function AgentSideViewer({
     document.versions.find((v) => v.version === selectedVersion) ||
     document.versions[0];
 
-  const handleExportDocx = () => {
+  const createExportMutation = useCreateExport();
+  const [exportingFormat, setExportingFormat] = useState<string | null>(null);
+
+  const handleExportPdf = async () => {
     if (!activeVersionData) return;
-    exportAsDocx(document.title, activeVersionData.pages);
     setExportDropdownOpen(false);
+    setExportingFormat("pdf");
+    try {
+      const versionId = activeVersionData.versionId || document.id;
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(versionId);
+      if (isUuid) {
+        const result = await createExportMutation.mutateAsync({
+          versionId,
+          payload: { format: "pdf", mode: "draft" },
+        });
+        const downloadUrl = exportService.getDownloadUrl(result.id);
+        const link = window.document.createElement("a");
+        link.href = downloadUrl;
+        link.download = `veritas-draft-${result.id}.pdf`;
+        window.document.body.appendChild(link);
+        link.click();
+        window.document.body.removeChild(link);
+      } else {
+        printDocument(document.title, activeVersionData.pages);
+      }
+    } catch {
+      printDocument(document.title, activeVersionData.pages);
+    } finally {
+      setExportingFormat(null);
+    }
   };
 
-  const handlePrintPdf = () => {
+  const handleExportJson = async () => {
     if (!activeVersionData) return;
-    printDocument(document.title, activeVersionData.pages);
     setExportDropdownOpen(false);
+    setExportingFormat("json");
+    try {
+      const versionId = activeVersionData.versionId || document.id;
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(versionId);
+      if (isUuid) {
+        const result = await createExportMutation.mutateAsync({
+          versionId,
+          payload: { format: "json", mode: "draft" },
+        });
+        const downloadUrl = exportService.getDownloadUrl(result.id);
+        const link = window.document.createElement("a");
+        link.href = downloadUrl;
+        link.download = `veritas-draft-${result.id}.json`;
+        window.document.body.appendChild(link);
+        link.click();
+        window.document.body.removeChild(link);
+      } else {
+        const jsonStr = JSON.stringify(document, null, 2);
+        const blob = new Blob([jsonStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = window.document.createElement("a");
+        link.href = url;
+        link.download = `${document.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.json`;
+        window.document.body.appendChild(link);
+        link.click();
+        window.document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+    } catch {
+      const jsonStr = JSON.stringify(document, null, 2);
+      const blob = new Blob([jsonStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = window.document.createElement("a");
+      link.href = url;
+      link.download = `${document.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.json`;
+      window.document.body.appendChild(link);
+      link.click();
+      window.document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } finally {
+      setExportingFormat(null);
+    }
   };
 
   const handleExportMarkdown = () => {
@@ -136,7 +205,6 @@ export function AgentSideViewer({
           draftToTipTapHtml(document, selectedVersion),
         );
       } catch {
-        // Ignored
       }
     }
     onOpenInEditor?.();
@@ -233,26 +301,49 @@ export function AgentSideViewer({
                 </div>
                 <button
                   type="button"
-                  onClick={handleExportDocx}
-                  className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-stone-700 hover:bg-[#edf4fa] hover:text-[#2c5478] cursor-pointer transition-colors"
+                  onClick={handleExportPdf}
+                  disabled={exportingFormat !== null}
+                  className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-stone-700 hover:bg-[#edf4fa] hover:text-[#2c5478] cursor-pointer transition-colors disabled:opacity-60"
                 >
-                  <WordDocIcon size={17} className="shrink-0" />
+                  <PdfDocIcon size={17} className="shrink-0" />
                   <div className="flex flex-col">
-                    <span className="font-medium text-stone-900">Word Document</span>
-                    <span className="text-[10px] text-stone-400">.docx format</span>
+                    <span className="font-medium text-stone-900">
+                      {exportingFormat === "pdf" ? "Exporting PDF..." : "PDF Document"}
+                    </span>
+                    <span className="text-[10px] text-stone-400">Server-verified draft PDF</span>
                   </div>
                 </button>
                 <button
                   type="button"
-                  onClick={handlePrintPdf}
-                  className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-stone-700 hover:bg-[#edf4fa] hover:text-[#2c5478] cursor-pointer transition-colors"
+                  onClick={handleExportJson}
+                  disabled={exportingFormat !== null}
+                  className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-stone-700 hover:bg-[#edf4fa] hover:text-[#2c5478] cursor-pointer transition-colors disabled:opacity-60"
                 >
-                  <PdfDocIcon size={17} className="shrink-0" />
+                  <div className="flex h-[17px] w-[17px] items-center justify-center rounded bg-[#edf4fa] text-[10px] font-bold text-[#487aa8] shrink-0 font-mono">
+                    JS
+                  </div>
                   <div className="flex flex-col">
-                    <span className="font-medium text-stone-900">PDF Document</span>
-                    <span className="text-[10px] text-stone-400">Vector print format</span>
+                    <span className="font-medium text-stone-900">
+                      {exportingFormat === "json" ? "Exporting JSON..." : "JSON Package"}
+                    </span>
+                    <span className="text-[10px] text-stone-400">Structured legal AST (.json)</span>
                   </div>
                 </button>
+                <div
+                  className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-stone-400 opacity-60 cursor-not-allowed select-none"
+                  title="Reviewed DOCX export requires the backend review gate"
+                >
+                  <WordDocIcon size={17} className="shrink-0" />
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-medium text-stone-500">Word Document</span>
+                      <span className="rounded bg-stone-100 px-1 py-0.2 text-[9px] font-mono text-stone-500">
+                        Review Gate
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-stone-400">Disabled until reviewed</span>
+                  </div>
+                </div>
                 <button
                   type="button"
                   onClick={handleExportMarkdown}
@@ -261,7 +352,7 @@ export function AgentSideViewer({
                   <MarkdownDocIcon size={17} className="shrink-0" />
                   <div className="flex flex-col">
                     <span className="font-medium text-stone-900">Markdown</span>
-                    <span className="text-[10px] text-stone-400">.md format</span>
+                    <span className="text-[10px] text-stone-400">.md text format</span>
                   </div>
                 </button>
               </div>

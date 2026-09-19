@@ -79,10 +79,10 @@ export function AppSidebar({
           collapsed ? "md:w-[56px]" : "md:w-[248px]"
         }`}
       >
-        <div className="relative shrink-0 px-2.5 pt-3 pb-1">
+        <div className="relative shrink-0 px-3 pt-3.5 pb-1">
           <div
-            className={`flex items-center pb-3 ${
-              collapsed ? "justify-center" : "justify-between px-1"
+            className={`flex items-center pb-2.5 ${
+              collapsed ? "justify-center" : "justify-between"
             }`}
           >
             {collapsed ? (
@@ -102,14 +102,14 @@ export function AppSidebar({
               </button>
             ) : (
               <>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center">
                   <Link
                     href="/"
-                    className="flex items-center gap-2 transition-opacity hover:opacity-85"
+                    className="flex items-center gap-2.5 transition-opacity hover:opacity-85 py-0.5"
                     title="Veritas Home"
                   >
                     <VeritasOrb size={20} className="text-[#487aa8]" />
-                    <span className="font-display text-[17px] font-medium tracking-tight text-stone-900">
+                    <span className="font-display text-[17px] font-medium tracking-tight leading-none text-stone-900 translate-y-[0.5px]">
                       Veritas
                     </span>
                   </Link>
