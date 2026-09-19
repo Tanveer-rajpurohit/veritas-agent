@@ -30,7 +30,7 @@ class FactReviewerToolHandlers:
         matter_id: UUID,
         document_version_id: UUID,
         claims: list[FactClaim] | None = None,
-        max_tool_calls: int = 20,
+        max_tool_calls: int = 12,
     ) -> None:
         self._db = db
         self._matter_id = matter_id
@@ -393,7 +393,7 @@ def create_fact_reviewer_tools(
     document_version_id: UUID,
     claims: list[FactClaim] | None = None,
     allow_fixes: bool = False,
-    max_tool_calls: int = 20,
+    max_tool_calls: int = 12,
 ) -> tuple[list[DecoratedFunctionTool], FactReviewerToolHandlers]:
     """Constructs the 7 bounded Fact Reviewer tools scoped to the authorized Matter."""
     handlers = FactReviewerToolHandlers(

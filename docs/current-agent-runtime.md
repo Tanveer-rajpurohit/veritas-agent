@@ -112,6 +112,10 @@ tools are implemented for bounded specialist runs, but they are not yet the work
 Fact review treats client records as evidence of what each record says. Conflicting records remain
 visible, and the agent does not choose which record is true.
 
+The Fact Reviewer has a 12-call tool budget. Its prompt forbids repeating identical calls and routes
+each claim to one source category. An unavailable registry result becomes `unresolved`; the agent
+does not retry indefinitely or switch sources merely to obtain a positive answer.
+
 ## Provider responsibilities
 
 | Provider or store | Runtime responsibility | Authentication | Limit |
@@ -151,3 +155,13 @@ visible, and the agent does not choose which record is true.
 - Official court PDF retrieval is not automated. Indian Kanoon text is a fallback, not final proof.
 - Citation Reviewer full-text case fetch currently requires `LEGAL_CASE_PROVIDER=indian_kanoon` so
   discovery and fetch use compatible candidate IDs.
+
+## Public-source smoke test
+
+From `apps/backend`, run the following command with a real CIN. The script reads `.env`, prints the
+MCA record and limitations, never prints the API key, and reports IBBI as unavailable until that
+adapter is connected.
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.smoke_public_sources --cin U12345DL2020PTC123456
+```
