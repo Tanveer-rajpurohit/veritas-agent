@@ -3,6 +3,30 @@
 This document is the frontend integration contract for the single visible Veritas Main Agent.
 Specialists are application-routed roles; the UI does not expose an agent selector.
 
+## Frontend implementation status
+
+The protected application routes validate the current user before mounting workspace or agent
+queries. Workspace and Agent matter selectors use the authenticated Matter API; source uploads and
+downloads also use the authenticated API rather than local demo records or public object URLs.
+
+The visual Agent chat is still a demo surface. Persisted threads, messages, agent runs, SSE event
+replay, finding resolution, and proposal accept/reject hooks exist in `apps/web`, but they are not
+yet connected to `AgentChatView`. Until that wiring is complete, demo responses must not be
+presented as completed backend analysis, verified legal work, or durable conversation history.
+
+Before calling the Agent frontend production-ready, complete this flow:
+
+1. Select an authenticated Matter returned by `GET /api/v1/matters/`.
+2. Create or reuse a persisted thread, then persist the user's message.
+3. Create an agent run with the returned thread and message identifiers.
+4. Consume authenticated SSE events and reconnect with `Last-Event-ID` after interruption.
+5. Render only safe activity summaries from persisted events; never simulated reasoning.
+6. Fetch the terminal run result and linked findings from their authenticated endpoints.
+7. For Writer proposals, render a preview and connect Apply, Reject, and Keep Editing exactly as
+   specified below.
+8. Remove seeded sessions, seeded draft artifacts, timer-generated answers, and client-only draft
+   downloads from the production Agent path.
+
 ## Why runs use a worker
 
 `app/agents/main_agent.py` configures the Strands model and prompt. It can interpret a request, but

@@ -44,10 +44,12 @@ class AuthService:
             )
 
         pwd_hash = hash_password(payload.password)
+        name = (payload.full_name or payload.display_name or "").strip() or None
         user = self.repo.create_user(
             email=email,
             password_hash=pwd_hash,
-            display_name=payload.display_name.strip() if payload.display_name else None,
+            display_name=payload.display_name.strip() if payload.display_name else name,
+            full_name=payload.full_name.strip() if payload.full_name else name,
             is_active=True,
         )
 

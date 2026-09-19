@@ -12,7 +12,11 @@ class Settings(BaseSettings):
     APP_NAME: str = "Veritas API"
     APP_VERSION: str = "0.1.0"
     ENVIRONMENT: str = "development"
-    ALLOWED_ORIGINS: list[str] = ["http://localhost:3000"]
+    ALLOWED_ORIGINS: list[str] = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
+    ]
     APP_BASE_URL: str = "http://localhost:3000"
     SESSION_COOKIE_NAME: str = "veritas_session"
     SESSION_TTL_SECONDS: int = 604800
@@ -20,6 +24,7 @@ class Settings(BaseSettings):
     AUTH_TOKEN_TTL_SECONDS: int = 1800
     EMAIL_FROM: str = "no-reply@veritaslegal.in"
     EMAIL_PROVIDER: str = "console"
+    AUTH_SECRET: str = ""
 
     BEDROCK_AGENT_ENABLED: bool = False
     AGENT_MAX_TOKENS: int = 2048

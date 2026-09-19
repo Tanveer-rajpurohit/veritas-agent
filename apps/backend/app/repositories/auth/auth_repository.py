@@ -23,12 +23,14 @@ class AuthRepository:
         email: str,
         password_hash: str | None,
         display_name: str | None = None,
+        full_name: str | None = None,
         is_active: bool = True,
     ) -> User:
         user = User(
             email=email,
             password_hash=password_hash,
             display_name=display_name,
+            full_name=full_name or display_name,
             is_active=is_active,
         )
         self.db.add(user)

@@ -15,6 +15,7 @@ export const authService = {
       email: payload.email,
       password: payload.password,
       display_name: payload.name,
+      full_name: payload.name,
     });
   },
 

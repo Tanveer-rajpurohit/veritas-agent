@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "../../hooks/auth/useAuth";
+import { ApiError } from "../../service/fetch";
 import { safeInternalPath, validateLoginForm } from "../../lib/validation/auth";
 import type { AuthFieldErrors } from "../../types/auth/types";
 import { AuthField, AuthPasswordField, AuthSubmit } from "./auth-fields";
@@ -21,6 +22,11 @@ export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fieldErrors, setFieldErrors] = useState<AuthFieldErrors>({});
+
+  const loginErrorMessage =
+    loginError instanceof ApiError && loginError.status === 401
+      ? "Email or password is incorrect. Create an account if you are new to Veritas."
+      : loginError?.message;
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -77,9 +83,13 @@ export function LoginForm() {
           required
         />
 
-        {loginError && (
-          <p role="alert" className="m-0 text-xs font-medium text-rose-700">
-            {loginError.message}
+        {loginErrorMessage && (
+          <p
+            role="alert"
+            aria-live="polite"
+            className="m-0 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium leading-5 text-rose-700"
+          >
+            {loginErrorMessage}
           </p>
         )}
 

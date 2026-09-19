@@ -107,7 +107,7 @@ export async function request<T>(
   } catch (err) {
     throw new ApiError(
       0,
-      "Cannot reach Veritas API. Check that the backend is running and the API URL is correct.",
+      "Cannot reach the Veritas API. Check that the backend is running and try again.",
       err,
     );
   }

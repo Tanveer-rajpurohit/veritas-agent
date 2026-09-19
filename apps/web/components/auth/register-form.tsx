@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useAuth } from "../../hooks/auth/useAuth";
+import { ApiError } from "../../service/fetch";
 import { validateRegisterForm } from "../../lib/validation/auth";
 import type { AuthFieldErrors } from "../../types/auth/types";
 import { AuthField, AuthPasswordField, AuthSubmit } from "./auth-fields";
@@ -18,6 +19,11 @@ export function RegisterForm() {
   const [password, setPassword] = useState("");
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<AuthFieldErrors>({});
+
+  const registerErrorMessage =
+    registerError instanceof ApiError && registerError.status === 409
+      ? "An account already exists for this email. Log in instead."
+      : registerError?.message;
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -99,13 +105,17 @@ export function RegisterForm() {
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           error={fieldErrors.password}
-          hint="Use 12 or more characters."
+          hint="Use 12 or more characters with uppercase, lowercase, a number, and a symbol."
           required
         />
 
-        {registerError && (
-          <p role="alert" className="m-0 text-xs font-medium text-rose-700">
-            {registerError.message}
+        {registerErrorMessage && (
+          <p
+            role="alert"
+            aria-live="polite"
+            className="m-0 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium leading-5 text-rose-700"
+          >
+            {registerErrorMessage}
           </p>
         )}
 

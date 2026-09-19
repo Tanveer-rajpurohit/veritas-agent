@@ -92,15 +92,19 @@ export function ForgotPasswordForm() {
           required
         />
 
-        <AuthSubmit pending={pending} pendingLabel="Sending link…">
-          Send reset link
-        </AuthSubmit>
-
         {forgotPasswordError && (
-          <p role="alert" className="m-0 text-xs font-medium text-rose-700">
+          <p
+            role="alert"
+            aria-live="polite"
+            className="m-0 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium leading-5 text-rose-700"
+          >
             {forgotPasswordError.message}
           </p>
         )}
+
+        <AuthSubmit pending={pending} pendingLabel="Sending link…">
+          Send reset link
+        </AuthSubmit>
 
         <div className="text-sm text-ink-muted">
           <p className="m-0">
