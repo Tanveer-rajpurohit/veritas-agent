@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Annotated
+from urllib.parse import urlparse
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
@@ -12,7 +13,7 @@ from app.db.session import get_db
 from app.models.drafts import DocumentVersion
 from app.models.matters import User
 from app.models.reviews import Finding, FindingEvidence, FindingResolution
-from app.models.sources import EvidenceSpan, SourcePage
+from app.models.sources import EvidenceSpan, Source, SourcePage, SourceVersion
 from app.repositories.drafts.draft_repository import draft_repository
 from app.repositories.matters import MatterRepository
 from app.schemas.agents.fact_reviewer import (
@@ -33,6 +34,9 @@ class FindingEvidenceResponse(BaseModel):
     page_number: int
     text: str
     relation: str
+    source_title: str
+    source_url: str | None
+    source_url_verified: bool
 
 
 class FindingResponse(BaseModel):
@@ -76,9 +80,11 @@ def _response(db: Session, finding: Finding) -> FindingResponse:
         .order_by(FindingResolution.created_at.desc())
     )
     rows = db.execute(
-        select(FindingEvidence, EvidenceSpan, SourcePage)
+        select(FindingEvidence, EvidenceSpan, SourcePage, SourceVersion, Source)
         .join(EvidenceSpan, FindingEvidence.evidence_span_id == EvidenceSpan.id)
         .join(SourcePage, EvidenceSpan.page_id == SourcePage.id)
+        .join(SourceVersion, EvidenceSpan.source_version_id == SourceVersion.id)
+        .join(Source, SourceVersion.source_id == Source.id)
         .where(FindingEvidence.finding_id == finding.id)
     ).all()
     evidence = [
@@ -88,8 +94,11 @@ def _response(db: Session, finding: Finding) -> FindingResponse:
             page_number=page.page_number,
             text=span.quoted_text,
             relation=link.relation,
+            source_title=source.canonical_title,
+            source_url=source.official_url,
+            source_url_verified=_trusted_legal_url(source.official_url),
         )
-        for link, span, page in rows
+        for link, span, page, _version, source in rows
     ]
     return FindingResponse(
         id=finding.id,
@@ -108,6 +117,22 @@ def _response(db: Session, finding: Finding) -> FindingResponse:
         evidence=evidence,
         resolution=resolution.action if resolution else None,
     )
+
+
+def _trusted_legal_url(url: str | None) -> bool:
+    if not url:
+        return False
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").casefold()
+    trusted_hosts = {
+        "sci.gov.in",
+        "api.sci.gov.in",
+        "indiacode.gov.in",
+        "indiacode.ecourtsindia.com",
+        "indiankanoon.org",
+        "api.indiankanoon.org",
+    }
+    return parsed.scheme == "https" and host in trusted_hosts
 
 
 @router.post(

@@ -434,7 +434,10 @@ def test_citation_identity_and_quote_checks_use_stored_legal_text(client: TestCl
         },
     )
     assert saved.status_code == 201, saved.text
-    response = client.post(f"/api/v1/document-versions/{saved.json()['id']}/checks")
+    response = client.post(
+        f"/api/v1/document-versions/{saved.json()['id']}/checks",
+        json={"checks": ["citation"], "mode": "review_only"},
+    )
     assert response.status_code == 200, response.text
     findings = response.json()
     assert [item["status"] for item in findings if item["dimension"] == "identity"] == [
@@ -449,6 +452,17 @@ def test_citation_identity_and_quote_checks_use_stored_legal_text(client: TestCl
         "unresolved",
         "unresolved",
     ]
+    assert {item["dimension"] for item in findings} == {
+        "identity",
+        "quotation",
+        "support",
+        "treatment",
+    }
+    assert all(
+        item["status"] in {"needs_review", "unresolved"}
+        for item in findings
+        if item["dimension"] in {"support", "treatment"}
+    )
     assert all(item["evidence"] for item in findings if item["status"] == "supported")
 
 
