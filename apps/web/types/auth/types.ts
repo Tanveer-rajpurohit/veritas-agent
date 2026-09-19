@@ -1,7 +1,6 @@
 export interface LoginRequest {
   email: string;
   password: string;
-  rememberMe: boolean;
 }
 
 export interface RegisterRequest {
@@ -18,15 +17,20 @@ export interface ForgotPasswordPayload {
   email: string;
 }
 
+export interface VerifyEmailPayload {
+  token: string;
+}
+
 export interface ResetPasswordPayload {
-  email: string;
-  code: string;
+  token: string;
   new_password: string;
 }
 
 export interface UserProfile {
   id: string;
   email: string;
+  display_name: string | null;
+  email_verified: boolean;
   full_name: string | null;
   phone_number: string | null;
   law_firm: string | null;
@@ -46,4 +50,6 @@ export interface UpdateProfilePayload {
   city?: string | null;
 }
 
-export type AuthFieldErrors = Partial<Record<"name" | "email" | "password" | "confirmPassword", string>>;
+export type AuthFieldErrors = Partial<
+  Record<"name" | "email" | "password" | "confirmPassword", string>
+>;

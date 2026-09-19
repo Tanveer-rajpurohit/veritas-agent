@@ -9,7 +9,7 @@ interface AuthContextValue {
   isLoading: boolean;
   isAuthenticated: boolean;
   updateProfile: (payload: UpdateProfilePayload) => Promise<UserProfile>;
-  logout: () => void;
+  logout: () => Promise<void>;
   refetchUser: () => Promise<unknown>;
 }
 

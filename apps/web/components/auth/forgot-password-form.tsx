@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useAuth } from "../../hooks/auth/useAuth";
 import { validatePasswordResetForm } from "../../lib/validation/auth";
 import type { AuthFieldErrors } from "../../types/auth/types";
 import { AuthField, AuthSubmit } from "./auth-fields";
 
-const linkClassName = "font-semibold text-primary no-underline transition-colors hover:text-ink-accent";
+const linkClassName =
+  "font-semibold text-primary no-underline transition-colors hover:text-ink-accent";
 
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
@@ -14,6 +16,7 @@ export function ForgotPasswordForm() {
   const [pending, setPending] = useState(false);
   const [shake, setShake] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
+  const { forgotPassword, forgotPasswordError } = useAuth();
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -24,10 +27,14 @@ export function ForgotPasswordForm() {
       return;
     }
     setPending(true);
-    window.setTimeout(() => {
-      setPending(false);
+    try {
+      await forgotPassword({ email: email.trim() });
       setSentTo(email.trim());
-    }, 450);
+    } catch {
+      return;
+    } finally {
+      setPending(false);
+    }
   }
 
   if (sentTo) {
@@ -54,17 +61,25 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <div className={`auth-fade-up flex flex-col gap-[1.375rem] py-8 ${shake ? "auth-shake" : ""}`} onAnimationEnd={() => setShake(false)}>
+    <div
+      className={`auth-fade-up flex flex-col gap-[1.375rem] py-8 ${shake ? "auth-shake" : ""}`}
+      onAnimationEnd={() => setShake(false)}
+    >
       <div className="flex flex-col gap-2.5 pb-3">
         <h1 className="m-0 text-[clamp(2rem,3vw,2.5rem)] leading-[1.08] font-semibold tracking-[-0.032em] text-pretty text-foreground">
           Reset password
         </h1>
         <p className="m-0 text-[0.9375rem] leading-[1.55] text-pretty text-ink-muted">
-          Enter the email you signed up with and we will send a reset link there.
+          Enter the email you signed up with and we will send a reset link
+          there.
         </p>
       </div>
 
-      <form className="flex flex-col gap-[1.125rem]" onSubmit={handleSubmit} noValidate>
+      <form
+        className="flex flex-col gap-[1.125rem]"
+        onSubmit={handleSubmit}
+        noValidate
+      >
         <AuthField
           label="Email"
           type="email"
@@ -80,6 +95,12 @@ export function ForgotPasswordForm() {
         <AuthSubmit pending={pending} pendingLabel="Sending link…">
           Send reset link
         </AuthSubmit>
+
+        {forgotPasswordError && (
+          <p role="alert" className="m-0 text-xs font-medium text-rose-700">
+            {forgotPasswordError.message}
+          </p>
+        )}
 
         <div className="text-sm text-ink-muted">
           <p className="m-0">

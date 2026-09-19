@@ -1,4 +1,9 @@
-import type { AuthFieldErrors, LoginRequest, PasswordResetRequest, RegisterRequest } from "../../types/auth/types";
+import type {
+  AuthFieldErrors,
+  LoginRequest,
+  PasswordResetRequest,
+  RegisterRequest,
+} from "../../types/auth/types";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_EMAIL_LENGTH = 254;
@@ -17,12 +22,8 @@ export function validateLoginPassword(value: string): string | null {
 }
 
 export function validateNewPassword(value: string): string | null {
-  if (value.length < 8) return "Password must be at least 8 characters";
-  if (value.length > 128) return "Password must be 128 characters or fewer";
-  if (!/[a-z]/.test(value)) return "Password must include a lowercase letter";
-  if (!/[A-Z]/.test(value)) return "Password must include an uppercase letter";
-  if (!/\d/.test(value)) return "Password must include a number";
-  if (!/[^A-Za-z0-9]/.test(value)) return "Password must include a special character";
+  if (value.length < 12) return "Password must be at least 12 characters";
+  if (value.length > 256) return "Password must be 256 characters or fewer";
   return null;
 }
 
@@ -35,20 +36,27 @@ export function validateLoginForm(values: LoginRequest): AuthFieldErrors {
   return errors;
 }
 
-export function validateRegisterForm(values: RegisterRequest & { confirmPassword?: string }): AuthFieldErrors {
+export function validateRegisterForm(
+  values: RegisterRequest & { confirmPassword?: string },
+): AuthFieldErrors {
   const errors: AuthFieldErrors = {};
   if (values.name.trim().length === 0) errors.name = "Enter your full name";
   const emailError = validateEmail(values.email);
   if (emailError) errors.email = emailError;
   const passwordError = validateNewPassword(values.password);
   if (passwordError) errors.password = passwordError;
-  if (values.confirmPassword !== undefined && values.confirmPassword !== values.password) {
+  if (
+    values.confirmPassword !== undefined &&
+    values.confirmPassword !== values.password
+  ) {
     errors.confirmPassword = "Passwords do not match";
   }
   return errors;
 }
 
-export function validatePasswordResetForm(values: PasswordResetRequest): AuthFieldErrors {
+export function validatePasswordResetForm(
+  values: PasswordResetRequest,
+): AuthFieldErrors {
   const errors: AuthFieldErrors = {};
   const emailError = validateEmail(values.email);
   if (emailError) errors.email = emailError;
