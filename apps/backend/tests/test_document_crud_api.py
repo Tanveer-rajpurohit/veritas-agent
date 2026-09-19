@@ -1,9 +1,10 @@
 from collections.abc import Generator
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -11,6 +12,7 @@ from app.core.config import settings
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
+from app.models.auth import User
 
 test_engine = create_engine(
     "sqlite:///:memory:",
@@ -39,14 +41,24 @@ def setup_test_db() -> Generator[None, None, None]:
 
 @pytest.fixture
 def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
-    monkeypatch.setattr(settings, "AUTH_SECRET", "test-secret-that-is-at-least-32-bytes-long")
+    monkeypatch.setattr(settings, "EMAIL_PROVIDER", "console")
     client = TestClient(app)
-    response = client.post(
-        "/api/v1/auth/register",
-        json={"email": "lawyer@example.com", "password": "secure-password-1234"},
-    )
+    creds = {"email": "lawyer@example.com", "password": "secure-password-1234"}
+    response = client.post("/api/v1/auth/register", json=creds)
     assert response.status_code == 201
-    client.headers["Authorization"] = f"Bearer {response.json()['access_token']}"
+
+    db = TestingSessionLocal()
+    try:
+        user = db.scalar(select(User).where(User.email == creds["email"]))
+        assert user is not None
+        user.email_verified_at = datetime.now(UTC)
+        db.commit()
+    finally:
+        db.close()
+
+    login_res = client.post("/api/v1/auth/login", json=creds)
+    assert login_res.status_code == 204
+    assert settings.SESSION_COOKIE_NAME in client.cookies
     return client
 
 

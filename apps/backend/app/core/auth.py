@@ -1,72 +1,84 @@
-import base64
-import binascii
-import hashlib
-import hmac
-import json
-import secrets
-import time
 from typing import Annotated
-from uuid import UUID
 
-from fastapi import Depends, HTTPException
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import Depends, Request, Response
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.security import (
+    AuthException,
+    hash_password,
+    hash_token,
+    validate_origin,
+    verify_password,
+)
 from app.db.session import get_db
-from app.models.matters import User
-
-bearer = HTTPBearer(auto_error=False)
-
-
-def hash_password(password: str) -> str:
-    salt = secrets.token_bytes(16)
-    digest = hashlib.scrypt(password.encode(), salt=salt, n=16384, r=8, p=1)
-    return f"{salt.hex()}:{digest.hex()}"
+from app.models.auth import User, UserSession
+from app.repositories.auth.auth_repository import AuthRepository
 
 
-def verify_password(password: str, stored: str) -> bool:
-    try:
-        salt_hex, digest_hex = stored.split(":", 1)
-        digest = hashlib.scrypt(password.encode(), salt=bytes.fromhex(salt_hex), n=16384, r=8, p=1)
-        return hmac.compare_digest(digest, bytes.fromhex(digest_hex))
-    except (ValueError, TypeError):
-        return False
+def set_session_cookie(response: Response, raw_token: str) -> None:
+    response.set_cookie(
+        key=settings.SESSION_COOKIE_NAME,
+        value=raw_token,
+        httponly=True,
+        secure=settings.SESSION_COOKIE_SECURE,
+        samesite="lax",
+        path="/",
+        max_age=settings.SESSION_TTL_SECONDS,
+    )
 
 
-def auth_secret() -> bytes:
-    secret = settings.AUTH_SECRET.strip()
-    if not secret or len(secret) < 32 or "replace" in secret.lower():
-        raise HTTPException(status_code=503, detail="Authentication is not configured")
-    return secret.encode()
+def clear_session_cookie(response: Response) -> None:
+    response.delete_cookie(
+        key=settings.SESSION_COOKIE_NAME,
+        path="/",
+        httponly=True,
+        secure=settings.SESSION_COOKIE_SECURE,
+        samesite="lax",
+    )
 
 
-def issue_token(user_id: UUID) -> str:
-    payload = json.dumps(
-        {"sub": str(user_id), "exp": int(time.time()) + 86400}, separators=(",", ":")
-    ).encode()
-    encoded = base64.urlsafe_b64encode(payload).rstrip(b"=").decode()
-    signature = hmac.new(auth_secret(), encoded.encode(), hashlib.sha256).hexdigest()
-    return f"{encoded}.{signature}"
+def get_current_session(
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+) -> tuple[User, UserSession]:
+    raw_token = request.cookies.get(settings.SESSION_COOKIE_NAME)
+    if not raw_token:
+        raise AuthException(
+            code="AUTHENTICATION_REQUIRED",
+            message="Authentication required",
+            status_code=401,
+        )
+
+    if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        validate_origin(request)
+
+    token_hash = hash_token(raw_token)
+    repo = AuthRepository(db)
+    result = repo.get_active_session_by_token_hash(token_hash)
+    if result is None:
+        raise AuthException(
+            code="AUTHENTICATION_REQUIRED",
+            message="Invalid or expired session",
+            status_code=401,
+        )
+
+    session, user = result
+    return user, session
 
 
 def current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
-    db: Annotated[Session, Depends(get_db)],
+    session_data: Annotated[tuple[User, UserSession], Depends(get_current_session)],
 ) -> User:
-    if credentials is None:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    try:
-        encoded, signature = credentials.credentials.split(".", 1)
-        expected = hmac.new(auth_secret(), encoded.encode(), hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(signature, expected):
-            raise ValueError
-        payload = json.loads(base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4)))
-        if payload["exp"] < time.time():
-            raise ValueError
-        user = db.get(User, UUID(payload["sub"]))
-        if user is None:
-            raise ValueError
-        return user
-    except (ValueError, KeyError, TypeError, binascii.Error):
-        raise HTTPException(status_code=401, detail="Invalid authentication token") from None
+    return session_data[0]
+
+
+__all__ = [
+    "AuthException",
+    "clear_session_cookie",
+    "current_user",
+    "get_current_session",
+    "hash_password",
+    "set_session_cookie",
+    "verify_password",
+]

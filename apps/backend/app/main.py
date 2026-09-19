@@ -1,11 +1,15 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import Any
+from uuid import uuid4
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.core.config import settings
 from app.core.redis import close_redis_pool
+from app.core.security import AuthException
 from app.routers.agent.router import router as agent_router
 from app.routers.agent_runs.router import router as agent_runs_router
 from app.routers.auth.router import router as auth_router
@@ -34,6 +38,22 @@ app = FastAPI(
     redoc_url="/redoc",
     lifespan=lifespan,
 )
+
+
+@app.exception_handler(AuthException)
+async def auth_exception_handler(request: Request, exc: AuthException) -> JSONResponse:
+    request_id = request.headers.get("x-request-id") or str(uuid4())
+    content: dict[str, Any] = {
+        "error": {
+            "code": exc.code,
+            "message": exc.message,
+            "request_id": request_id,
+        }
+    }
+    if exc.details is not None:
+        content["error"]["details"] = exc.details
+    return JSONResponse(status_code=exc.status_code, content=content)
+
 
 app.add_middleware(
     CORSMiddleware,

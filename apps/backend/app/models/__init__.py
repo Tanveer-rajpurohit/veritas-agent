@@ -1,11 +1,13 @@
 from app.models.agent_runs import AgentEvent, AgentRun
+from app.models.auth import ActionToken, User, UserSession
 from app.models.conversations import Message, Thread
 from app.models.drafts import DocumentCommand, DocumentVersion, Draft, DraftExport
-from app.models.matters import Matter, MatterMember, User
+from app.models.matters import Matter, MatterMember
 from app.models.reviews import Claim, Finding, FindingEvidence, FindingResolution
 from app.models.sources import EvidenceSpan, Source, SourceChunk, SourcePage, SourceVersion
 
 __all__ = [
+    "ActionToken",
     "AgentEvent",
     "AgentRun",
     "Claim",
@@ -18,12 +20,13 @@ __all__ = [
     "FindingEvidence",
     "FindingResolution",
     "Matter",
-    "Message",
-    "Thread",
     "MatterMember",
-    "User",
+    "Message",
     "Source",
     "SourceChunk",
     "SourcePage",
     "SourceVersion",
+    "Thread",
+    "User",
+    "UserSession",
 ]

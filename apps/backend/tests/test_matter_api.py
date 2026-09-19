@@ -1,10 +1,11 @@
 from collections.abc import Generator
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pymupdf
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -12,6 +13,7 @@ from app.core.config import settings
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
+from app.models.auth import User
 from app.services.exports.draft import export_storage
 from app.services.sources.embeddings import embedding_service
 from app.services.sources.storage import storage_service
@@ -58,21 +60,51 @@ def setup_test_db(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None
     app.dependency_overrides.clear()
 
 
+def switch_user(
+    client: TestClient,
+    email: str,
+    password: str = "another-correct-password",
+) -> None:
+    res = client.post("/api/v1/auth/register", json={"email": email, "password": password})
+    assert res.status_code == 201
+    db = TestingSessionLocal()
+    try:
+        user = db.scalar(select(User).where(User.email == email))
+        assert user is not None
+        user.email_verified_at = datetime.now(UTC)
+        db.commit()
+    finally:
+        db.close()
+    login_res = client.post("/api/v1/auth/login", json={"email": email, "password": password})
+    assert login_res.status_code == 204
+    assert settings.SESSION_COOKIE_NAME in client.cookies
+
+
 @pytest.fixture
 def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
-    monkeypatch.setattr(settings, "AUTH_SECRET", "test-secret-that-is-at-least-32-bytes-long")
+    monkeypatch.setattr(settings, "EMAIL_PROVIDER", "console")
     client = TestClient(app)
-    response = client.post(
-        "/api/v1/auth/register",
-        json={"email": "owner@example.com", "password": "correct-horse-battery"},
-    )
+    creds = {"email": "owner@example.com", "password": "correct-horse-battery"}
+    response = client.post("/api/v1/auth/register", json=creds)
     assert response.status_code == 201
-    client.headers["Authorization"] = f"Bearer {response.json()['access_token']}"
+
+    db = TestingSessionLocal()
+    try:
+        user = db.scalar(select(User).where(User.email == creds["email"]))
+        assert user is not None
+        user.email_verified_at = datetime.now(UTC)
+        db.commit()
+    finally:
+        db.close()
+
+    login_res = client.post("/api/v1/auth/login", json=creds)
+    assert login_res.status_code == 204
+    assert settings.SESSION_COOKIE_NAME in client.cookies
     return client
 
 
 def test_matter_requires_authentication(client: TestClient) -> None:
-    client.headers.pop("Authorization")
+    client.cookies.delete(settings.SESSION_COOKIE_NAME)
     assert client.get("/api/v1/matters/").status_code == 401
 
 
@@ -81,19 +113,15 @@ def test_login_and_invalid_token(client: TestClient) -> None:
         "/api/v1/auth/login",
         json={"email": "owner@example.com", "password": "correct-horse-battery"},
     )
-    assert response.status_code == 200
-    assert response.json()["token_type"] == "bearer"
-    client.headers["Authorization"] = "Bearer broken.token"
+    assert response.status_code == 204
+    assert settings.SESSION_COOKIE_NAME in client.cookies
+    client.cookies.set(settings.SESSION_COOKIE_NAME, "broken.token")
     assert client.get("/api/v1/matters/").status_code == 401
 
 
 def test_matter_isolation(client: TestClient) -> None:
     matter_id = client.post("/api/v1/matters/", json={"title": "Private"}).json()["id"]
-    response = client.post(
-        "/api/v1/auth/register",
-        json={"email": "other@example.com", "password": "another-correct-password"},
-    )
-    client.headers["Authorization"] = f"Bearer {response.json()['access_token']}"
+    switch_user(client, "other@example.com", "another-correct-password")
     assert client.get("/api/v1/matters/").json() == []
     assert client.get(f"/api/v1/matters/{matter_id}").status_code == 404
     assert (
@@ -125,11 +153,7 @@ def test_upload_and_page_are_matter_scoped(
         == b"The amount due is INR 12 lakh."
     )
 
-    other = client.post(
-        "/api/v1/auth/register",
-        json={"email": "source-reader@example.com", "password": "another-correct-password"},
-    )
-    client.headers["Authorization"] = f"Bearer {other.json()['access_token']}"
+    switch_user(client, "source-reader@example.com", "another-correct-password")
     assert client.get(f"/api/v1/sources/{source_id}").status_code == 404
     assert client.get(f"/api/v1/sources/{source_id}/download").status_code == 404
     assert client.get(f"/api/v1/sources/{source_id}/pages/1").status_code == 404
@@ -186,11 +210,7 @@ def test_document_save_is_versioned_idempotent_and_scoped(
         == 409
     )
 
-    other = client.post(
-        "/api/v1/auth/register",
-        json={"email": "document-reader@example.com", "password": "another-correct-password"},
-    )
-    client.headers["Authorization"] = f"Bearer {other.json()['access_token']}"
+    switch_user(client, "document-reader@example.com", "another-correct-password")
     assert client.get(f"/api/v1/documents/{document_id}").status_code == 404
     assert client.get(f"/api/v1/document-versions/{saved.json()['id']}").status_code == 404
     assert client.get(exported.json()["download_url"]).status_code == 404
@@ -494,11 +514,7 @@ def test_threads_and_messages_are_persistent_and_scoped(client: TestClient) -> N
     )
     assert client.get(f"/api/v1/matters/{matter_id}/threads").json()[0]["id"] == thread_id
 
-    other = client.post(
-        "/api/v1/auth/register",
-        json={"email": "chat-reader@example.com", "password": "another-correct-password"},
-    )
-    client.headers["Authorization"] = f"Bearer {other.json()['access_token']}"
+    switch_user(client, "chat-reader@example.com", "another-correct-password")
     assert client.get(f"/api/v1/threads/{thread_id}/messages").status_code == 404
     assert (
         client.post(
@@ -573,11 +589,7 @@ def test_writer_run_persists_artifact_and_replayable_events(
     )
     assert conflicting.status_code == 409
 
-    other = client.post(
-        "/api/v1/auth/register",
-        json={"email": "run-reader@example.com", "password": "another-correct-password"},
-    )
-    client.headers["Authorization"] = f"Bearer {other.json()['access_token']}"
+    switch_user(client, "run-reader@example.com", "another-correct-password")
     assert client.get(f"/api/v1/agent-runs/{run_id}/events").status_code == 404
 
 

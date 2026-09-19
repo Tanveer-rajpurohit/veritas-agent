@@ -44,18 +44,25 @@ def setup_test_db() -> Generator[None, None, None]:
 
 @pytest.fixture
 def auth_client(monkeypatch: pytest.MonkeyPatch) -> tuple[TestClient, User]:
-    monkeypatch.setattr(settings, "AUTH_SECRET", "test-secret-that-is-at-least-32-bytes-long")
+    monkeypatch.setattr(settings, "EMAIL_PROVIDER", "console")
     client = TestClient(app)
-    response = client.post(
-        "/api/v1/auth/register",
-        json={"email": "fact-lawyer@example.com", "password": "correct-horse-battery"},
-    )
+    creds = {"email": "fact-lawyer@example.com", "password": "correct-horse-battery"}
+    response = client.post("/api/v1/auth/register", json=creds)
     assert response.status_code == 201
-    token = response.json()["access_token"]
-    client.headers["Authorization"] = f"Bearer {token}"
 
     db = TestingSessionLocal()
-    user = db.query(User).filter_by(email="fact-lawyer@example.com").first()
+    try:
+        user = db.query(User).filter_by(email=creds["email"]).first()
+        assert user is not None
+        user.email_verified_at = datetime.now(UTC)
+        db.commit()
+        db.refresh(user)
+    finally:
+        db.close()
+
+    login_res = client.post("/api/v1/auth/login", json=creds)
+    assert login_res.status_code == 204
+    assert settings.SESSION_COOKIE_NAME in client.cookies
     return client, user
 
 
@@ -219,13 +226,22 @@ def test_checks_endpoint_synthetic_conflict_api_flow(auth_client: tuple[TestClie
     assert all(f["status"] == "needs_review" for f in findings_list)
 
     # Cross-matter authorization check: another user cannot access this version
-    other_user_resp = client.post(
-        "/api/v1/auth/register",
-        json={"email": "other@example.com", "password": "password12345"},
-    )
-    other_token = other_user_resp.json()["access_token"]
+    other_creds = {"email": "other@example.com", "password": "password12345"}
     other_client = TestClient(app)
-    other_client.headers["Authorization"] = f"Bearer {other_token}"
+    other_user_resp = other_client.post("/api/v1/auth/register", json=other_creds)
+    assert other_user_resp.status_code == 201
+
+    db = TestingSessionLocal()
+    try:
+        other_user = db.query(User).filter_by(email=other_creds["email"]).first()
+        assert other_user is not None
+        other_user.email_verified_at = datetime.now(UTC)
+        db.commit()
+    finally:
+        db.close()
+
+    other_login = other_client.post("/api/v1/auth/login", json=other_creds)
+    assert other_login.status_code == 204
 
     cross_resp = other_client.post(
         f"/api/v1/document-versions/{doc_ver.id}/checks",

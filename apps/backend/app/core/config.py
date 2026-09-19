@@ -13,7 +13,13 @@ class Settings(BaseSettings):
     APP_VERSION: str = "0.1.0"
     ENVIRONMENT: str = "development"
     ALLOWED_ORIGINS: list[str] = ["http://localhost:3000"]
-    AUTH_SECRET: str = ""
+    APP_BASE_URL: str = "http://localhost:3000"
+    SESSION_COOKIE_NAME: str = "veritas_session"
+    SESSION_TTL_SECONDS: int = 604800
+    SESSION_COOKIE_SECURE: bool = False
+    AUTH_TOKEN_TTL_SECONDS: int = 1800
+    EMAIL_FROM: str = "no-reply@veritaslegal.in"
+    EMAIL_PROVIDER: str = "console"
 
     BEDROCK_AGENT_ENABLED: bool = False
     AGENT_MAX_TOKENS: int = 2048
@@ -90,10 +96,8 @@ class Settings(BaseSettings):
         if not self.BUCKET_NAME.strip():
             raise ValueError("BUCKET_NAME is required")
         if self.ENVIRONMENT == "production":
-            if not self.AUTH_SECRET or len(self.AUTH_SECRET) < 32 or "replace" in self.AUTH_SECRET:
-                raise ValueError(
-                    "AUTH_SECRET must be at least 32 characters and not a placeholder in production"
-                )
+            if not self.SESSION_COOKIE_SECURE:
+                raise ValueError("SESSION_COOKIE_SECURE must be True in production")
             if self.OBJECT_STORAGE_BACKEND == "minio":
                 if not self.MINIO_ENDPOINT.strip():
                     raise ValueError("MINIO_ENDPOINT is required when MinIO is selected")

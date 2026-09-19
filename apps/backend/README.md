@@ -14,7 +14,6 @@ python -m venv .venv
 python -m pip install -r requirements-dev.txt
 Copy-Item .env.example .env
 # The sample MinIO credentials match docker-compose.yml; replace both for non-local use.
-# Replace AUTH_SECRET in .env with a random value of at least 32 characters.
 python -m alembic upgrade head
 python -m uvicorn app.main:app --reload --port 8000
 ```
@@ -69,10 +68,19 @@ while its test suite is small.
 
 - `GET /` returns API name, version, and status.
 - `GET /health` returns the service health status.
-- `POST /api/v1/auth/register` creates an account and returns a bearer token.
-- `POST /api/v1/auth/login` returns a bearer token for an existing account.
-- `/api/v1/matters/` requires that token and returns only the caller's matters.
-- `POST /api/v1/matters/{id}/uploads` accepts PDF, TXT, and MD records up to 10 MB.
+- `POST /api/v1/auth/register` creates an account and dispatches an email verification link.
+- `POST /api/v1/auth/email/verify` verifies an email address via single-use action token.
+- `POST /api/v1/auth/email/resend` re-dispatches verification link.
+- `POST /api/v1/auth/login` sets an opaque HttpOnly session cookie (`veritas_session`) upon verification.
+- `GET /api/v1/auth/me` returns the authenticated user profile using the session cookie.
+- `POST /api/v1/auth/logout` revokes the session and clears the cookie (origin-validated).
+- `GET /api/v1/auth/sessions` and `DELETE /api/v1/auth/sessions/{id}` manage active sessions.
+- `POST /api/v1/auth/password/forgot` and `POST /api/v1/auth/password/reset` handle password reset with atomic session revocation.
+- `/api/v1/matters/` requires session authentication and returns only the caller's matters.
+
+### Legacy User Verification Note
+
+For users created prior to migration `a3d9d2707c30`, `email_verified_at` remains `NULL`. Veritas does not silently claim or mark prior accounts as verified. Unverified accounts attempting login will receive `403 EMAIL_NOT_VERIFIED` and must complete verification via `/api/v1/auth/email/resend` or an explicit operational migration.
 - `GET /api/v1/matters/{id}/sources` and `GET /api/v1/sources/{id}/pages/{page}` return scoped evidence.
 - `GET /api/v1/sources/{id}/download` returns the authorized original file.
 - `POST /api/v1/matters/{id}/threads` and `/api/v1/threads/{id}/messages` persist scoped conversations.

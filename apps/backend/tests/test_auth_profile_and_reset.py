@@ -1,17 +1,17 @@
 from collections.abc import Generator
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-import app.core.email as email_module
 from app.core.config import settings
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
-from app.routers.auth.router import _in_memory_reset_codes
+from app.models.auth import User
 
 test_engine = create_engine(
     "sqlite:///:memory:",
@@ -40,13 +40,26 @@ def setup_test_db() -> Generator[None, None, None]:
 
 @pytest.fixture
 def auth_client(monkeypatch: pytest.MonkeyPatch) -> tuple[TestClient, dict[str, str]]:
-    monkeypatch.setattr(settings, "AUTH_SECRET", "test-secret-that-is-at-least-32-bytes-long")
+    monkeypatch.setattr(settings, "EMAIL_PROVIDER", "console")
     client = TestClient(app)
     creds = {"email": "advocate@veritas.in", "password": "super-secure-password-123"}
     res = client.post("/api/v1/auth/register", json=creds)
     assert res.status_code == 201
-    token = res.json()["access_token"]
-    client.headers["Authorization"] = f"Bearer {token}"
+
+    # Verify user in database
+    db = TestingSessionLocal()
+    try:
+        user = db.scalar(select(User).where(User.email == creds["email"]))
+        assert user is not None
+        user.email_verified_at = datetime.now(UTC)
+        db.commit()
+    finally:
+        db.close()
+
+    # Login and store session cookie
+    login_res = client.post("/api/v1/auth/login", json=creds)
+    assert login_res.status_code == 204
+    assert settings.SESSION_COOKIE_NAME in client.cookies
     return client, creds
 
 
@@ -97,35 +110,34 @@ def test_forgot_and_reset_password_flow(
     client, creds = auth_client
     email = creds["email"]
 
-    sent_emails: list[dict[str, str]] = []
+    import app.services.auth.auth_service as auth_service_module
 
-    async def fake_send_email(to: str, subject: str, html_body: str) -> None:
-        sent_emails.append({"to": to, "subject": subject, "body": html_body})
+    sent_tokens: list[str] = []
 
-    monkeypatch.setattr(email_module, "send_email", fake_send_email)
+    async def fake_send_password_reset(to: str, token: str) -> None:
+        sent_tokens.append(token)
 
-    forgot_res = client.post("/api/v1/auth/forgot-password", json={"email": email})
-    assert forgot_res.status_code == 200
-    assert "message" in forgot_res.json()
+    monkeypatch.setattr(auth_service_module, "send_password_reset", fake_send_password_reset)
 
-    code = _in_memory_reset_codes.get(email)[0]
-    assert len(code) == 6
+    forgot_res = client.post("/api/v1/auth/password/forgot", json={"email": email})
+    assert forgot_res.status_code == 202
+    assert "instructions have been sent" in forgot_res.json()["message"]
+    assert len(sent_tokens) == 1
+    raw_token = sent_tokens[0]
 
     bad_reset = client.post(
-        "/api/v1/auth/reset-password",
+        "/api/v1/auth/password/reset",
         json={
-            "email": email,
-            "code": "WRONG1",
+            "token": "WRONG_TOKEN",
             "new_password": "brand-new-secure-password-456",
         },
     )
     assert bad_reset.status_code == 400
 
     good_reset = client.post(
-        "/api/v1/auth/reset-password",
+        "/api/v1/auth/password/reset",
         json={
-            "email": email,
-            "code": code,
+            "token": raw_token,
             "new_password": "brand-new-secure-password-456",
         },
     )
@@ -141,25 +153,4 @@ def test_forgot_and_reset_password_flow(
         "/api/v1/auth/login",
         json={"email": email, "password": "brand-new-secure-password-456"},
     )
-    assert new_login.status_code == 200
-    assert "access_token" in new_login.json()
-
-
-def test_auth_secret_rejects_missing_short_or_placeholder(monkeypatch: pytest.MonkeyPatch) -> None:
-    client = TestClient(app)
-    creds = {"email": "advocate_test@veritas.in", "password": "super-secure-password-123"}
-
-    # Missing secret
-    monkeypatch.setattr(settings, "AUTH_SECRET", "")
-    res = client.post("/api/v1/auth/register", json=creds)
-    assert res.status_code == 503
-
-    # Short secret (< 32 chars)
-    monkeypatch.setattr(settings, "AUTH_SECRET", "short-secret")
-    res = client.post("/api/v1/auth/register", json=creds)
-    assert res.status_code == 503
-
-    # Placeholder secret
-    monkeypatch.setattr(settings, "AUTH_SECRET", "replace-with-a-long-random-secret")
-    res = client.post("/api/v1/auth/register", json=creds)
-    assert res.status_code == 503
+    assert new_login.status_code == 204
