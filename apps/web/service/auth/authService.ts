@@ -20,6 +20,7 @@ export const authService = {
     const res = await fetchClient.post<BackendAuthResponse>(
       "/auth/register",
       {
+        full_name: payload.name,
         email: payload.email,
         password: payload.password,
       },

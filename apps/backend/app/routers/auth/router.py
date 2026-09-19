@@ -36,6 +36,10 @@ class Credentials(BaseModel):
     password: str = Field(min_length=12, max_length=256)
 
 
+class RegisterRequest(Credentials):
+    full_name: str = Field(min_length=1, max_length=255)
+
+
 class UserProfileResponse(BaseModel):
     id: UUID
     email: str
@@ -76,12 +80,19 @@ class ResetPasswordRequest(BaseModel):
 
 
 @router.post("/register", status_code=201)
-def register(payload: Credentials, db: Annotated[Session, Depends(get_db)]) -> dict[str, str]:
+def register(payload: RegisterRequest, db: Annotated[Session, Depends(get_db)]) -> dict[str, str]:
     auth_secret()
     email = payload.email.strip().lower()
     if "@" not in email:
         raise HTTPException(status_code=422, detail="Invalid email")
-    user = User(email=email, password_hash=hash_password(payload.password))
+    full_name = payload.full_name.strip()
+    if not full_name:
+        raise HTTPException(status_code=422, detail="Full name is required")
+    user = User(
+        email=email,
+        password_hash=hash_password(payload.password),
+        full_name=full_name,
+    )
     db.add(user)
     try:
         db.commit()

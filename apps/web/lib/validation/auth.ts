@@ -17,7 +17,7 @@ export function validateLoginPassword(value: string): string | null {
 }
 
 export function validateNewPassword(value: string): string | null {
-  if (value.length < 8) return "Password must be at least 8 characters";
+  if (value.length < 12) return "Password must be at least 12 characters";
   if (value.length > 128) return "Password must be 128 characters or fewer";
   if (!/[a-z]/.test(value)) return "Password must include a lowercase letter";
   if (!/[A-Z]/.test(value)) return "Password must include an uppercase letter";

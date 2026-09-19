@@ -94,7 +94,7 @@ export function RegisterForm() {
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           error={fieldErrors.password}
-          hint="Use 8 or more characters with a number or symbol."
+          hint="Use 12 or more characters with uppercase, lowercase, a number, and a symbol."
           required
         />
 
