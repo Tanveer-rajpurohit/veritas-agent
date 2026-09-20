@@ -125,7 +125,7 @@ def test_delete_document_success(client: TestClient) -> None:
     ).json()
 
     del_res = client.delete(f"/api/v1/documents/{doc['id']}")
-    assert del_res.status_code == 200
+    assert del_res.status_code == 204
 
     get_res = client.get(f"/api/v1/documents/{doc['id']}")
     assert get_res.status_code == 404

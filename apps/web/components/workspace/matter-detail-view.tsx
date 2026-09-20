@@ -524,7 +524,7 @@ export function MatterDetailView({
                     <div className="flex items-center gap-1.5">
                       <button
                         type="button"
-                        onClick={() => void handlePreviewPdf(doc.id, doc.name)}
+                        onClick={() => void handlePreviewPdf(doc.id)}
                         className="inline-flex h-6.5 items-center gap-1 rounded-md border border-stone-200 bg-white px-2 text-[11px] font-medium text-stone-700 hover:border-[#487aa8] hover:bg-[#edf4fa] hover:text-[#2c5478] transition-colors cursor-pointer shadow-2xs"
                         title="Preview document"
                       >

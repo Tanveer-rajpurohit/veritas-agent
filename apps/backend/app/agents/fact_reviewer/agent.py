@@ -44,6 +44,7 @@ def _build_default_model() -> Any:
         params={
             "max_tokens": settings.AGENT_MAX_TOKENS,
             "temperature": settings.AGENT_TEMPERATURE,
+            "extra_body": {"include_reasoning": False},
         },
     )
 

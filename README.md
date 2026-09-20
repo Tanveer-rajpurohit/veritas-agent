@@ -26,11 +26,11 @@ Veritas supports legal work; it does not replace professional judgment, determin
 
 The application—not a model—owns authorization, state transitions, finding invalidation, approval, and export eligibility.
 
-The Build It baseline uses Strands directly and visibly. The event also permits Cedar, SAM/LocalStack, OpenSearch, PartyRock, and other AWS open-source technologies, but Veritas does not need to use every option. Cedar and OpenSearch remain optional until the core review workflow is complete and they support a real feature. The binding stack and substitution policy live in [the technical architecture](docs/build%20plan/tech.md).
+The Build It baseline uses Strands directly and visibly. Cedar and OpenSearch remain optional until the core review workflow is complete and they support a real feature. Runtime details live in [the agent implementation](docs/agent-implementation.md).
 
 ## Current status
 
-The repository currently contains the monorepo scaffold, planning documents, the Next.js starter, and a basic FastAPI backend with root and health endpoints. Product features are not implemented yet.
+The MVP supports authenticated matters, evidence upload and extraction, agent-assisted drafting and review, immutable document versions, findings linked to evidence, and draft PDF/JSON export. See [MVP scope](docs/mvp.md) for the submission workflow and deferred features.
 
 ## Repository structure
 
@@ -67,10 +67,11 @@ The backend also participates in the Turborepo development command, so `pnpm dev
 
 ## Documentation
 
-Start with [the build-plan index](docs/build%20plan/README.md), then read the [master specification](docs/build%20plan/veritas-master-doc.md), [MVP plan](docs/build%20plan/mvp.md), and [AI implementation brief](docs/build%20plan/main.md).
-
-For the agent code that is running now, including every tool and provider mapping, read the
-[current agent runtime](docs/current-agent-runtime.md).
+- [Product idea](docs/idea.md)
+- [MVP scope and demo path](docs/mvp.md)
+- [Agent implementation](docs/agent-implementation.md)
+- [Data sources](docs/sources.md)
+- [Presentation notes](docs/presentation.md)
 
 ## Hackathon scope
 
