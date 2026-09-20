@@ -25,7 +25,11 @@ def test_groq_model_uses_the_configured_openai_compatible_endpoint(
             "base_url": "https://groq.test/v1",
         },
         model_id="test-groq-model",
-        params={"max_tokens": 512, "temperature": 0.2},
+        params={
+            "max_tokens": 512,
+            "temperature": 0.2,
+            "extra_body": {"include_reasoning": False},
+        },
     )
 
 

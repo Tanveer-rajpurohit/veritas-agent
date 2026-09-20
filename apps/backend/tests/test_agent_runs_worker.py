@@ -151,6 +151,10 @@ def test_fact_reviewer_worker_execution_success(monkeypatch: pytest.MonkeyPatch)
         "app.workers.agent_runs.create_fact_reviewer_agent",
         mock_create_agent,
     )
+    monkeypatch.setattr(
+        "app.workers.agent_runs.create_fact_reviewer_formatter",
+        lambda: mock_agent,
+    )
 
     process_agent_run(run_id)
 

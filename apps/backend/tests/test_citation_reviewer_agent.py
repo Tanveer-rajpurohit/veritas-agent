@@ -6,10 +6,10 @@ import pytest
 from app.agents.citation_reviewer import (
     CITATION_REVIEWER_SYSTEM_PROMPT,
     create_citation_reviewer_agent,
+    create_citation_reviewer_formatter,
     create_citation_reviewer_tools,
 )
 from app.agents.citation_reviewer.tools import CitationReviewerToolHandlers
-from app.schemas.agents.citation_reviewer import CitationReviewerResult
 
 
 def test_citation_reviewer_agent_has_bounded_tools_and_typed_output() -> None:
@@ -18,13 +18,17 @@ def test_citation_reviewer_agent_has_bounded_tools_and_typed_output() -> None:
     )
 
     assert agent.system_prompt == CITATION_REVIEWER_SYSTEM_PROMPT
-    assert agent._default_structured_output_model == CitationReviewerResult
+    assert agent._default_structured_output_model is None
     assert agent.tool_names == [
         "get_citation_findings",
         "lookup_statute",
         "search_cases",
         "fetch_case",
     ]
+
+    formatter = create_citation_reviewer_formatter(model=MagicMock())
+    assert formatter._default_structured_output_model is None
+    assert formatter.tool_names == []
 
 
 def test_citation_tools_reject_other_document_version() -> None:

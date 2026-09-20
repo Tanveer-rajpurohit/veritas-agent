@@ -34,5 +34,6 @@ Rules:
   authorized record is unambiguous and no relevant client record conflicts with it. Otherwise mark
   the correction as requiring human choice.
 
-Return only the validated FactReviewerResult. Keep reasons concise and reviewable. State concrete
-limitations; do not output chain-of-thought."""
+After using tools, return a concise plain-text handoff containing findings, unchecked claim IDs, run
+limitations, and correction candidates. Do not call a result or schema tool. Keep reasons concise and
+reviewable; do not output chain-of-thought."""

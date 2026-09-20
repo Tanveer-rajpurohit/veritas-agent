@@ -546,6 +546,7 @@ def test_writer_run_persists_artifact_and_replayable_events(
     monkeypatch.setattr(
         worker, "create_writer_agent", lambda db, matter_id, allow_document_writes: FakeWriter()
     )
+    monkeypatch.setattr(worker, "create_writer_formatter", lambda: FakeWriter())
     matter_id = client.post("/api/v1/matters/", json={"title": "Agent"}).json()["id"]
     thread_id = client.post(f"/api/v1/matters/{matter_id}/threads", json={}).json()["id"]
     message_id = client.post(
@@ -608,6 +609,15 @@ def test_writer_run_without_operations_does_not_create_a_document(
             )
         ),
     )
+    monkeypatch.setattr(
+        worker,
+        "create_writer_formatter",
+        lambda: (
+            lambda prompt: SimpleNamespace(
+                structured_output=WriterResult(unresolved_questions=["Which amount is correct?"])
+            )
+        ),
+    )
     matter_id = client.post("/api/v1/matters/", json={"title": "Incomplete"}).json()["id"]
     thread_id = client.post(f"/api/v1/matters/{matter_id}/threads", json={}).json()["id"]
     message_id = client.post(
@@ -643,6 +653,23 @@ def test_writer_revision_requires_explicit_acceptance(
         worker,
         "create_writer_agent",
         lambda db, matter_id, allow_document_writes: (
+            lambda prompt: SimpleNamespace(
+                structured_output=WriterResult(
+                    operations=[
+                        DocumentOperation(
+                            type="insert_paragraph",
+                            position="analysis",
+                            text="Proposed revision",
+                        )
+                    ]
+                )
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        worker,
+        "create_writer_formatter",
+        lambda: (
             lambda prompt: SimpleNamespace(
                 structured_output=WriterResult(
                     operations=[

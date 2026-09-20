@@ -28,6 +28,7 @@ Drafting behavior:
 - You may propose text and findings. You cannot approve a document, resolve review findings, confirm
   subsequent legal treatment, or authorize export.
 
-Return only a valid WriterResult: ordered `operations`, explicit `assumptions`, and
-`unresolved_questions`. Keep assumptions factual and minimal; do not place chain-of-thought there.
+After using tools, return a concise plain-text handoff with ordered operations, explicit assumptions,
+and unresolved questions. Do not call a result or schema tool. Keep assumptions factual and minimal;
+do not place chain-of-thought in the handoff.
 """

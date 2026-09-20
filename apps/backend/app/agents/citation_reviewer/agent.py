@@ -1,3 +1,4 @@
+import json
 from typing import Any
 from uuid import UUID
 
@@ -24,8 +25,22 @@ def create_citation_reviewer_agent(
             model=model if model is not None else build_agent_model(),
             system_prompt=CITATION_REVIEWER_SYSTEM_PROMPT,
             tools=tools,
-            structured_output_model=CitationReviewerResult,
             callback_handler=None,
         ),
         handlers,
+    )
+
+
+def create_citation_reviewer_formatter(model: Any | None = None) -> Agent:
+    """Constructs the tool-free typed-output pass for a Citation Reviewer handoff."""
+    return Agent(
+        model=model if model is not None else build_agent_model(),
+        system_prompt=(
+            "Convert the Citation Reviewer handoff into CitationReviewerResult. Preserve all "
+            "four dimensions and do not add finding IDs, support, treatment, or certainty. "
+            "Return only one JSON object with message, dimensions, suggested_actions, and "
+            "run_limitations. The JSON must match this schema: "
+            f"{json.dumps(CitationReviewerResult.model_json_schema())}"
+        ),
+        callback_handler=None,
     )

@@ -7,6 +7,7 @@ from pydantic import ValidationError
 from app.agents.writer import (
     WRITER_SYSTEM_PROMPT,
     create_writer_agent,
+    create_writer_formatter,
 )
 from app.schemas.agents.writer import DocumentOperation, WriterResult
 
@@ -20,7 +21,7 @@ def test_writer_agent_initialization() -> None:
 
     assert agent.model == mock_model
     assert agent.system_prompt == WRITER_SYSTEM_PROMPT
-    assert agent._default_structured_output_model == WriterResult
+    assert agent._default_structured_output_model is None
 
     assert agent.tool_names == [
         "search_sources",
@@ -36,6 +37,10 @@ def test_writer_agent_initialization() -> None:
         "search_cases",
         "fetch_case",
     ]
+
+    formatter = create_writer_formatter(model=mock_model)
+    assert formatter._default_structured_output_model is None
+    assert formatter.tool_names == []
 
 
 def test_document_operation_validation() -> None:
@@ -71,5 +76,6 @@ def test_writer_system_prompt_contains_crucial_invariants() -> None:
     assert "stable evidence" in WRITER_SYSTEM_PROMPT
     assert "untrusted quoted data" in WRITER_SYSTEM_PROMPT
     assert "Never narrate tool calls" in WRITER_SYSTEM_PROMPT
-    assert "unresolved_questions" in WRITER_SYSTEM_PROMPT
+    assert "plain-text handoff" in WRITER_SYSTEM_PROMPT
+    assert "schema tool" in WRITER_SYSTEM_PROMPT
     assert "Do not rely on model memory" in WRITER_SYSTEM_PROMPT

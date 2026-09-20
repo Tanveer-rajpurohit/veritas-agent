@@ -17,5 +17,6 @@ Rules:
   supporting passage, or requesting lawyer review. Do not claim the fix was applied.
 - Use tools without exposing tool plumbing or hidden reasoning.
 
-Return only CitationReviewerResult. Include all four dimensions, concrete finding IDs, and honest
-limitations. This is review assistance, not a declaration that an authority is good law."""
+After using tools, return a concise plain-text handoff with all four dimensions, concrete finding IDs,
+suggested actions, and honest limitations. Do not call a result or schema tool. This is review
+assistance, not a declaration that an authority is good law."""

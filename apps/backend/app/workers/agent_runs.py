@@ -1,13 +1,23 @@
 import logging
 import time
+from collections.abc import Callable
+from typing import TypeVar
 from uuid import UUID
 
+from pydantic import BaseModel
 from sqlalchemy import func, select, update
+from strands import Agent
 
-from app.agents.citation_reviewer import create_citation_reviewer_agent
-from app.agents.fact_reviewer.agent import create_fact_reviewer_agent
+from app.agents.citation_reviewer import (
+    create_citation_reviewer_agent,
+    create_citation_reviewer_formatter,
+)
+from app.agents.fact_reviewer.agent import (
+    create_fact_reviewer_agent,
+    create_fact_reviewer_formatter,
+)
 from app.agents.main_agent import create_main_agent
-from app.agents.writer.agent import create_writer_agent
+from app.agents.writer.agent import create_writer_agent, create_writer_formatter
 from app.db.session import SessionLocal
 from app.models.agent_runs import AgentEvent, AgentRun
 from app.models.conversations import Message
@@ -23,6 +33,26 @@ from app.services.reviews.claim_extractor import claim_extractor
 from app.services.reviews.fact_review_service import fact_review_service
 
 logger = logging.getLogger(__name__)
+ResultT = TypeVar("ResultT", bound=BaseModel)
+
+
+def _format_handoff(
+    formatter_factory: Callable[[], Agent],
+    result_model: type[ResultT],
+    role: str,
+    handoff: object,
+) -> ResultT:
+    for attempt in range(2):
+        try:
+            formatted = formatter_factory()(f"{role} handoff:\n\n{handoff}")
+            if formatted.structured_output is not None:
+                return result_model.model_validate(formatted.structured_output)
+            return result_model.model_validate_json(str(formatted))
+        except Exception:
+            if attempt == 1:
+                raise
+            logger.info("Retrying invalid %s formatter output", role)
+    raise RuntimeError("formatter retry loop ended unexpectedly")
 
 
 def _append_event(db, run_id: UUID, event_type: str, payload: dict) -> None:
@@ -66,7 +96,9 @@ def process_agent_run(run_id: UUID) -> None:
                         f"Sources selected by the user: {', '.join(run.source_ids)}"
                     )
                 writer_result = writer("\n\n".join(writer_context))
-                proposal = WriterResult.model_validate(writer_result.structured_output)
+                proposal = _format_handoff(
+                    create_writer_formatter, WriterResult, "Writer", writer_result
+                )
                 if not proposal.operations:
                     raise ValueError("Writer returned no document operations")
 
@@ -172,7 +204,7 @@ def process_agent_run(run_id: UUID) -> None:
                 if run.source_ids:
                     context.append(f"Sources selected by the user: {', '.join(run.source_ids)}")
                 result = agent("\n\n".join(context))
-                proposal = WriterResult.model_validate(result.structured_output)
+                proposal = _format_handoff(create_writer_formatter, WriterResult, "Writer", result)
                 if not proposal.operations or run.document_id is not None:
                     version = None
                 else:
@@ -238,8 +270,11 @@ def process_agent_run(run_id: UUID) -> None:
                         "Review the persisted citation findings for document version "
                         f"{version.id}. Return all four dimensions and precise next actions."
                     )
-                    reviewer_result = CitationReviewerResult.model_validate(
-                        agent_result.structured_output
+                    reviewer_result = _format_handoff(
+                        create_citation_reviewer_formatter,
+                        CitationReviewerResult,
+                        "Citation Reviewer",
+                        agent_result,
                     )
                     reviewer_status = "completed"
                 except Exception as exc:
@@ -344,11 +379,14 @@ def process_agent_run(run_id: UUID) -> None:
                         f"Perform factual verification for document version {review.document_version_id} "
                         f"in Matter {run.matter_id}. There are {len(review.findings)} finding(s) recorded. "
                         "Review unresolved claims and verify against official sources. "
-                        "Return a structured FactReviewerResult."
+                        "Return a complete plain-text handoff for the formatting pass."
                     )
                     agent_result = reviewer(agent_prompt)
-                    reviewer_result = FactReviewerResult.model_validate(
-                        agent_result.structured_output
+                    reviewer_result = _format_handoff(
+                        create_fact_reviewer_formatter,
+                        FactReviewerResult,
+                        "Fact Reviewer",
+                        agent_result,
                     )
                     reviewer_status = "completed"
                 except Exception as exc:

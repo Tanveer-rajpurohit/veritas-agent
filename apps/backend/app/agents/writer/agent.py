@@ -1,3 +1,4 @@
+import json
 from typing import Any
 from uuid import UUID
 
@@ -55,10 +56,7 @@ def create_writer_agent(
     model: Any | None = None,
     allow_document_writes: bool = True,
 ) -> Agent:
-    """
-    Constructs a scoped Strands Writer Agent restricted to the specified Matter boundary.
-    Enforces structured output adhering to WriterResult schema.
-    """
+    """Constructs a tool-enabled Writer scoped to the specified Matter boundary."""
     source_tools = create_writer_source_tools(
         db=db, matter_id=matter_id, allow_document_writes=allow_document_writes
     )
@@ -68,6 +66,21 @@ def create_writer_agent(
         model=selected_model,
         system_prompt=WRITER_SYSTEM_PROMPT,
         tools=source_tools,
-        structured_output_model=WriterResult,
+        callback_handler=None,
+    )
+
+
+def create_writer_formatter(model: Any | None = None) -> Agent:
+    """Constructs the tool-free typed-output pass for a Writer handoff."""
+    return Agent(
+        model=model if model is not None else _build_default_model(),
+        system_prompt=(
+            "Convert the Writer handoff into WriterResult without adding facts, authorities, "
+            "evidence IDs, assumptions, or questions. Every operation must be a complete object "
+            "matching the schema; omit an operation that cannot be mapped safely. Preserve "
+            "placeholders and uncertainty. Return only one JSON object with operations, "
+            "assumptions, and unresolved_questions arrays. The JSON must match this schema: "
+            f"{json.dumps(WriterResult.model_json_schema())}"
+        ),
         callback_handler=None,
     )
