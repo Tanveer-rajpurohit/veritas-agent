@@ -30,20 +30,23 @@ def _build_boto_session() -> boto3.Session:
     return boto3.Session(**session_kwargs)
 
 
-def build_agent_model() -> Any:
-    if settings.BEDROCK_AGENT_ENABLED:
-        kwargs: dict[str, Any] = {
-            "model_id": settings.AWS_BEDROCK_MODEL_ID,
-            "max_tokens": settings.AGENT_MAX_TOKENS,
-            "temperature": settings.AGENT_TEMPERATURE,
-        }
-        if settings.AWS_BEDROCK_API_KEY:
-            kwargs["api_key"] = settings.AWS_BEDROCK_API_KEY
-            kwargs["region_name"] = settings.AWS_REGION
-        else:
-            kwargs["boto_session"] = _build_boto_session()
-        return BedrockModel(**kwargs)
+def build_bedrock_model() -> Any:
+    kwargs: dict[str, Any] = {
+        "model_id": settings.AWS_BEDROCK_MODEL_ID,
+        "max_tokens": settings.AGENT_MAX_TOKENS,
+        "temperature": settings.AGENT_TEMPERATURE,
+    }
+    if settings.AWS_BEDROCK_API_KEY:
+        kwargs["api_key"] = settings.AWS_BEDROCK_API_KEY
+        kwargs["region_name"] = settings.AWS_REGION
+    else:
+        kwargs["boto_session"] = _build_boto_session()
+    return BedrockModel(**kwargs)
 
+
+def build_groq_model() -> Any:
+    if not settings.GROQ_API_KEY:
+        raise ValueError("GROQ_API_KEY is required to build the Groq model")
     return OpenAIModel(
         client_args={
             "api_key": settings.GROQ_API_KEY,
@@ -58,9 +61,15 @@ def build_agent_model() -> Any:
     )
 
 
-def create_main_agent() -> Agent:
+def build_agent_model() -> Any:
+    if settings.BEDROCK_AGENT_ENABLED:
+        return build_bedrock_model()
+    return build_groq_model()
+
+
+def create_main_agent(model: Any | None = None) -> Agent:
     return Agent(
-        model=build_agent_model(),
+        model=model if model is not None else build_agent_model(),
         system_prompt=MAIN_AGENT_SYSTEM_PROMPT,
         callback_handler=None,
     )

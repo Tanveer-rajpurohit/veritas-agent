@@ -10,7 +10,7 @@ from app.agents.citation_reviewer.tools import (
     CitationReviewerToolHandlers,
     create_citation_reviewer_tools,
 )
-from app.agents.main_agent import build_agent_model
+from app.agents.model_provider import build_agent_model
 from app.schemas.agents.citation_reviewer import CitationReviewerResult
 
 

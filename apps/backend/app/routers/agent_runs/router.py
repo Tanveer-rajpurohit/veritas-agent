@@ -221,9 +221,9 @@ def apply_writer_proposal(
     idempotency_key: Annotated[str, Header(min_length=1, max_length=128)],
 ) -> ApplyProposalResponse:
     run, _ = get_agent_run_for_user(db, run_id, user.id, "editor")
-    if run.status != "completed" or run.agent != "writer" or not run.document_id:
-        raise HTTPException(status_code=409, detail="This run has no applicable document proposal")
     result = dict(run.result or {})
+    if run.status != "completed" or not run.document_id or not result.get("proposed_operations"):
+        raise HTTPException(status_code=409, detail="This run has no applicable document proposal")
     if result.get("proposal_status") == "accepted" and result.get("document_version_id"):
         return ApplyProposalResponse(
             run_id=run.id,
@@ -280,7 +280,7 @@ def reject_writer_proposal(
 ) -> RejectProposalResponse:
     run, _ = get_agent_run_for_user(db, run_id, user.id, "editor")
     result = dict(run.result or {})
-    if run.status != "completed" or run.agent != "writer" or not result.get("proposed_operations"):
+    if run.status != "completed" or not result.get("proposed_operations"):
         raise HTTPException(status_code=409, detail="This run has no document proposal")
     if result.get("proposal_status") == "accepted":
         raise HTTPException(status_code=409, detail="An accepted proposal cannot be rejected")

@@ -255,6 +255,7 @@ export function AgentChatView({
   initialMatterId = null,
   initialThreadId = null,
   onOpenMatter,
+  onSelectChatSession,
   onNewChat,
 }: AgentChatViewProps) {
   const router = useRouter();
@@ -283,7 +284,20 @@ export function AgentChatView({
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [localMessages, setLocalMessages] = useState<MessageItem[]>([]);
   const [sseStages, setSseStages] = useState<SSEEvent[]>([]);
+  const [liveText, setLiveText] = useState("");
   const [runError, setRunError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialThreadId !== undefined) {
+      setActiveThreadId(initialThreadId);
+    }
+  }, [initialThreadId]);
+
+  useEffect(() => {
+    if (initialMatterId) {
+      setSelectedMatterId(initialMatterId);
+    }
+  }, [initialMatterId]);
 
   const currentMatterId = selectedMatterId;
   const selectedMatter = matters.find((m) => m.id === currentMatterId);
@@ -291,6 +305,13 @@ export function AgentChatView({
   const { data: threadMessages } = useMessages(activeThreadId);
   const { data: threads } = useThreads(currentMatterId);
   const activeThread = threads?.find((t) => t.id === activeThreadId);
+
+  useEffect(() => {
+    if (activeThread?.matter_id && !selectedMatterId) {
+      setSelectedMatterId(activeThread.matter_id);
+    }
+  }, [activeThread?.matter_id, selectedMatterId]);
+
   const { data: runData } = useAgentRun(activeRunId);
   const applyProposal = useApplyProposal();
   const rejectProposal = useRejectProposal();
@@ -337,13 +358,16 @@ export function AgentChatView({
     const labelMap: Record<string, string> = {
       "task.queued": "Queuing agent task",
       "task.started": "Agent is working",
+      "agent.thinking": "Thinking",
       "tool.started": "Running tool",
       "tool.completed": "Tool finished",
+      "message.delta": "Responding",
       "message.created": "Preparing response",
       "artifact.ready": "Document ready",
       "task.completed": "Completed",
       "task.failed": "Agent failed",
     };
+    const seenDeltas = new Set<string>();
     const handleEvent = (eventType: string, eventId: string, data: string) => {
       if (eventId) {
         lastEventId = eventId;
@@ -355,7 +379,17 @@ export function AgentChatView({
         const toolName = parsed.tool_name ?? parsed.tool;
         if (eventType === "tool.started" && typeof toolName === "string") label = `Running: ${toolName}`;
         if (eventType === "tool.completed" && typeof toolName === "string") label = `Checked: ${toolName}`;
+        if (eventType === "agent.thinking" && typeof parsed.text === "string") label = parsed.text;
         if (eventType === "task.failed" && typeof parsed.message === "string") setRunError(parsed.message);
+        if (eventType === "message.delta" && typeof parsed.text === "string") {
+          const key = eventId || parsed.text;
+          if (!seenDeltas.has(key)) {
+            seenDeltas.add(key);
+            const chunk = parsed.text;
+            setLiveText((prev) => (prev ? `${prev}\n\n${chunk}` : chunk));
+          }
+          return;
+        }
       } catch { void 0; }
       setSseStages((prev) => {
         if (eventId && prev.some((s) => s.id === eventId)) return prev;
@@ -591,6 +625,7 @@ export function AgentChatView({
         setActiveThreadId(threadId);
         queryClient.invalidateQueries({ queryKey: ["threads"] });
         queryClient.invalidateQueries({ queryKey: queryKeys.conversations.threads(currentMatterId) });
+        onSelectChatSession?.(thread.id);
       }
 
       const message = await conversationService.sendMessage(threadId, {
@@ -1121,13 +1156,34 @@ export function AgentChatView({
                         className={`w-full flex ${isUser ? "justify-end" : "justify-start"}`}
                       >
                         {isUser ? (
-                          <div className="max-w-[82%] rounded-[12px_12px_4px_12px] border border-[#dce9f4] bg-[#edf4fa] px-4 py-3 text-[13.5px] leading-6 text-stone-800">
-                            {msg.content}
-                            {msg.matterName && (
-                              <div className="mt-1 text-[10.5px] text-stone-500 font-mono">
-                                Matter: {msg.matterName}
-                              </div>
-                            )}
+                          <div className="group relative max-w-[82%] rounded-[12px_12px_4px_12px] border border-[#dce9f4] bg-[#edf4fa] px-4 py-3 text-[13.5px] leading-6 text-stone-800">
+                            <div className="whitespace-pre-wrap select-text">{msg.content}</div>
+                            <div className="mt-1 flex items-center justify-between gap-3">
+                              {msg.matterName ? (
+                                <div className="text-[10.5px] text-stone-500 font-mono">
+                                  Matter: {msg.matterName}
+                                </div>
+                              ) : <span />}
+                              <button
+                                type="button"
+                                onClick={() => handleCopyMessage(msg.content, msg.id)}
+                                className="opacity-70 sm:opacity-0 sm:group-hover:opacity-100 hover:opacity-100 inline-flex items-center gap-1 text-[11px] text-[#487aa8] hover:text-[#2c5478] transition-all cursor-pointer"
+                                aria-label="Copy prompt"
+                                title="Copy prompt"
+                              >
+                                {copiedMessageId === msg.id ? (
+                                  <>
+                                    <CheckIcon size={11} className="text-emerald-600" />
+                                    <span className="text-emerald-700 font-medium">Copied</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <CopyIcon size={11} />
+                                    <span>Copy</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
                           </div>
                         ) : (
                           <div className="w-full text-[#2c2c33]">
@@ -1348,9 +1404,30 @@ export function AgentChatView({
 
                   {runError && !busy && (
                     <div className="w-full flex justify-start">
-                      <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-800">
-                        <AlertCircleIcon size={14} className="text-red-500 shrink-0" />
-                        <span>{runError}</span>
+                      <div className="group flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs text-red-800 max-w-full">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <AlertCircleIcon size={14} className="text-red-500 shrink-0" />
+                          <span className="select-text break-words">{runError}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyMessage(runError, "error-banner")}
+                          className="shrink-0 inline-flex items-center gap-1 text-[11px] font-medium text-red-700 hover:text-red-900 transition-colors cursor-pointer bg-red-100 hover:bg-red-200/80 px-2 py-0.5 rounded"
+                          aria-label="Copy error"
+                          title="Copy error message"
+                        >
+                          {copiedMessageId === "error-banner" ? (
+                            <>
+                              <CheckIcon size={11} className="text-emerald-600" />
+                              <span>Copied</span>
+                            </>
+                          ) : (
+                            <>
+                              <CopyIcon size={11} />
+                              <span>Copy</span>
+                            </>
+                          )}
+                        </button>
                       </div>
                     </div>
                   )}

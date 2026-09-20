@@ -18,6 +18,7 @@ from app.agents.fact_reviewer.agent import (
     create_fact_reviewer_formatter,
 )
 from app.agents.main_agent import create_main_agent
+from app.agents.model_provider import invoke_with_fallback
 from app.agents.writer.agent import create_writer_agent, create_writer_formatter
 from app.db.session import SessionLocal
 from app.models.agent_runs import AgentEvent, AgentRun
@@ -62,23 +63,61 @@ def _is_drafting_intent(text: str | None) -> bool:
 ResultT = TypeVar("ResultT", bound=BaseModel)
 
 
+def _extract_json(raw: str) -> str:
+    """Strip markdown code fences and leading noise to extract a JSON object."""
+    text = raw.strip()
+    # Remove ```json ... ``` or ``` ... ``` wrapping
+    if text.startswith("```"):
+        # Strip opening fence (```json or ```)
+        first_newline = text.find("\n")
+        if first_newline != -1:
+            text = text[first_newline + 1 :]
+        # Strip closing fence
+        if text.rstrip().endswith("```"):
+            text = text.rstrip()[:-3]
+        text = text.strip()
+    # Some models prefix with a bare "json\n" or "JSON\n"
+    if text.lower().startswith("json\n") or text.lower().startswith("json\r"):
+        text = text[4:].strip()
+    # Find the first '{' and last '}' to extract the JSON object
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        text = text[start : end + 1]
+    return text
+
+
 def _format_handoff(
-    formatter_factory: Callable[[], Agent],
+    formatter_factory: Callable[..., Agent],
     result_model: type[ResultT],
     role: str,
     handoff: object,
 ) -> ResultT:
-    for attempt in range(2):
+    base_prompt = f"{role} handoff:\n\n{handoff}"
+    prompt = base_prompt
+    for attempt in range(3):
         try:
-            formatted = formatter_factory()(f"{role} handoff:\n\n{handoff}")
+            formatted = invoke_with_fallback(
+                lambda model: formatter_factory(model),
+                prompt,
+                f"{role} formatter",
+            )
             if formatted.structured_output is not None:
                 return result_model.model_validate(formatted.structured_output)
-            return result_model.model_validate_json(str(formatted))
-        except Exception:
-            if attempt == 1:
+            return result_model.model_validate_json(_extract_json(str(formatted)))
+        except Exception as exc:
+            if attempt == 2:
                 raise
-            logger.info("Retrying invalid %s formatter output", role)
+            logger.info(
+                "Retrying %s formatter after %s on attempt %s", role, type(exc).__name__, attempt + 1
+            )
+            prompt = (
+                f"{base_prompt}\n\nThe previous attempt was rejected: {type(exc).__name__}. "
+                "Return one raw JSON object only. Do not wrap it in markdown code fences, "
+                "do not add prose before or after it, and include every required field."
+            )
     raise RuntimeError("formatter retry loop ended unexpectedly")
+
 
 
 def _append_event(db, run_id: UUID, event_type: str, payload: dict) -> None:
@@ -87,6 +126,14 @@ def _append_event(db, run_id: UUID, event_type: str, payload: dict) -> None:
     )
     db.add(AgentEvent(run_id=run_id, sequence=sequence + 1, event_type=event_type, payload=payload))
     db.commit()
+
+
+def _think(db, run_id: UUID, text: str) -> None:
+    _append_event(db, run_id, "agent.thinking", {"text": text})
+
+
+def _say(db, run_id: UUID, text: str) -> None:
+    _append_event(db, run_id, "message.delta", {"text": text})
 
 
 def process_agent_run(run_id: UUID) -> None:
@@ -114,33 +161,43 @@ def process_agent_run(run_id: UUID) -> None:
                 )
             )
             if is_drafting:
+                _think(db, run_id, "Reading the authorized Matter records and selecting a document form.")
                 _append_event(
                     db,
                     run_id,
                     "tool.started",
                     {"tool": "writer", "summary": "Drafting from authorized Matter sources"},
                 )
-                writer = create_writer_agent(db, run.matter_id, allow_document_writes=False)
                 writer_context = [
                     f"User Drafting Request: {message.content}",
                     "Task: Create a new authoritative legal working draft from authorized Matter evidence. "
                     "Analyze the attached records (invoices, default notices, contracts, communications). "
                     "Formulate a structured pleading, statutory notice, or petition with proper legal grounds. "
                     "Cite facts strictly from retrieved evidence and use precise '[PLACEHOLDER: ...]' "
-                    "placeholders for any details not found in the records.",
+                    "placeholders for any details not found in the records. "
+                    "Draft the document now. Do not ask the user for more details before drafting and do "
+                    "not return a questionnaire; every missing detail becomes a placeholder plus one "
+                    "focused unresolved question.",
                 ]
                 if run.source_ids:
                     writer_context.append(
                         f"Sources selected by the user: {', '.join(run.source_ids)}"
                     )
-                writer_result = writer("\n\n".join(writer_context))
+                writer_result = invoke_with_fallback(
+                    lambda model: create_writer_agent(
+                        db, run.matter_id, model=model, allow_document_writes=False
+                    ),
+                    "\n\n".join(writer_context),
+                    "Writer",
+                )
                 proposal = _format_handoff(
                     create_writer_formatter, WriterResult, "Writer", writer_result
                 )
                 if not proposal.operations:
                     raise ValueError("Writer returned no document operations")
 
-                title = message.content.strip().splitlines()[0][:120] or "Legal working draft"
+                first_line = (message.content or "").strip().splitlines()
+                title = (first_line[0][:120] if first_line else "") or "Legal working draft"
                 version = draft_service.create_draft(
                     db=db,
                     matter_id=run.matter_id,
@@ -158,7 +215,14 @@ def process_agent_run(run_id: UUID) -> None:
                     "tool.completed",
                     {"tool": "writer", "summary": "Created an immutable working draft"},
                 )
+                _say(
+                    db,
+                    run_id,
+                    f"I drafted **{title}** as version 1 with "
+                    f"{len(proposal.operations)} evidence-linked section(s).",
+                )
 
+                _think(db, run_id, "Extracting factual claims and comparing them with the Matter records.")
                 _append_event(
                     db,
                     run_id,
@@ -168,45 +232,119 @@ def process_agent_run(run_id: UUID) -> None:
                         "summary": "Checking factual claims against Matter evidence",
                     },
                 )
-                fact_review = fact_review_service.run(
-                    db=db,
-                    version_id=version.id,
-                    user_id=run.user_id,
-                    request=FactReviewRunRequest(checks=["fact"], mode="review_only"),
-                    idempotency_key=f"{run.idempotency_key}:facts",
+                fact_review = None
+                fact_status = "unavailable"
+                try:
+                    fact_review = fact_review_service.run(
+                        db=db,
+                        version_id=version.id,
+                        user_id=run.user_id,
+                        request=FactReviewRunRequest(checks=["fact"], mode="review_only"),
+                        idempotency_key=f"{run.idempotency_key}:facts",
+                    )
+                    fact_status = "completed"
+                except Exception as exc:
+                    db.rollback()
+                    logger.warning(
+                        "Fact review unavailable for run %s: %s", run_id, type(exc).__name__
+                    )
+                    _append_event(
+                        db,
+                        run_id,
+                        "tool.completed",
+                        {
+                            "tool": "fact_review",
+                            "summary": "Fact review could not run. Claims stay unresolved.",
+                            "status": "unavailable",
+                        },
+                    )
+                    _say(
+                        db,
+                        run_id,
+                        "Fact review could not run on this version, so every factual claim "
+                        "stays **unresolved** rather than verified.",
+                    )
+
+                fact_findings = list(fact_review.findings) if fact_review else []
+                fact_counts = fact_review.summary if fact_review else {}
+                if fact_status == "completed":
+                    _append_event(
+                        db,
+                        run_id,
+                        "tool.completed",
+                        {
+                            "tool": "fact_review",
+                            "summary": f"Recorded {len(fact_findings)} factual finding(s)",
+                            "summary_counts": fact_counts,
+                        },
+                    )
+                    _say(
+                        db,
+                        run_id,
+                        f"Fact review recorded {len(fact_findings)} finding(s): "
+                        f"{fact_counts.get('supported', 0)} supported, "
+                        f"{fact_counts.get('contradicted', 0)} contradicted, "
+                        f"{fact_counts.get('unresolved', 0)} unresolved.",
+                    )
+
+                reviewed_version_id = (
+                    fact_review.document_version_id if fact_review else version.id
                 )
-                _append_event(
-                    db,
-                    run_id,
-                    "tool.completed",
-                    {
-                        "tool": "fact_review",
-                        "summary": f"Recorded {len(fact_review.findings)} factual finding(s)",
-                        "summary_counts": fact_review.summary,
-                    },
+                reviewed_version = draft_service.get_document_version(
+                    db=db,
+                    version_id=reviewed_version_id,
+                    matter_id=run.matter_id,
                 )
 
+                _think(db, run_id, "Checking every authority for identity, quotation, and proposition support.")
                 _append_event(
                     db,
                     run_id,
                     "tool.started",
                     {"tool": "citation_review", "summary": "Checking citations in the new draft"},
                 )
-                reviewed_version = draft_service.get_document_version(
-                    db=db,
-                    version_id=fact_review.document_version_id,
-                    matter_id=run.matter_id,
-                )
-                citation_findings = check_citations(db, reviewed_version)
-                _append_event(
-                    db,
-                    run_id,
-                    "tool.completed",
-                    {
-                        "tool": "citation_review",
-                        "summary": f"Recorded {len(citation_findings)} citation finding(s)",
-                    },
-                )
+                citation_findings = []
+                citation_status = "unavailable"
+                try:
+                    citation_findings = check_citations(db, reviewed_version)
+                    citation_status = "completed"
+                    _append_event(
+                        db,
+                        run_id,
+                        "tool.completed",
+                        {
+                            "tool": "citation_review",
+                            "summary": f"Recorded {len(citation_findings)} citation finding(s)",
+                        },
+                    )
+                    _say(
+                        db,
+                        run_id,
+                        f"Citation review recorded {len(citation_findings)} finding(s) across "
+                        "identity, quotation, proposition support, and legal treatment.",
+                    )
+                except Exception as exc:
+                    db.rollback()
+                    logger.warning(
+                        "Citation review unavailable for run %s: %s", run_id, type(exc).__name__
+                    )
+                    _append_event(
+                        db,
+                        run_id,
+                        "tool.completed",
+                        {
+                            "tool": "citation_review",
+                            "summary": "Citation review could not run. Authorities stay unresolved.",
+                            "status": "unavailable",
+                        },
+                    )
+                    _say(
+                        db,
+                        run_id,
+                        "Citation review could not run, so the cited authorities stay "
+                        "**unresolved** and still need counsel review.",
+                    )
+
                 _append_event(
                     db,
                     run_id,
@@ -216,32 +354,63 @@ def process_agent_run(run_id: UUID) -> None:
                         "document_version_id": str(reviewed_version.id),
                     },
                 )
-                fact_counts = fact_review.summary
+                summary_lines = [
+                    f"I created the working draft **{title}** and ran the verification passes."
+                ]
+                if fact_status == "completed":
+                    summary_lines.append(
+                        f"Fact review recorded {len(fact_findings)} finding(s) "
+                        f"({fact_counts.get('supported', 0)} supported, "
+                        f"{fact_counts.get('contradicted', 0)} contradicted, "
+                        f"{fact_counts.get('unresolved', 0)} unresolved)."
+                    )
+                else:
+                    summary_lines.append(
+                        "Fact review was unavailable, so factual claims remain unresolved."
+                    )
+                if citation_status == "completed":
+                    summary_lines.append(
+                        f"Citation review recorded {len(citation_findings)} finding(s)."
+                    )
+                else:
+                    summary_lines.append(
+                        "Citation review was unavailable, so authorities remain unresolved."
+                    )
+                summary_lines.append(
+                    "Open the draft to inspect the exact evidence and the unresolved items."
+                )
                 run.result = {
                     "document_id": str(version.draft_id),
                     "document_version_id": str(reviewed_version.id),
-                    "fact_finding_ids": [str(item.id) for item in fact_review.findings],
+                    "fact_finding_ids": [str(item.id) for item in fact_findings],
                     "citation_finding_ids": [str(item.id) for item in citation_findings],
+                    "fact_review_status": fact_status,
+                    "citation_review_status": citation_status,
                     "assumptions": proposal.assumptions,
                     "unresolved_questions": proposal.unresolved_questions,
-                    "message": (
-                        "I created the working draft and completed the first review pass. "
-                        f"Fact review recorded {len(fact_review.findings)} finding(s) "
-                        f"({fact_counts.get('supported', 0)} supported, "
-                        f"{fact_counts.get('contradicted', 0)} contradicted, "
-                        f"{fact_counts.get('unresolved', 0)} unresolved). "
-                        f"Citation review recorded {len(citation_findings)} finding(s). "
-                        "Open the draft to inspect the exact evidence and unresolved items."
-                    ),
+                    "message": " ".join(summary_lines),
                 }
+
             elif run.agent == "writer":
-                agent = create_writer_agent(db, run.matter_id, allow_document_writes=False)
+                _think(db, run_id, "Inspecting the base version before proposing any edit.")
+                _append_event(
+                    db,
+                    run_id,
+                    "tool.started",
+                    {"tool": "writer", "summary": "Preparing evidence-linked document operations"},
+                )
                 context = [message.content]
                 if run.base_version_id:
                     context.append(f"Current document version ID: {run.base_version_id}")
                 if run.source_ids:
                     context.append(f"Sources selected by the user: {', '.join(run.source_ids)}")
-                result = agent("\n\n".join(context))
+                result = invoke_with_fallback(
+                    lambda model: create_writer_agent(
+                        db, run.matter_id, model=model, allow_document_writes=False
+                    ),
+                    "\n\n".join(context),
+                    "Writer",
+                )
                 proposal = _format_handoff(create_writer_formatter, WriterResult, "Writer", result)
                 if not proposal.operations or run.document_id is not None:
                     version = None
@@ -249,10 +418,11 @@ def process_agent_run(run_id: UUID) -> None:
                     version = draft_service.create_draft(
                         db=db,
                         matter_id=run.matter_id,
-                        title="IBC Section 7 working brief",
+                        title=(message.content or "").strip()[:120] or "Legal working draft",
                         operations=proposal.operations,
-                        created_by_id="writer_agent",
+                        created_by_id=str(run.user_id),
                     )
+                is_proposal = bool(run.document_id and proposal.operations)
                 run.result = {
                     "document_id": (
                         str(version.draft_id)
@@ -268,12 +438,31 @@ def process_agent_run(run_id: UUID) -> None:
                     ]
                     if run.document_id is not None
                     else [],
-                    "proposal_status": "pending"
-                    if run.document_id and proposal.operations
-                    else None,
+                    "proposal_status": "pending" if is_proposal else None,
                     "assumptions": proposal.assumptions,
                     "unresolved_questions": proposal.unresolved_questions,
+                    "message": (
+                        f"I prepared {len(proposal.operations)} proposed edit(s) against the "
+                        "current version. Accept to create a new immutable version, or reject to "
+                        "leave the draft unchanged."
+                    )
+                    if is_proposal
+                    else (
+                        f"I drafted a new working document with {len(proposal.operations)} "
+                        "evidence-linked section(s)."
+                        if version
+                        else "I could not derive any safe document operation from this request."
+                    ),
                 }
+                _append_event(
+                    db,
+                    run_id,
+                    "tool.completed",
+                    {
+                        "tool": "writer",
+                        "summary": f"Prepared {len(proposal.operations)} document operation(s)",
+                    },
+                )
                 if version:
                     _append_event(
                         db,
@@ -303,10 +492,13 @@ def process_agent_run(run_id: UUID) -> None:
                 reviewer_result = None
                 reviewer_status = "unavailable"
                 try:
-                    reviewer, _handlers = create_citation_reviewer_agent(db, version.id)
-                    agent_result = reviewer(
+                    agent_result = invoke_with_fallback(
+                        lambda model: create_citation_reviewer_agent(
+                            db, version.id, model=model
+                        )[0],
                         "Review the persisted citation findings for document version "
-                        f"{version.id}. Return all four dimensions and precise next actions."
+                        f"{version.id}. Return all four dimensions and precise next actions.",
+                        "Citation Reviewer",
                     )
                     reviewer_result = _format_handoff(
                         create_citation_reviewer_formatter,
@@ -406,20 +598,24 @@ def process_agent_run(run_id: UUID) -> None:
                 reviewer_result = None
                 reviewer_status = "unavailable"
                 try:
-                    reviewer, _handlers = create_fact_reviewer_agent(
-                        db=db,
-                        matter_id=run.matter_id,
-                        document_version_id=review.document_version_id,
-                        claims=fact_claims,
-                        allow_fixes=(mode == "apply_safe_fixes"),
-                    )
                     agent_prompt = (
                         f"Perform factual verification for document version {review.document_version_id} "
                         f"in Matter {run.matter_id}. There are {len(review.findings)} finding(s) recorded. "
                         "Review unresolved claims and verify against official sources. "
                         "Return a complete plain-text handoff for the formatting pass."
                     )
-                    agent_result = reviewer(agent_prompt)
+                    agent_result = invoke_with_fallback(
+                        lambda model: create_fact_reviewer_agent(
+                            db=db,
+                            matter_id=run.matter_id,
+                            document_version_id=review.document_version_id,
+                            claims=fact_claims,
+                            model=model,
+                            allow_fixes=(mode == "apply_safe_fixes"),
+                        )[0],
+                        agent_prompt,
+                        "Fact Reviewer",
+                    )
                     reviewer_result = _format_handoff(
                         create_fact_reviewer_formatter,
                         FactReviewerResult,
@@ -526,7 +722,7 @@ def process_agent_run(run_id: UUID) -> None:
                             f"mention any attached documents listed above, and explain what you can do (drafting pleadings, fact review against records, or citation verification).\n\n"
                         )
 
-                agent = create_main_agent()
+                _think(db, run_id, "Reviewing the Matter context and the conversation so far.")
                 history = db.scalars(
                     select(Message)
                     .where(Message.thread_id == run.thread_id)
@@ -543,7 +739,11 @@ def process_agent_run(run_id: UUID) -> None:
                 if convo:
                     prompt += "Conversation so far:\n" + "\n".join(convo) + "\n\n"
                 prompt += f"Current user message: {message.content}"
-                result = agent(prompt)
+                result = invoke_with_fallback(
+                    lambda model: create_main_agent(model=model),
+                    prompt,
+                    "Main Agent",
+                )
                 response_text = str(result)[:10000]
                 db.add(Message(thread_id=run.thread_id, role="assistant", content=response_text))
                 run.result = {"message": response_text}

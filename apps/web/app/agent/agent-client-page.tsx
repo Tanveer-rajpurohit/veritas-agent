@@ -120,10 +120,12 @@ function AgentClientContent() {
 
   const handleSelectChatSession = useCallback(
     (threadId: string) => {
-      const base = activeMatterId ? `?matterId=${activeMatterId}&c=${threadId}` : `?c=${threadId}`;
+      const targetSession = chatSessions.find((s) => s.id === threadId);
+      const targetMatterId = targetSession?.matterId || activeMatterId;
+      const base = targetMatterId ? `?matterId=${targetMatterId}&c=${threadId}` : `?c=${threadId}`;
       router.push(`/agent${base}`);
     },
-    [router, activeMatterId],
+    [router, activeMatterId, chatSessions],
   );
 
   const handleNewChat = useCallback(() => {
@@ -145,7 +147,7 @@ function AgentClientContent() {
   );
 
   return (
-    <div className="flex h-screen w-full gap-1 overflow-hidden bg-[#eaf0f6] p-1 font-sans text-stone-900 antialiased sm:gap-1.5 sm:p-1.5 select-none">
+    <div className="flex h-screen w-full gap-1 overflow-hidden bg-[#eaf0f6] p-1 font-sans text-stone-900 antialiased sm:gap-1.5 sm:p-1.5">
       <AppSidebar
         collapsed={collapsed}
         onToggleCollapse={handleToggleSidebar}
