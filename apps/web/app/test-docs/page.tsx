@@ -362,60 +362,64 @@ export default function TestDocsPage() {
             {filteredDocs.map((doc) => (
               <div
                 key={doc.id}
-                className="group flex flex-col justify-between rounded-lg border border-stone-200 bg-white p-4 shadow-2xs hover:border-[#487aa8]/50 hover:shadow-xs transition-all"
+                className="group flex flex-col justify-between rounded-xl border border-stone-200/90 bg-white p-4.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:border-[#487aa8]/60 hover:shadow-[0_4px_16px_rgba(44,84,120,0.08)] transition-all duration-200"
               >
                 <div>
-                  <div className="flex items-start justify-between gap-2 mb-2.5">
+                  <div className="flex items-center justify-between gap-2 mb-3">
                     <span
-                      className={`rounded-sm px-2 py-0.5 text-[10.5px] font-semibold border ${doc.badgeColor}`}
+                      className={`inline-flex items-center rounded-md px-2.5 py-0.5 text-[11px] font-semibold border ${doc.badgeColor}`}
                     >
                       {doc.category}
                     </span>
-                    <span className="text-[11px] font-mono text-stone-400">
+                    <span className="text-[11.5px] font-mono text-stone-400 font-medium">
                       {doc.fileSize}
                     </span>
                   </div>
 
-                  <div className="flex items-start gap-2.5 pt-0.5">
+                  <div className="flex items-start gap-3 pt-0.5">
                     <ColoredFileIcon format={doc.format} size="md" />
                     <div className="min-w-0 flex-1">
                       <h3
                         onClick={() => window.open(doc.href, "_blank", "noopener,noreferrer")}
-                        className="text-xs font-semibold text-stone-900 group-hover:text-[#2c5478] transition-colors leading-snug cursor-pointer line-clamp-2"
+                        className="text-[13px] font-semibold text-stone-900 group-hover:text-[#2c5478] transition-colors leading-snug cursor-pointer line-clamp-2"
                         title={doc.title}
                       >
                         {doc.title}
                       </h3>
-                      <p className="text-[10.5px] font-mono text-stone-500 pt-0.5 truncate">
+                      <p className="mt-1 text-xs text-stone-500 font-medium truncate" title={doc.sourceName}>
                         {doc.sourceName}
                       </p>
                     </div>
                   </div>
 
-                  <p className="mt-2.5 text-[11.5px] leading-relaxed text-stone-600 line-clamp-3">
+                  <p className="mt-2.5 text-xs leading-relaxed text-stone-600 line-clamp-3">
                     {doc.description}
                   </p>
 
-                  <div className="mt-3 rounded-md border border-amber-200/80 bg-amber-50/70 p-2 text-left">
-                    <span className="block text-[9.5px] font-bold uppercase tracking-wider text-amber-800 font-mono">
-                      Workflow Benchmark Utility
-                    </span>
-                    <span className="block text-[10.5px] text-amber-900 leading-tight mt-0.5">
+                  <div className="mt-3.5 rounded-lg border border-[#cbe0f2]/80 bg-[#f4f8fc] p-2.5 text-left">
+                    <div className="flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#487aa8]" aria-hidden="true" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#2c5478]">
+                        Workflow Benchmark Utility
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[11.5px] leading-relaxed text-stone-700">
                       {doc.testingRole}
-                    </span>
+                    </p>
                   </div>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-mono text-stone-500 font-medium">
+                <div className="mt-4 pt-3.5 border-t border-stone-100 flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center rounded px-2 py-0.5 text-[10.5px] font-mono font-medium text-stone-600 bg-stone-100 border border-stone-200/60">
                     {doc.format}
                   </span>
 
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => window.open(doc.href, "_blank", "noopener,noreferrer")}
-                      className="inline-flex h-6.5 items-center gap-1 rounded-md border border-stone-200 bg-white px-2.5 text-[11px] font-medium text-stone-700 hover:border-[#487aa8] hover:bg-[#edf4fa] hover:text-[#2c5478] transition-colors cursor-pointer shadow-2xs"
+                      className="inline-flex h-7 items-center gap-1.5 rounded-md border border-stone-200/90 bg-white px-2.5 text-xs font-medium text-stone-700 hover:border-[#487aa8] hover:bg-[#edf4fa] hover:text-[#2c5478] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#487aa8]/30 transition-colors cursor-pointer shadow-2xs"
+                      aria-label={`Preview ${doc.title}`}
                       title="Preview PDF in new tab"
                     >
                       <EyeIcon size={12} />
@@ -424,7 +428,8 @@ export default function TestDocsPage() {
                     <a
                       href={doc.href}
                       download
-                      className="inline-flex h-6.5 items-center gap-1 rounded-md bg-[#487aa8] px-2.5 text-[11px] font-semibold text-white shadow-2xs hover:bg-[#38648c] active:bg-[#2c5478] transition-colors cursor-pointer"
+                      className="inline-flex h-7 items-center gap-1.5 rounded-md bg-[#2c5478] px-2.5 text-xs font-semibold text-white shadow-2xs hover:bg-[#234361] active:bg-[#1c3650] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2c5478]/30 transition-colors cursor-pointer"
+                      aria-label={`Download ${doc.title}`}
                       title="Download PDF"
                     >
                       <DownloadIcon size={11} />

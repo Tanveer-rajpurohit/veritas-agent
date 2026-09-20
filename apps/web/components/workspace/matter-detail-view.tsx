@@ -237,7 +237,7 @@ export function MatterDetailView({
   }
 
   const handlePreviewPdf = useCallback(
-    async (sourceId: string, _filename: string) => {
+    async (sourceId: string) => {
       try {
         const preview = await previewSourceMutation.mutateAsync(sourceId);
         if (preview?.url) {
