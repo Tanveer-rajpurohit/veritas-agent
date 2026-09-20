@@ -10,24 +10,39 @@ from app.core.config import settings
 
 
 def _build_boto_session() -> boto3.Session:
-    if not settings.AWS_ACCESS_KEY_ID or not settings.AWS_SECRET_ACCESS_KEY:
+    secret_key = (
+        settings.AWS_SECRET_ACCESS_KEY
+        or settings.AWS_SECRET_KEY
+        or settings.AWS_BEDROCK_SECRET_KEY
+        or settings.BEDROCK_SECRET_KEY
+    )
+    if not settings.AWS_ACCESS_KEY_ID or not secret_key:
         raise ValueError("AWS credentials are required when the Bedrock agent is enabled")
 
-    return boto3.Session(
-        region_name=settings.AWS_REGION,
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-    )
+    session_kwargs: dict[str, Any] = {
+        "region_name": settings.AWS_REGION,
+        "aws_access_key_id": settings.AWS_ACCESS_KEY_ID,
+        "aws_secret_access_key": secret_key,
+    }
+    if settings.AWS_SESSION_TOKEN:
+        session_kwargs["aws_session_token"] = settings.AWS_SESSION_TOKEN
+
+    return boto3.Session(**session_kwargs)
 
 
 def build_agent_model() -> Any:
     if settings.BEDROCK_AGENT_ENABLED:
-        return BedrockModel(
-            model_id=settings.AWS_BEDROCK_MODEL_ID,
-            boto_session=_build_boto_session(),
-            max_tokens=settings.AGENT_MAX_TOKENS,
-            temperature=settings.AGENT_TEMPERATURE,
-        )
+        kwargs: dict[str, Any] = {
+            "model_id": settings.AWS_BEDROCK_MODEL_ID,
+            "max_tokens": settings.AGENT_MAX_TOKENS,
+            "temperature": settings.AGENT_TEMPERATURE,
+        }
+        if settings.AWS_BEDROCK_API_KEY:
+            kwargs["api_key"] = settings.AWS_BEDROCK_API_KEY
+            kwargs["region_name"] = settings.AWS_REGION
+        else:
+            kwargs["boto_session"] = _build_boto_session()
+        return BedrockModel(**kwargs)
 
     return OpenAIModel(
         client_args={

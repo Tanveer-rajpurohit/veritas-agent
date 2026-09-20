@@ -206,16 +206,20 @@ const SUGGESTIONS = [
 ];
 
 function inferRequestedAction(text: string, agent: AgentName): AgentAction {
-  const t = text.toLowerCase();
+  const t = text.toLowerCase().trim();
   if (agent === "main") {
-    if (/(draft|prepare|write|create).*(brief|application|petition|synopsis|draft)/.test(t)) {
-      return "draft_and_review";
-    }
-    if (/(review|check|audit|verify|scan).*(citation|authority|case law|quotation|quote)/.test(t)) {
+    if (/(review|check|audit|verify|scan|validate).*(citation|authority|case law|precedent|statute|act|section|quotation|quote)/i.test(t)) {
       return "review_citations";
     }
-    if (/(fact.check|verify.*(fact|amount|date|ledger|default)|audit.*(ledger|annexure)|discrepancy)/.test(t)) {
+    if (/(fact.check|verify.*(fact|amount|date|ledger|default|figure|claim)|audit.*(ledger|annexure|record|fact)|discrepancy|reconcil)/i.test(t)) {
       return "review_facts";
+    }
+    const hasDraftVerb = /(draft|make|prepare|write|create|generate|file|build|compose|author|start)/i.test(t);
+    const hasDocNoun = /(draft|brief|application|petition|synopsis|notice|pleading|case|file|doc|document|affidavit|complaint|submission)/i.test(t);
+    const hasDraftPhrase = /(make.*draft|draft.*for|draft.*against|draft.*base|create.*draft|write.*draft|file.*case|case.*file|make it)/i.test(t);
+
+    if (hasDraftPhrase || (hasDraftVerb && hasDocNoun)) {
+      return "draft_and_review";
     }
     return "answer";
   }

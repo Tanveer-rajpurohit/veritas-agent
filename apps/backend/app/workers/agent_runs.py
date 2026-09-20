@@ -1,4 +1,5 @@
 import logging
+import re
 import time
 from collections.abc import Callable
 from typing import TypeVar
@@ -33,6 +34,31 @@ from app.services.reviews.claim_extractor import claim_extractor
 from app.services.reviews.fact_review_service import fact_review_service
 
 logger = logging.getLogger(__name__)
+
+
+def _is_drafting_intent(text: str | None) -> bool:
+    if not text:
+        return False
+    t = text.lower().strip()
+    has_draft_verb = bool(
+        re.search(
+            r"\b(draft|make|prepare|write|create|generate|file|build|compose|author)\b",
+            t,
+        )
+    )
+    has_doc_noun = bool(
+        re.search(
+            r"\b(draft|brief|application|petition|synopsis|notice|pleading|case|file|doc|document|affidavit|complaint|submission)\b",
+            t,
+        )
+    )
+    has_phrase = bool(
+        re.search(
+            r"\b(make.*draft|draft.*for|draft.*against|draft.*base|create.*draft|write.*draft|file.*case|case.*file|make it)\b",
+            t,
+        )
+    )
+    return has_phrase or (has_draft_verb and has_doc_noun)
 ResultT = TypeVar("ResultT", bound=BaseModel)
 
 
@@ -78,7 +104,16 @@ def process_agent_run(run_id: UUID) -> None:
         _append_event(db, run_id, "task.started", {"agent": run.agent})
         try:
             message = db.get(Message, run.message_id)
-            if run.agent == "main" and run.requested_action == "draft_and_review":
+            is_drafting = (
+                (run.agent == "main" and run.requested_action == "draft_and_review")
+                or (
+                    run.agent == "main"
+                    and run.matter_id
+                    and message
+                    and _is_drafting_intent(message.content)
+                )
+            )
+            if is_drafting:
                 _append_event(
                     db,
                     run_id,
@@ -87,9 +122,12 @@ def process_agent_run(run_id: UUID) -> None:
                 )
                 writer = create_writer_agent(db, run.matter_id, allow_document_writes=False)
                 writer_context = [
-                    message.content,
-                    "Create a new working draft. Use placeholders for missing facts and cite only "
-                    "evidence returned by tools.",
+                    f"User Drafting Request: {message.content}",
+                    "Task: Create a new authoritative legal working draft from authorized Matter evidence. "
+                    "Analyze the attached records (invoices, default notices, contracts, communications). "
+                    "Formulate a structured pleading, statutory notice, or petition with proper legal grounds. "
+                    "Cite facts strictly from retrieved evidence and use precise '[PLACEHOLDER: ...]' "
+                    "placeholders for any details not found in the records.",
                 ]
                 if run.source_ids:
                     writer_context.append(

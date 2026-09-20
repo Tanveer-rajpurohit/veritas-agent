@@ -29,7 +29,8 @@ class Settings(BaseSettings):
     EMAIL_PROVIDER: str = "console"
     AUTH_SECRET: str = ""
 
-    BEDROCK_AGENT_ENABLED: bool = False
+    AGENT_PROVIDER: str = "bedrock"
+    BEDROCK_AGENT_ENABLED: bool = True
     AGENT_MAX_TOKENS: int = 2048
     AGENT_TEMPERATURE: float = 0.1
 
@@ -40,7 +41,9 @@ class Settings(BaseSettings):
     AWS_REGION: str = "ap-south-1"
     AWS_ACCESS_KEY_ID: str = ""
     AWS_SECRET_ACCESS_KEY: str = ""
-    AWS_BEDROCK_MODEL_ID: str = "amazon.nova-lite-v1:0"
+    AWS_BEDROCK_API_KEY: str = ""
+    AWS_SESSION_TOKEN: str | None = None
+    AWS_BEDROCK_MODEL_ID: str = "zai.glm-5"
     BUCKET_NAME: str = "veritas"
 
     DATABASE_URL: str = "postgresql+psycopg://veritas:veritas_password@localhost:5432/veritas"
@@ -122,6 +125,14 @@ class Settings(BaseSettings):
         else:
             if self.OBJECT_STORAGE_BACKEND == "minio" and not self.MINIO_ENDPOINT.strip():
                 raise ValueError("MINIO_ENDPOINT is required when MinIO is selected")
+        if (
+            self.AGENT_PROVIDER.strip().lower() == "bedrock"
+            or self.BEDROCK_AGENT_ENABLED
+        ):
+            self.BEDROCK_AGENT_ENABLED = True
+        elif self.AGENT_PROVIDER.strip().lower() == "groq":
+            self.BEDROCK_AGENT_ENABLED = False
+
         if bool(self.AWS_ACCESS_KEY_ID) != bool(self.AWS_SECRET_ACCESS_KEY):
             raise ValueError("Both AWS access key fields are required when either is configured")
         return self
