@@ -11,6 +11,9 @@ from app.agents.writer.agent import create_writer_agent
 from app.db.session import SessionLocal
 from app.models.agent_runs import AgentEvent, AgentRun
 from app.models.conversations import Message
+from app.models.drafts import Draft
+from app.models.matters import Matter
+from app.models.sources import Source
 from app.schemas.agents.citation_reviewer import CitationReviewerResult
 from app.schemas.agents.fact_reviewer import FactReviewerResult, FactReviewRunRequest
 from app.schemas.agents.writer import WriterResult
@@ -401,6 +404,52 @@ def process_agent_run(run_id: UUID) -> None:
                     ),
                 }
             else:
+                matter_info = ""
+                if run.matter_id:
+                    matter = db.get(Matter, run.matter_id)
+                    if matter:
+                        matter_info = (
+                            "=== CURRENT ATTACHED MATTER CONTEXT ===\n"
+                            f"Matter Name: {matter.title}\n"
+                            f"Matter ID: {matter.id}\n"
+                            f"Case Number: {matter.case_number or 'Not assigned'}\n"
+                            f"Court / Forum: {matter.court or 'Not specified'}\n"
+                            f"Matter Type: {matter.matter_type}\n"
+                            f"Stage: {matter.stage}\n"
+                        )
+                        if matter.description:
+                            matter_info += f"Description: {matter.description}\n"
+
+                        sources = db.scalars(
+                            select(Source)
+                            .where(Source.matter_id == run.matter_id)
+                            .order_by(Source.created_at.desc())
+                        ).all()
+                        if sources:
+                            matter_info += f"\nAttached Documents / Sources in this Matter ({len(sources)} available):\n"
+                            for s in sources[:10]:
+                                matter_info += f"- {s.canonical_title} [Type: {s.source_type}, Authority: {s.authority_level}]\n"
+                        else:
+                            matter_info += "\nAttached Documents: No files uploaded to this matter yet.\n"
+
+                        drafts = db.scalars(
+                            select(Draft)
+                            .where(Draft.matter_id == run.matter_id)
+                            .order_by(Draft.created_at.desc())
+                        ).all()
+                        if drafts:
+                            matter_info += f"\nWorking Drafts in this Matter ({len(drafts)}):\n"
+                            for d in drafts[:5]:
+                                matter_info += f"- {d.title} (Status: {d.status})\n"
+
+                        matter_info += (
+                            f"\nINSTRUCTION REGARDING ATTACHED MATTER:\n"
+                            f"You are actively working inside Matter '{matter.title}'. "
+                            f"If the user asks whether you can see, recognize, or access the attached matter or documents, "
+                            f"confirm clearly that you have full access to Matter '{matter.title}' (Case: {matter.case_number or 'Pending'}, Court: {matter.court or 'General'}), "
+                            f"mention any attached documents listed above, and explain what you can do (drafting pleadings, fact review against records, or citation verification).\n\n"
+                        )
+
                 agent = create_main_agent()
                 history = db.scalars(
                     select(Message)
@@ -413,6 +462,8 @@ def process_agent_run(run_id: UUID) -> None:
                     -10:
                 ]
                 prompt = ""
+                if matter_info:
+                    prompt += matter_info
                 if convo:
                     prompt += "Conversation so far:\n" + "\n".join(convo) + "\n\n"
                 prompt += f"Current user message: {message.content}"

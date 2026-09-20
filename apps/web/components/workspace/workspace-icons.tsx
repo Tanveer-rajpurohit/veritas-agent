@@ -1161,6 +1161,130 @@ export function BellIcon({ size = 15, className = "" }: IconProps) {
   );
 }
 
+export function StreamlineShieldCheckIcon({ size = 20, className = "" }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M12 2.5s8 2.5 8 8.5c0 6.5-6.5 10.5-8 11-1.5-.5-8-4.5-8-11 0-6 8-8.5 8-8.5Z"
+        fill="#edf4fa"
+      />
+      <path
+        d="M12 2.5v19.5c-1.5-.5-8-4.5-8-11 0-6 8-8.5 8-8.5Z"
+        fill="#ffffff"
+      />
+      <path
+        d="M12 2.5s8 2.5 8 8.5c0 6.5-6.5 10.5-8 11-1.5-.5-8-4.5-8-11 0-6 8-8.5 8-8.5Z"
+        stroke="#2c5478"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="11.5" r="4.5" fill="#cbe0f2" stroke="#2c5478" strokeWidth="1.3" />
+      <path
+        d="m10.2 11.5 1.2 1.3 2.5-2.6"
+        stroke="#2c5478"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function StreamlineScaleIcon({ size = 20, className = "" }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M12 3v17.5M8 21h8"
+        stroke="#2c5478"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M4.5 7h15"
+        stroke="#2c5478"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="m4.5 7-2 6h5.5l-2-6Z"
+        fill="#edf4fa"
+      />
+      <path
+        d="M2.5 13c0 1.8 1.4 2.8 3.25 2.8s3.25-1 3.25-2.8H2.5Z"
+        fill="#cbe0f2"
+        stroke="#2c5478"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="m2.5 13 2-6 1.5 6"
+        stroke="#2c5478"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="m19.5 7-2 6h5.5l-2-6Z"
+        fill="#edf4fa"
+      />
+      <path
+        d="M16.5 13c0 1.8 1.4 2.8 3.25 2.8s3.25-1 3.25-2.8h-6.5Z"
+        fill="#cbe0f2"
+        stroke="#2c5478"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="m16.5 13 2-6 1.5 6"
+        stroke="#2c5478"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="4" r="1.5" fill="#cbe0f2" stroke="#2c5478" strokeWidth="1.3" />
+    </svg>
+  );
+}
+
+export function ThreeDotsVerticalIcon({ size = 15, className = "" }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="5" r="1.8" />
+      <circle cx="12" cy="12" r="1.8" />
+      <circle cx="12" cy="19" r="1.8" />
+    </svg>
+  );
+}
+
 export { ColoredFileIcon } from "../ui/colored-file-icon";
 export type { ColoredFileIconProps, FileCategory, FileFormat, IconSize } from "../ui/colored-file-icon";
+
 

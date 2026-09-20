@@ -24,8 +24,8 @@ import {
   ColoredFileIcon,
   AlertCircleIcon,
   SparklesIcon,
-  ShieldCheckIcon,
-  ScaleIcon,
+  StreamlineShieldCheckIcon,
+  StreamlineScaleIcon,
   StreamlineFolderUploadIcon,
   StreamlineFileEditIcon,
 } from "../workspace/workspace-icons";
@@ -35,7 +35,7 @@ import { ThinkingOrb } from "./thinking-orb";
 import { AgentSideViewer, type SideViewerDocument } from "./agent-side-viewer";
 import { AgentAvatar } from "./agent-avatar";
 import { MarkdownContent } from "./markdown-content";
-import { useMessages } from "../../hooks/conversations/useConversations";
+import { useMessages, useThreads } from "../../hooks/conversations/useConversations";
 import { useAgentRun, useApplyProposal, useRejectProposal } from "../../hooks/agents/useAgentRuns";
 import { conversationService } from "../../service/conversations/conversationService";
 import { agentRunService } from "../../service/agents/agentRunService";
@@ -111,7 +111,7 @@ export const SPECIALIZED_AGENTS: AgentOption[] = [
     label: "Fact Reviewer",
     badge: "Fact Reviewer",
     description: "Audits dates, ledger figures & claims against records",
-    icon: ShieldCheckIcon,
+    icon: StreamlineShieldCheckIcon,
   },
   {
     id: "citation_reviewer",
@@ -120,7 +120,7 @@ export const SPECIALIZED_AGENTS: AgentOption[] = [
     label: "Citation Reviewer",
     badge: "Citation Reviewer",
     description: "Verifies Indian statutes, NCLAT & SC case authorities",
-    icon: ScaleIcon,
+    icon: StreamlineScaleIcon,
   },
 ];
 
@@ -281,6 +281,8 @@ export function AgentChatView({
   const [runError, setRunError] = useState<string | null>(null);
 
   const { data: threadMessages } = useMessages(activeThreadId);
+  const { data: threads } = useThreads(currentMatterId);
+  const activeThread = threads?.find((t) => t.id === activeThreadId);
   const { data: runData } = useAgentRun(activeRunId);
   const applyProposal = useApplyProposal();
   const rejectProposal = useRejectProposal();
@@ -733,29 +735,6 @@ export function AgentChatView({
                       </div>
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAddMenuOpen(false);
-                        setMatterDropdownOpen(true);
-                      }}
-                      className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-[#edf4fa] transition-colors cursor-pointer group"
-                    >
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#edf4fa] text-[#2c5478] group-hover:bg-[#dce9f4]">
-                        <FolderIcon size={14} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <span className="block text-xs font-semibold text-stone-800">
-                          Attach Matter
-                        </span>
-                        <span className="block text-[10px] text-stone-500 truncate">
-                          {selectedMatter
-                            ? selectedMatter.name
-                            : "Select legal matter for evidence"}
-                        </span>
-                      </div>
-                    </button>
-
                     <div className="my-1.5 border-t border-stone-100" />
 
                     <div className="px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wider text-stone-400">
@@ -991,17 +970,37 @@ export function AgentChatView({
   return (
     <div className="w-full h-full flex flex-col bg-white overflow-hidden relative">
       {localMessages.length > 0 && (
-        <div className="absolute top-3 left-4 z-30 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleReset}
-            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-stone-200/90 bg-white/95 backdrop-blur-xs px-3 text-xs font-semibold text-stone-600 transition-colors hover:border-[#cbe0f2] hover:bg-[#f7fbfe] hover:text-[#2c5478] shadow-2xs cursor-pointer"
-            title="Start new consultation"
-          >
-            <PlusIcon size={12} />
-            <span>New Chat</span>
-          </button>
-        </div>
+        <header className="shrink-0 flex items-center justify-between border-b border-stone-200/90 bg-white px-4 py-2 z-20 shadow-2xs">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <button
+              type="button"
+              onClick={handleReset}
+              className="inline-flex h-7 items-center gap-1.5 rounded-full border border-stone-200/90 bg-white px-2.5 text-xs font-semibold text-stone-600 transition-colors hover:border-[#cbe0f2] hover:bg-[#edf4fa] hover:text-[#2c5478] shadow-2xs cursor-pointer shrink-0"
+              title="Start new consultation"
+            >
+              <PlusIcon size={12} />
+              <span>New Chat</span>
+            </button>
+            <div className="h-4 w-px bg-stone-200 shrink-0" />
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-xs font-semibold text-stone-800 truncate max-w-[280px] sm:max-w-[400px]">
+                {activeThread?.title || localMessages.find((m) => m.role === "user")?.content.slice(0, 60) || "Consultation"}
+              </span>
+              {selectedMatter && (
+                <span className="inline-flex items-center gap-1 rounded-md bg-[#edf4fa] border border-[#cbe0f2] px-2 py-0.5 text-[10.5px] font-medium text-[#2c5478] shrink-0">
+                  <FolderIcon size={10} className="text-[#487aa8]" />
+                  <span className="truncate max-w-[120px]">{selectedMatter.name}</span>
+                </span>
+              )}
+            </div>
+          </div>
+          {selectedAgent !== "main" && (
+            <div className="hidden sm:flex items-center gap-1.5 rounded-full bg-[#edf4fa] border border-[#cbe0f2] px-2.5 py-0.5 text-[11px] font-semibold text-[#2c5478]">
+              <activeAgentConfig.icon size={12} className="text-[#2c5478]" />
+              <span>{activeAgentConfig.name}</span>
+            </div>
+          )}
+        </header>
       )}
 
       <div
@@ -1045,7 +1044,7 @@ export function AgentChatView({
             </div>
           ) : (
             <>
-              <div className="flex-1 min-h-0 overflow-y-auto px-6 pt-14 pb-4">
+              <div className="flex-1 min-h-0 overflow-y-auto px-6 pt-4 pb-4">
                 <div className="max-w-[760px] mx-auto space-y-6">
                   {localMessages.map((msg) => {
                     const isUser = msg.role === "user";
