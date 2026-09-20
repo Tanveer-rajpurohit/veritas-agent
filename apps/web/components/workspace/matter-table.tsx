@@ -6,6 +6,7 @@ import type { Matter, MatterFilters } from "../../types/workspace";
 import { classifyStage, EMPTY_FILTERS } from "../../lib/workspace-data";
 import {
   BuildingIcon,
+  FolderIcon,
   FolderKanbanIcon,
   GavelIcon,
   HandshakeIcon,
@@ -122,7 +123,7 @@ export function MatterTable({
       case "Tax":
         return <LandmarkIcon size={14} className="text-stone-600" />;
       default:
-        return <FolderKanbanIcon size={14} className="text-stone-600" />;
+        return <FolderIcon size={14} className="text-stone-600" />;
     }
   }
 
@@ -547,7 +548,7 @@ export function MatterTable({
                 }}
                 className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs text-stone-700 hover:bg-stone-100 cursor-pointer"
               >
-                <FolderKanbanIcon size={13} className="text-[#487aa8]" />
+                <FolderIcon size={13} className="text-[#487aa8]" />
                 <span>Open matter</span>
               </button>
               <button

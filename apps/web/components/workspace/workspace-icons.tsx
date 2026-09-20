@@ -200,6 +200,94 @@ export function LightbulbIcon({ size = 15, className = "" }: IconProps) {
   );
 }
 
+export function FolderIcon({ size = 15, className = "" }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
+    </svg>
+  );
+}
+
+export function CreateMatterIllustration({ size = 56 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 100 100"
+      fill="none"
+      aria-hidden="true"
+    >
+      <rect
+        x="22"
+        y="24"
+        width="46"
+        height="52"
+        rx="3"
+        fill="#ffffff"
+        stroke="#cbd4dc"
+        strokeWidth="1.5"
+      />
+      <line
+        x1="30"
+        y1="36"
+        x2="56"
+        y2="36"
+        stroke="#b9d2ea"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <line
+        x1="30"
+        y1="44"
+        x2="60"
+        y2="44"
+        stroke="#b9d2ea"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <line
+        x1="30"
+        y1="52"
+        x2="50"
+        y2="52"
+        stroke="#b9d2ea"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M12 40c0-3 2-5 5-5h16l5 6h42c3 0 5 2 5 5v36c0 3-2 5-5 5H17c-3 0-5-2-5-5V40z"
+        fill="#487aa8"
+      />
+      <path d="M12 46h73v36c0 3-2 5-5 5H17c-3 0-5-2-5-5V46z" fill="#6292c1" />
+      <circle
+        cx="70"
+        cy="72"
+        r="11"
+        fill="#2c5478"
+        stroke="#ffffff"
+        strokeWidth="2"
+      />
+      <path
+        d="M70 66v12M64 72h12"
+        stroke="#ffffff"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 export function FolderKanbanIcon({ size = 15, className = "" }: IconProps) {
   return (
     <svg

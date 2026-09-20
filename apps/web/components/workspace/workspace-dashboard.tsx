@@ -4,7 +4,7 @@ import type { Matter } from "../../types/workspace";
 import { ActionCards } from "./action-cards";
 import { MatterTable } from "./matter-table";
 import {
-  FolderKanbanIcon,
+  CreateMatterIllustration,
   PlusIcon,
 } from "./workspace-icons";
 
@@ -42,8 +42,8 @@ export function WorkspaceDashboard({
       {matters.length === 0 ? (
         <section className="flex min-h-[420px] flex-1 items-center justify-center rounded-xl border border-dashed border-[#b9d1e5] bg-[#f8fbfe] px-6 py-14 text-center">
           <div className="flex max-w-md flex-col items-center">
-            <span className="flex h-16 w-16 items-center justify-center rounded-2xl border border-[#cbe0f2] bg-white text-[#487aa8] shadow-sm">
-              <FolderKanbanIcon size={30} />
+            <span className="flex h-16 w-16 items-center justify-center rounded-2xl border border-[#cbe0f2] bg-white shadow-sm overflow-hidden p-1">
+              <CreateMatterIllustration size={48} />
             </span>
             <h2 className="m-0 pt-5 font-display text-xl font-semibold text-stone-950">
               Start your first matter
