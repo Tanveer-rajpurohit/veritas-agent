@@ -8,7 +8,7 @@ export interface ThreadRecord {
 export interface MessageRecord {
   id: string;
   thread_id: string;
-  sender: string;
+  role: string;
   content: string;
   created_at: string;
 }
