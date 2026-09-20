@@ -58,7 +58,7 @@ def auth_client(monkeypatch: pytest.MonkeyPatch) -> tuple[TestClient, dict[str, 
 
     # Login and store session cookie
     login_res = client.post("/api/v1/auth/login", json=creds)
-    assert login_res.status_code == 204
+    assert login_res.status_code == 200
     assert settings.SESSION_COOKIE_NAME in client.cookies
     return client, creds
 
@@ -153,4 +153,4 @@ def test_forgot_and_reset_password_flow(
         "/api/v1/auth/login",
         json={"email": email, "password": "brand-new-secure-password-456"},
     )
-    assert new_login.status_code == 204
+    assert new_login.status_code == 200

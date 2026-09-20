@@ -135,7 +135,7 @@ def test_unverified_user_cannot_login_until_verified(test_db: Session) -> None:
     test_db.commit()
 
     verify_res = client.post("/api/v1/auth/email/verify", json={"token": raw_token})
-    assert verify_res.status_code == 204
+    assert verify_res.status_code == 200
 
     test_db.refresh(user)
     assert user.is_email_verified is True
@@ -149,7 +149,7 @@ def test_unverified_user_cannot_login_until_verified(test_db: Session) -> None:
 
     # Verified user can now log in
     succ_login = client.post("/api/v1/auth/login", json=creds)
-    assert succ_login.status_code == 204
+    assert succ_login.status_code == 200
     assert settings.SESSION_COOKIE_NAME in client.cookies
 
 
@@ -227,7 +227,7 @@ def test_session_lifecycle_and_me_endpoint(test_db: Session) -> None:
 
     # Login and receive cookie
     login_res = client.post("/api/v1/auth/login", json=creds)
-    assert login_res.status_code == 204
+    assert login_res.status_code == 200
     raw_cookie = client.cookies.get(settings.SESSION_COOKIE_NAME)
     assert raw_cookie is not None
 
@@ -284,11 +284,11 @@ def test_sessions_enumeration_and_revocation(test_db: Session) -> None:
     test_db.commit()
 
     # Session 1
-    assert client_a.post("/api/v1/auth/login", json=creds).status_code == 204
+    assert client_a.post("/api/v1/auth/login", json=creds).status_code == 200
 
     # Session 2
     client_b = TestClient(app)
-    assert client_b.post("/api/v1/auth/login", json=creds).status_code == 204
+    assert client_b.post("/api/v1/auth/login", json=creds).status_code == 200
 
     # Session list from Session 1
     sessions_res = client_a.get("/api/v1/auth/sessions")
@@ -316,7 +316,7 @@ def test_sessions_enumeration_and_revocation(test_db: Session) -> None:
     assert other_user is not None
     other_user.email_verified_at = datetime.now(UTC)
     test_db.commit()
-    assert client_other.post("/api/v1/auth/login", json=other_creds).status_code == 204
+    assert client_other.post("/api/v1/auth/login", json=other_creds).status_code == 200
 
     # Other user cannot revoke Session 2 of User A (safe 404)
     cross_revoke = client_other.delete(f"/api/v1/auth/sessions/{s2_id}")
@@ -345,9 +345,9 @@ def test_forgot_and_reset_password_revokes_all_sessions(test_db: Session) -> Non
 
     # Establish 2 active sessions
     client1 = TestClient(app)
-    assert client1.post("/api/v1/auth/login", json=creds).status_code == 204
+    assert client1.post("/api/v1/auth/login", json=creds).status_code == 200
     client2 = TestClient(app)
-    assert client2.post("/api/v1/auth/login", json=creds).status_code == 204
+    assert client2.post("/api/v1/auth/login", json=creds).status_code == 200
 
     # Forgot password
     forgot_res = client.post("/api/v1/auth/password/forgot", json={"email": creds["email"]})
@@ -421,7 +421,7 @@ def test_forgot_and_reset_password_revokes_all_sessions(test_db: Session) -> Non
         "/api/v1/auth/login",
         json={"email": creds["email"], "password": "new-brand-secure-password-456"},
     )
-    assert new_login.status_code == 204
+    assert new_login.status_code == 200
     assert client.get("/api/v1/auth/me").status_code == 200
 
 
@@ -595,7 +595,7 @@ def test_legacy_scrypt_password_upgrade(test_db: Session) -> None:
         "/api/v1/auth/login",
         json={"email": "legacy_user@veritas.in", "password": "legacy-secure-password-123"},
     )
-    assert res.status_code == 204
+    assert res.status_code == 200
     assert settings.SESSION_COOKIE_NAME in client.cookies
 
     test_db.refresh(user)
@@ -609,7 +609,7 @@ def test_legacy_scrypt_password_upgrade(test_db: Session) -> None:
         "/api/v1/auth/login",
         json={"email": "legacy_user@veritas.in", "password": "legacy-secure-password-123"},
     )
-    assert res2.status_code == 204
+    assert res2.status_code == 200
     assert settings.SESSION_COOKIE_NAME in client.cookies
 
 

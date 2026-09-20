@@ -76,7 +76,7 @@ def switch_user(
     finally:
         db.close()
     login_res = client.post("/api/v1/auth/login", json={"email": email, "password": password})
-    assert login_res.status_code == 204
+    assert login_res.status_code == 200
     assert settings.SESSION_COOKIE_NAME in client.cookies
 
 
@@ -98,7 +98,7 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
         db.close()
 
     login_res = client.post("/api/v1/auth/login", json=creds)
-    assert login_res.status_code == 204
+    assert login_res.status_code == 200
     assert settings.SESSION_COOKIE_NAME in client.cookies
     return client
 
@@ -113,7 +113,7 @@ def test_login_and_invalid_token(client: TestClient) -> None:
         "/api/v1/auth/login",
         json={"email": "owner@example.com", "password": "correct-horse-battery"},
     )
-    assert response.status_code == 204
+    assert response.status_code == 200
     assert settings.SESSION_COOKIE_NAME in client.cookies
     client.cookies.set(settings.SESSION_COOKIE_NAME, "broken.token")
     assert client.get("/api/v1/matters/").status_code == 401
@@ -323,7 +323,7 @@ def test_delete_matter_success(client: TestClient) -> None:
     matter_id = create_res.json()["id"]
 
     delete_res = client.delete(f"/api/v1/matters/{matter_id}")
-    assert delete_res.status_code == 204
+    assert delete_res.status_code == 200
 
     get_res = client.get(f"/api/v1/matters/{matter_id}")
     assert get_res.status_code == 404

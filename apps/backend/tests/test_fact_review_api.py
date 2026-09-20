@@ -61,7 +61,7 @@ def auth_client(monkeypatch: pytest.MonkeyPatch) -> tuple[TestClient, User]:
         db.close()
 
     login_res = client.post("/api/v1/auth/login", json=creds)
-    assert login_res.status_code == 204
+    assert login_res.status_code == 200
     assert settings.SESSION_COOKIE_NAME in client.cookies
     return client, user
 
@@ -241,7 +241,7 @@ def test_checks_endpoint_synthetic_conflict_api_flow(auth_client: tuple[TestClie
         db.close()
 
     other_login = other_client.post("/api/v1/auth/login", json=other_creds)
-    assert other_login.status_code == 204
+    assert other_login.status_code == 200
 
     cross_resp = other_client.post(
         f"/api/v1/document-versions/{doc_ver.id}/checks",

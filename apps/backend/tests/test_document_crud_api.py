@@ -57,7 +57,7 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
         db.close()
 
     login_res = client.post("/api/v1/auth/login", json=creds)
-    assert login_res.status_code == 204
+    assert login_res.status_code == 200
     assert settings.SESSION_COOKIE_NAME in client.cookies
     return client
 
@@ -127,7 +127,7 @@ def test_delete_document_success(client: TestClient) -> None:
     ).json()
 
     del_res = client.delete(f"/api/v1/documents/{doc['id']}")
-    assert del_res.status_code == 204
+    assert del_res.status_code == 200
 
     get_res = client.get(f"/api/v1/documents/{doc['id']}")
     assert get_res.status_code == 404

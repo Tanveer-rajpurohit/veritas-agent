@@ -78,7 +78,7 @@ def create_user_client(email: str, password: str = "password-12345") -> tuple[Te
         db.close()
 
     login = client.post("/api/v1/auth/login", json={"email": email, "password": password})
-    assert login.status_code == 204
+    assert login.status_code == 200
     assert settings.SESSION_COOKIE_NAME in client.cookies
     return client, user
 
