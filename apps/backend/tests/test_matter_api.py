@@ -1,5 +1,4 @@
 from collections.abc import Generator
-from datetime import UTC, datetime
 from uuid import uuid4
 
 import pymupdf
@@ -71,7 +70,6 @@ def switch_user(
     try:
         user = db.scalar(select(User).where(User.email == email))
         assert user is not None
-        user.email_verified_at = datetime.now(UTC)
         db.commit()
     finally:
         db.close()
@@ -92,7 +90,6 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     try:
         user = db.scalar(select(User).where(User.email == creds["email"]))
         assert user is not None
-        user.email_verified_at = datetime.now(UTC)
         db.commit()
     finally:
         db.close()

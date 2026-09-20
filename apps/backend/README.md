@@ -69,8 +69,6 @@ while its test suite is small.
 - `GET /` returns API name, version, and status.
 - `GET /health` returns the service health status.
 - `POST /api/v1/auth/register` creates an account and dispatches an email verification link.
-- `POST /api/v1/auth/email/verify` verifies an email address via single-use action token.
-- `POST /api/v1/auth/email/resend` re-dispatches verification link.
 - `POST /api/v1/auth/login` sets an opaque HttpOnly session cookie (`veritas_session`) upon verification.
 - `GET /api/v1/auth/me` returns the authenticated user profile using the session cookie.
 - `POST /api/v1/auth/logout` revokes the session and clears the cookie (origin-validated).
@@ -80,7 +78,7 @@ while its test suite is small.
 
 ### Legacy User Verification Note
 
-For users created prior to migration `a3d9d2707c30`, `email_verified_at` remains `NULL`. Veritas does not silently claim or mark prior accounts as verified. Unverified accounts attempting login will receive `403 EMAIL_NOT_VERIFIED` and must complete verification via `/api/v1/auth/email/resend` or an explicit operational migration.
+Registration creates an active account immediately. Password-reset links remain single-use and expiring; email verification is intentionally outside the current MVP.
 - `GET /api/v1/matters/{id}/sources` and `GET /api/v1/sources/{id}/pages/{page}` return scoped evidence.
 - `GET /api/v1/sources/{id}/download` returns the authorized original file.
 - `POST /api/v1/matters/{id}/threads` and `/api/v1/threads/{id}/messages` persist scoped conversations.

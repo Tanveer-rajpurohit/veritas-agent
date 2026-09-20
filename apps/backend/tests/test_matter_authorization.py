@@ -1,6 +1,5 @@
 import os
 from collections.abc import Generator
-from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
@@ -71,7 +70,6 @@ def create_user_client(email: str, password: str = "password-12345") -> tuple[Te
     try:
         user = db.scalar(select(User).where(User.email == email))
         assert user is not None
-        user.email_verified_at = datetime.now(UTC)
         db.commit()
         db.refresh(user)
     finally:

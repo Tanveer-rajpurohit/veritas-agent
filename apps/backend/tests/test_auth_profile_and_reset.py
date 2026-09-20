@@ -1,5 +1,4 @@
 from collections.abc import Generator
-from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -51,7 +50,6 @@ def auth_client(monkeypatch: pytest.MonkeyPatch) -> tuple[TestClient, dict[str, 
     try:
         user = db.scalar(select(User).where(User.email == creds["email"]))
         assert user is not None
-        user.email_verified_at = datetime.now(UTC)
         db.commit()
     finally:
         db.close()

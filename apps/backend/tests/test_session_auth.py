@@ -7,8 +7,8 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.core.auth import hash_token
 from app.core.config import settings
+from app.core.security import hash_token
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
@@ -68,7 +68,6 @@ def test_registration_and_argon2_hashing(test_db: Session) -> None:
     # Assert safe user fields returned
     assert data["email"] == "senior.counsel@veritas.in"
     assert data["display_name"] == "Senior Counsel"
-    assert data["email_verified"] is False
     assert "id" in data
     assert "password" not in data
     assert "token" not in data
@@ -80,13 +79,6 @@ def test_registration_and_argon2_hashing(test_db: Session) -> None:
     assert user.password_hash is not None
     assert user.password_hash.startswith("$argon2id$")
     assert "super-secure-passphrase-1234" not in user.password_hash
-
-    # Verify ActionToken created with sha256 hash
-    token = test_db.scalar(select(ActionToken).where(ActionToken.user_id == user.id))
-    assert token is not None
-    assert token.purpose == "verify_email"
-    assert len(token.token_hash) == 64
-    assert token.consumed_at is None
 
     # Duplicate registration returns 409 with safe error envelope
     dup_res = client.post(
@@ -100,7 +92,7 @@ def test_registration_and_argon2_hashing(test_db: Session) -> None:
     assert dup_res.json()["error"]["code"] == "ACCOUNT_ALREADY_EXISTS"
 
 
-def test_unverified_user_cannot_login_until_verified(test_db: Session) -> None:
+def test_registered_user_can_login_immediately(test_db: Session) -> None:
     client = TestClient(app)
     creds = {
         "email": "junior@veritas.in",
@@ -109,77 +101,9 @@ def test_unverified_user_cannot_login_until_verified(test_db: Session) -> None:
     reg_res = client.post("/api/v1/auth/register", json=creds)
     assert reg_res.status_code == 201
 
-    # Login before verification is rejected with 403 EMAIL_NOT_VERIFIED
     login_res = client.post("/api/v1/auth/login", json=creds)
-    assert login_res.status_code == 403
-    assert login_res.json()["error"]["code"] == "EMAIL_NOT_VERIFIED"
-    assert "veritas_session" not in client.cookies
-
-    # Retrieve action token from DB and verify email
-    user = test_db.scalar(select(User).where(User.email == "junior@veritas.in"))
-    assert user is not None
-    db_token = test_db.scalar(select(ActionToken).where(ActionToken.user_id == user.id))
-    assert db_token is not None
-
-    # Invalid token check
-    invalid_verify = client.post("/api/v1/auth/email/verify", json={"token": "invalid-token-123"})
-    assert invalid_verify.status_code == 400
-    assert invalid_verify.json()["error"]["code"] == "TOKEN_INVALID_OR_EXPIRED"
-
-    # Manually simulate verifying with valid raw token whose hash matches db_token
-    # Since raw token is dispatched via email, let's create a known raw token
-    from app.core.security import generate_opaque_token
-
-    raw_token = generate_opaque_token(32)
-    db_token.token_hash = hash_token(raw_token)
-    test_db.commit()
-
-    verify_res = client.post("/api/v1/auth/email/verify", json={"token": raw_token})
-    assert verify_res.status_code == 204
-
-    test_db.refresh(user)
-    assert user.is_email_verified is True
-    test_db.refresh(db_token)
-    assert db_token.consumed_at is not None
-
-    # Single-use: Reusing token is rejected
-    reuse_res = client.post("/api/v1/auth/email/verify", json={"token": raw_token})
-    assert reuse_res.status_code == 400
-    assert reuse_res.json()["error"]["code"] == "TOKEN_INVALID_OR_EXPIRED"
-
-    # Verified user can now log in
-    succ_login = client.post("/api/v1/auth/login", json=creds)
-    assert succ_login.status_code == 200
+    assert login_res.status_code == 200
     assert settings.SESSION_COOKIE_NAME in client.cookies
-
-
-def test_resend_verification_generic_response(
-    test_db: Session, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    client = TestClient(app)
-    creds = {"email": "resend_user@veritas.in", "password": "valid-passphrase-1234"}
-    client.post("/api/v1/auth/register", json=creds)
-
-    sent_emails = []
-
-    async def fake_send_verification(email: str, token: str) -> None:
-        sent_emails.append((email, token))
-
-    import app.services.auth.auth_service as auth_service_mod
-
-    monkeypatch.setattr(auth_service_mod, "send_verification", fake_send_verification)
-
-    # Resend for existing unverified user
-    res1 = client.post("/api/v1/auth/email/resend", json={"email": "resend_user@veritas.in"})
-    assert res1.status_code == 202
-    assert "verification link has been sent" in res1.json()["message"]
-    assert len(sent_emails) == 1
-
-    # Resend for non-existent user returns identical 202 response (no account enumeration)
-    res2 = client.post("/api/v1/auth/email/resend", json={"email": "nonexistent@veritas.in"})
-    assert res2.status_code == 202
-    assert "verification link has been sent" in res2.json()["message"]
-    assert len(sent_emails) == 1
 
 
 def test_login_invalid_credentials_generic_response() -> None:
@@ -217,7 +141,6 @@ def test_session_lifecycle_and_me_endpoint(test_db: Session) -> None:
     # Verify user in database
     user = test_db.scalar(select(User).where(User.email == creds["email"]))
     assert user is not None
-    user.email_verified_at = datetime.now(UTC)
     test_db.commit()
 
     # Unauthorized access before login
@@ -242,7 +165,6 @@ def test_session_lifecycle_and_me_endpoint(test_db: Session) -> None:
     assert me_res.status_code == 200
     me_data = me_res.json()
     assert me_data["email"] == creds["email"]
-    assert me_data["email_verified"] is True
     assert me_data["id"] == str(user.id)
 
     # Patch profile
@@ -277,7 +199,6 @@ def test_sessions_enumeration_and_revocation(test_db: Session) -> None:
 
     user = test_db.scalar(select(User).where(User.email == creds["email"]))
     assert user is not None
-    user.email_verified_at = datetime.now(UTC)
     test_db.commit()
 
     # Session 1
@@ -311,7 +232,6 @@ def test_sessions_enumeration_and_revocation(test_db: Session) -> None:
     client_other.post("/api/v1/auth/register", json=other_creds)
     other_user = test_db.scalar(select(User).where(User.email == other_creds["email"]))
     assert other_user is not None
-    other_user.email_verified_at = datetime.now(UTC)
     test_db.commit()
     assert client_other.post("/api/v1/auth/login", json=other_creds).status_code == 200
 
@@ -337,7 +257,6 @@ def test_forgot_and_reset_password_revokes_all_sessions(test_db: Session) -> Non
 
     user = test_db.scalar(select(User).where(User.email == creds["email"]))
     assert user is not None
-    user.email_verified_at = datetime.now(UTC)
     test_db.commit()
 
     # Establish 2 active sessions
@@ -429,7 +348,6 @@ def test_origin_validation_matrix(test_db: Session, monkeypatch: pytest.MonkeyPa
     client.post("/api/v1/auth/register", json=creds)
     user = test_db.scalar(select(User).where(User.email == creds["email"]))
     assert user is not None
-    user.email_verified_at = datetime.now(UTC)
     test_db.commit()
 
     # Login
@@ -532,7 +450,7 @@ def test_console_email_logging_redaction(
     import asyncio
     import logging
 
-    from app.services.auth.email_service import send_password_reset, send_verification
+    from app.services.auth.email_service import send_password_reset
 
     monkeypatch.setattr(settings, "EMAIL_PROVIDER", "console")
     monkeypatch.setattr(settings, "ENVIRONMENT", "development")
@@ -540,22 +458,6 @@ def test_console_email_logging_redaction(
     logging.getLogger("app.services.auth.email_service").disabled = False
 
     with caplog.at_level(logging.WARNING):
-        # 1. Verification email logging
-        asyncio.run(send_verification("counsel@veritas.in", "raw-token-verification-xyz"))
-        assert len(caplog.records) == 1
-        record = caplog.records[0]
-        assert (
-            "[DEVELOPMENT ONLY] Verification link: http://localhost:3000/verify-email?token=raw-token-verification-xyz"
-            in record.message
-        )
-        # Confirm recipient email is NOT in log output
-        assert "counsel@veritas.in" not in caplog.text
-        # Confirm no separate raw token field is logged
-        assert "raw_token" not in caplog.text
-
-        caplog.clear()
-
-        # 2. Password reset email logging
         asyncio.run(send_password_reset("advocate@veritas.in", "raw-token-reset-abc"))
         assert len(caplog.records) == 1
         record2 = caplog.records[0]
@@ -580,7 +482,6 @@ def test_legacy_scrypt_password_upgrade(test_db: Session) -> None:
         email="legacy_user@veritas.in",
         password_hash=legacy_hash,
         is_active=True,
-        email_verified_at=datetime.now(UTC),
     )
     test_db.add(user)
     test_db.commit()
@@ -633,7 +534,7 @@ def test_absent_user_dummy_hash_timing_defense(monkeypatch: pytest.MonkeyPatch) 
     assert called_dummy is True
 
 
-def test_postgresql_action_token_concurrency_row_locking() -> None:
+def test_postgresql_password_reset_token_concurrency_row_locking() -> None:
     import os
 
     test_database_url = os.getenv("TEST_DATABASE_URL")
@@ -679,7 +580,7 @@ def test_postgresql_action_token_concurrency_row_locking() -> None:
             init_db.flush()
             repo.create_action_token(
                 user_id=user.id,
-                purpose="verify_email",
+                purpose="reset_password",
                 token_hash=t_hash,
                 expires_at=datetime.now(UTC) + timedelta(minutes=15),
             )
@@ -692,13 +593,13 @@ def test_postgresql_action_token_concurrency_row_locking() -> None:
         barrier = threading.Barrier(2)
         results = []
 
-        def attempt_verify():
+        def attempt_reset():
             session = PgSession()
             try:
                 auth_svc = AuthService(session)
                 # Synchronize worker attempts so contention is intentional and tested
                 barrier.wait(timeout=5)
-                asyncio.run(auth_svc.verify_email(raw_token))
+                asyncio.run(auth_svc.reset_password(raw_token, "replacement-passphrase-1234"))
                 results.append("SUCCESS")
             except Exception as e:
                 results.append(type(e).__name__)
@@ -706,8 +607,8 @@ def test_postgresql_action_token_concurrency_row_locking() -> None:
                 session.close()
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-            f1 = executor.submit(attempt_verify)
-            f2 = executor.submit(attempt_verify)
+            f1 = executor.submit(attempt_reset)
+            f2 = executor.submit(attempt_reset)
             f1.result()
             f2.result()
 
@@ -718,7 +619,6 @@ def test_postgresql_action_token_concurrency_row_locking() -> None:
         try:
             repo = AuthRepository(check_db)
             user = repo.get_user_by_email("pg_concurrency@veritas.in")
-            assert user.is_email_verified is True
             token_row = check_db.scalar(select(ActionToken).where(ActionToken.token_hash == t_hash))
             assert token_row.consumed_at is not None
         finally:

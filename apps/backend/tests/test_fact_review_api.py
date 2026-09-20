@@ -54,7 +54,6 @@ def auth_client(monkeypatch: pytest.MonkeyPatch) -> tuple[TestClient, User]:
     try:
         user = db.query(User).filter_by(email=creds["email"]).first()
         assert user is not None
-        user.email_verified_at = datetime.now(UTC)
         db.commit()
         db.refresh(user)
     finally:
@@ -235,7 +234,6 @@ def test_checks_endpoint_synthetic_conflict_api_flow(auth_client: tuple[TestClie
     try:
         other_user = db.query(User).filter_by(email=other_creds["email"]).first()
         assert other_user is not None
-        other_user.email_verified_at = datetime.now(UTC)
         db.commit()
     finally:
         db.close()
