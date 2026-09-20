@@ -34,4 +34,8 @@ export const sourceService = {
       responseType: "blob",
     });
   },
+
+  previewSource(sourceId: string): Promise<{ url: string; expires_in: number; mime_type: string }> {
+    return fetchClient.get(`/sources/${sourceId}/preview`);
+  },
 };

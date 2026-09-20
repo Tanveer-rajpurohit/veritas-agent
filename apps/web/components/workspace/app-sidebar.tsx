@@ -14,6 +14,7 @@ import {
   SearchIcon,
   SettingsIcon,
   BotIcon,
+  FileTextIcon,
 } from "./workspace-icons";
 
 export interface SidebarChatSession {
@@ -261,6 +262,18 @@ export function AppSidebar({
               />
               {!collapsed && <span>Agent</span>}
             </button>
+
+            <Link
+              href="/test-docs"
+              onClick={onCloseMobile}
+              className={`flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors cursor-pointer text-stone-600 hover:bg-[#edf4fa]/60 hover:text-[#2c5478] ${
+                collapsed ? "justify-center px-0" : ""
+              }`}
+              title="Test Library & Documents"
+            >
+              <FileTextIcon size={15} className="text-stone-500" />
+              {!collapsed && <span>Test Library</span>}
+            </Link>
           </nav>
 
           <div className="pt-4 pb-1">

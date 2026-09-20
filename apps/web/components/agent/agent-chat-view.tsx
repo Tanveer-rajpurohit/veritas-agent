@@ -18,12 +18,16 @@ import {
   ChevronRightIcon,
   CopyIcon,
   DownloadIcon,
-  FolderKanbanIcon,
+  FolderIcon,
   PaperclipIcon,
   SearchIcon,
   PlusIcon,
   ColoredFileIcon,
   AlertCircleIcon,
+  SparklesIcon,
+  FileTextIcon,
+  ShieldCheckIcon,
+  ScaleIcon,
 } from "../workspace/workspace-icons";
 import { ThinkingOrb } from "./thinking-orb";
 import { AgentSideViewer, type SideViewerDocument } from "./agent-side-viewer";
@@ -34,7 +38,7 @@ import { useAgentRun, useApplyProposal, useRejectProposal } from "../../hooks/ag
 import { conversationService } from "../../service/conversations/conversationService";
 import { agentRunService } from "../../service/agents/agentRunService";
 import { useUploadSource } from "../../hooks/sources/useSources";
-import type { AgentAction } from "../../types/agent/type";
+import type { AgentAction, AgentName } from "../../types/agent/type";
 
 export type AgentRoleType =
   "orchestrator" | "writer" | "citation_reviewer" | "fact_reviewer";
@@ -75,6 +79,55 @@ const AGENTS: AgentConfig[] = [
     description: "Checks dates, amounts, and records",
     color: "#487aa8",
     glow: "#dce9f4",
+  },
+];
+
+export interface AgentOption {
+  id: AgentName;
+  role: AgentRoleType;
+  name: string;
+  label: string;
+  badge: string;
+  description: string;
+  icon: ({ size, className }: { size?: number; className?: string }) => React.JSX.Element;
+}
+
+export const AGENT_OPTIONS: AgentOption[] = [
+  {
+    id: "main",
+    role: "orchestrator",
+    name: "Veritas Orchestrator",
+    label: "Orchestrator",
+    badge: "Orchestrator",
+    description: "Coordinates research, drafting, and multi-agent review",
+    icon: SparklesIcon,
+  },
+  {
+    id: "writer",
+    role: "writer",
+    name: "Writer Agent",
+    label: "Writer Agent",
+    badge: "Writer Agent",
+    description: "Drafts applications, petitions & legal notices",
+    icon: FileTextIcon,
+  },
+  {
+    id: "fact_reviewer",
+    role: "fact_reviewer",
+    name: "Fact Reviewer",
+    label: "Fact Reviewer",
+    badge: "Fact Reviewer",
+    description: "Audits dates, ledger figures & claims against records",
+    icon: ShieldCheckIcon,
+  },
+  {
+    id: "citation_reviewer",
+    role: "citation_reviewer",
+    name: "Citation Reviewer",
+    label: "Citation Reviewer",
+    badge: "⚖️ Citation Reviewer",
+    description: "Verifies Indian statutes, NCLAT & SC case authorities",
+    icon: ScaleIcon,
   },
 ];
 
@@ -145,25 +198,35 @@ const SUGGESTIONS = [
   "Draft Synopsis & Chronological List of Dates",
 ];
 
-type WorkMode = "auto" | "draft" | "revise" | "facts" | "citations";
-
-const WORK_MODES: Array<{ id: WorkMode; label: string; description: string }> = [
-  { id: "auto", label: "Auto", description: "Answer or choose the right workflow" },
-  { id: "draft", label: "Draft + verify", description: "Draft, fact-check, then review citations" },
-  { id: "revise", label: "Propose edits", description: "Preview changes to the latest draft before accepting" },
-  { id: "facts", label: "Check facts", description: "Review the latest Matter draft" },
-  { id: "citations", label: "Check citations", description: "Review authorities in the latest draft" },
-];
-
-function inferRequestedAction(text: string, mode: WorkMode): AgentAction {
-  if (mode === "draft") return "draft_and_review";
-  if (mode === "revise") return "revise_working_brief";
-  if (mode === "facts") return "review_facts";
-  if (mode === "citations") return "review_citations";
+function inferRequestedAction(text: string, agent: AgentName): AgentAction {
   const t = text.toLowerCase();
-  if (/(draft|prepare|write|create).*(brief|application|petition|synopsis|draft)/.test(t)) return "draft_and_review";
-  if (/(review|check|audit|verify|scan).*(citation|authority|case law|quotation|quote)/.test(t)) return "review_citations";
-  if (/(fact.check|verify.*(fact|amount|date|ledger|default)|audit.*(ledger|annexure)|discrepancy)/.test(t)) return "review_facts";
+  if (agent === "main") {
+    if (/(draft|prepare|write|create).*(brief|application|petition|synopsis|draft)/.test(t)) {
+      return "draft_and_review";
+    }
+    if (/(review|check|audit|verify|scan).*(citation|authority|case law|quotation|quote)/.test(t)) {
+      return "review_citations";
+    }
+    if (/(fact.check|verify.*(fact|amount|date|ledger|default)|audit.*(ledger|annexure)|discrepancy)/.test(t)) {
+      return "review_facts";
+    }
+    return "answer";
+  }
+  if (agent === "writer") {
+    if (/(revise|amend|update|change|fix|modify|edit)/.test(t)) {
+      return "revise_working_brief";
+    }
+    return "prepare_working_brief";
+  }
+  if (agent === "fact_reviewer") {
+    if (/(apply|fix|auto.fix|correct)/.test(t)) {
+      return "apply_safe_fact_fixes";
+    }
+    return "review_facts";
+  }
+  if (agent === "citation_reviewer") {
+    return "review_citations";
+  }
   return "answer";
 }
 
@@ -191,8 +254,10 @@ export function AgentChatView({
   );
   const [matterDropdownOpen, setMatterDropdownOpen] = useState(false);
   const [matterSearch, setMatterSearch] = useState("");
-  const [workMode, setWorkMode] = useState<WorkMode>("auto");
-  const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
+  const [selectedAgent, setSelectedAgent] = useState<AgentName>("main");
+  const [agentDropdownOpen, setAgentDropdownOpen] = useState(false);
+
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [selectedSourceIds, setSelectedSourceIds] = useState<string[]>([]);
   const [sideViewerDoc, setSideViewerDoc] = useState<SideViewerDocument | null>(
     null,
@@ -418,7 +483,10 @@ export function AgentChatView({
     conversationEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [localMessages, busy]);
 
-  const currentAgent = AGENTS[0]!;
+  const activeAgentConfig =
+    AGENT_OPTIONS.find((a) => a.id === selectedAgent) ?? AGENT_OPTIONS[0]!;
+  const currentAgent =
+    AGENTS.find((item) => item.id === activeAgentConfig.role) ?? AGENTS[0]!;
 
   const handleSend = async () => {
     const text = input.trim();
@@ -439,25 +507,7 @@ export function AgentChatView({
 
     try {
       if (!currentMatterId) {
-        if (workMode !== "auto") {
-          throw new Error("Select a Matter to draft or run evidence-based checks. General questions work without one.");
-        }
-        const responseId = `run-general-${Date.now()}`;
-        setLocalMessages((prev) => [
-          ...prev,
-          { id: responseId, role: "assistant", content: "", agentId: "orchestrator" },
-        ]);
-        await agentRunService.streamGeneralChat(text, ({ type, data }) => {
-          if (type === "text" && typeof data.delta === "string") {
-            setLocalMessages((prev) => prev.map((item) => item.id === responseId ? { ...item, content: item.content + data.delta } : item));
-          } else if (type === "tool" && typeof data.name === "string") {
-            setSseStages((prev) => [...prev, { id: `general-${prev.length}`, event_type: "tool.started", label: `Using ${data.name}`, status: "done", timestamp: Date.now() }]);
-          } else if (type === "error") {
-            throw new Error(typeof data.message === "string" ? data.message : "The agent is temporarily unavailable.");
-          }
-        });
-        setBusy(false);
-        return;
+        throw new Error("Select a Matter before starting an evidence-based task.");
       }
 
       let threadId = activeThreadId;
@@ -479,11 +529,11 @@ export function AgentChatView({
         ),
       );
 
-      const requestedAction = inferRequestedAction(text, workMode);
+      const requestedAction = inferRequestedAction(text, selectedAgent);
       const run = await agentRunService.createRun(currentMatterId, {
         thread_id: threadId,
         message_id: message.id,
-        agent: requestedAction === "revise_working_brief" ? "writer" : "main",
+        agent: selectedAgent,
         requested_action: requestedAction,
         source_ids: selectedSourceIds,
       });
@@ -505,6 +555,10 @@ export function AgentChatView({
     setRunError(null);
     setSelectedSourceIds([]);
     setSideViewerOpen(false);
+    setSelectedAgent("main");
+    setAddMenuOpen(false);
+    setMatterDropdownOpen(false);
+    setAgentDropdownOpen(false);
     onNewChat?.();
   };
 
@@ -578,17 +632,23 @@ export function AgentChatView({
           placeholder={
             busy
               ? "Veritas agent is thinking..."
-              : currentMatterId
-                ? "Ask Veritas to draft, check facts, or review citations"
-                : "Ask a general question, or select a Matter for evidence-based work"
+              : !currentMatterId
+                ? "Attach a Matter to start evidence drafting or review..."
+                : selectedAgent === "writer"
+                  ? "Ask Writer Agent to draft an IBC application, petition, or notice..."
+                  : selectedAgent === "fact_reviewer"
+                    ? "Ask Fact Reviewer to audit dates, amounts, and ledger claims against evidence..."
+                    : selectedAgent === "citation_reviewer"
+                      ? "Ask Citation Reviewer to verify statutes, citations, and legal precedents..."
+                      : "Ask Veritas to orchestrate research, draft pleadings, or verify evidence..."
           }
           rows={localMessages.length > 0 ? 2 : 4}
           aria-label="Agent prompt"
           className="w-full bg-transparent border-0 px-4 pt-3.5 pb-2 text-[15px] leading-relaxed text-[#16161a] placeholder:text-[#8a8a93] resize-none outline-none min-h-[96px] font-sans"
         />
 
-        <div className="flex items-center justify-between px-3 pb-2.5 pt-1">
-          <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center justify-between px-3 pb-2.5 pt-1 gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <input
               ref={fileInputRef}
               type="file"
@@ -609,139 +669,372 @@ export function AgentChatView({
               }}
             />
 
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={!currentMatterId || uploadSource.isPending}
-              title={currentMatterId ? "Upload a source to this Matter" : "Select a Matter before attaching a source"}
-              className="flex h-7 items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 text-xs font-medium text-stone-600 transition-colors hover:border-[#cbe0f2] hover:bg-[#f7fbfe] hover:text-[#2c5478]"
-            >
-              <PaperclipIcon size={12} className="text-stone-500" />
-              <span>{uploadSource.isPending ? "Uploading…" : selectedSourceIds.length ? `${selectedSourceIds.length} source` : "Attach"}</span>
-            </button>
-
             <div className="relative">
               <button
                 type="button"
-                onClick={() => setModeDropdownOpen((open) => !open)}
-                aria-expanded={modeDropdownOpen}
-                className="flex h-7 items-center gap-1.5 rounded-md border border-[#cbe0f2] bg-[#edf4fa] px-2.5 text-xs font-semibold text-[#2c5478]"
+                onClick={() => {
+                  setAddMenuOpen((prev) => !prev);
+                  setMatterDropdownOpen(false);
+                  setAgentDropdownOpen(false);
+                }}
+                aria-expanded={addMenuOpen}
+                aria-label="Add document or select agent"
+                className={`flex h-8 w-8 items-center justify-center rounded-full border transition-all cursor-pointer shadow-2xs ${
+                  addMenuOpen
+                    ? "border-[#2c5478] bg-[#edf4fa] text-[#2c5478]"
+                    : "border-stone-200 bg-white text-stone-700 hover:bg-[#edf4fa] hover:text-[#2c5478] hover:border-[#cbe0f2]"
+                }`}
               >
-                <AgentMark agentId="orchestrator" compact />
-                <span>{WORK_MODES.find((mode) => mode.id === workMode)?.label}</span>
-                <ChevronDownIcon size={11} />
+                <PlusIcon
+                  size={15}
+                  className={`transition-transform duration-150 ${addMenuOpen ? "rotate-45" : ""}`}
+                />
               </button>
-              {modeDropdownOpen && (
-                <div className="absolute bottom-full left-0 z-50 mb-1.5 w-64 rounded-lg border border-[#cbe0f2] bg-white p-1.5 shadow-[0_14px_36px_rgba(44,84,120,0.16)]">
-                  {WORK_MODES.map((mode) => (
+
+              {addMenuOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setAddMenuOpen(false)}
+                  />
+                  <div className="absolute bottom-full left-0 z-50 mb-2 w-72 rounded-xl border border-stone-200/90 bg-white p-2 shadow-[0_16px_40px_rgba(0,0,0,0.14)] animate-in fade-in slide-in-from-bottom-2 duration-150 select-none">
+                    <div className="px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wider text-stone-400">
+                      Add
+                    </div>
                     <button
-                      key={mode.id}
                       type="button"
-                      onClick={() => { setWorkMode(mode.id); setModeDropdownOpen(false); }}
-                      className={`w-full rounded-md px-2.5 py-2 text-left ${workMode === mode.id ? "bg-[#edf4fa]" : "hover:bg-stone-50"}`}
+                      disabled={uploadSource.isPending}
+                      onClick={() => {
+                        setAddMenuOpen(false);
+                        if (!currentMatterId) {
+                          setMatterDropdownOpen(true);
+                          return;
+                        }
+                        fileInputRef.current?.click();
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-[#edf4fa] transition-colors cursor-pointer group"
                     >
-                      <span className="block text-xs font-semibold text-stone-800">{mode.label}</span>
-                      <span className="mt-0.5 block text-[10px] leading-snug text-stone-500">{mode.description}</span>
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#edf4fa] text-[#2c5478] group-hover:bg-[#dce9f4]">
+                        <PaperclipIcon size={14} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <span className="block text-xs font-semibold text-stone-800">
+                          Upload document
+                        </span>
+                        <span className="block text-[10px] text-stone-500 truncate">
+                          {currentMatterId
+                            ? "Add PDF, filing or evidence to this Matter"
+                            : "Select Matter first to upload"}
+                        </span>
+                      </div>
                     </button>
-                  ))}
-                </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAddMenuOpen(false);
+                        setMatterDropdownOpen(true);
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-[#edf4fa] transition-colors cursor-pointer group"
+                    >
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#edf4fa] text-[#2c5478] group-hover:bg-[#dce9f4]">
+                        <FolderIcon size={14} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <span className="block text-xs font-semibold text-stone-800">
+                          Attach Matter
+                        </span>
+                        <span className="block text-[10px] text-stone-500 truncate">
+                          {selectedMatter
+                            ? selectedMatter.name
+                            : "Select legal matter for evidence"}
+                        </span>
+                      </div>
+                    </button>
+
+                    <div className="my-1.5 border-t border-stone-100" />
+
+                    <div className="px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wider text-stone-400">
+                      Select Agent
+                    </div>
+
+                    {AGENT_OPTIONS.map((agent) => {
+                      const Icon = agent.icon;
+                      const isSelected = selectedAgent === agent.id;
+                      return (
+                        <button
+                          key={agent.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedAgent(agent.id);
+                            setAddMenuOpen(false);
+                          }}
+                          className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors cursor-pointer ${
+                            isSelected ? "bg-[#edf4fa]" : "hover:bg-stone-50"
+                          }`}
+                        >
+                          <div
+                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${
+                              isSelected
+                                ? "bg-[#2c5478] text-white"
+                                : "bg-stone-100 text-stone-600"
+                            }`}
+                          >
+                            <Icon size={14} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between">
+                              <span
+                                className={`text-xs font-semibold ${
+                                  isSelected
+                                    ? "text-[#2c5478]"
+                                    : "text-stone-800"
+                                }`}
+                              >
+                                {agent.name}
+                              </span>
+                              {isSelected && (
+                                <CheckIcon
+                                  size={12}
+                                  className="text-[#2c5478] shrink-0"
+                                />
+                              )}
+                            </div>
+                            <span className="block text-[10px] text-stone-500 truncate">
+                              {agent.description}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
               )}
             </div>
 
             <div className="relative">
               <button
                 type="button"
-                onClick={() => setMatterDropdownOpen(!matterDropdownOpen)}
-                className={`flex h-7 max-w-[240px] items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors ${
+                onClick={() => {
+                  setMatterDropdownOpen((prev) => !prev);
+                  setAddMenuOpen(false);
+                  setAgentDropdownOpen(false);
+                }}
+                aria-expanded={matterDropdownOpen}
+                aria-label="Select Matter"
+                className={`flex h-8 max-w-[280px] items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-all cursor-pointer select-none shadow-2xs ${
                   selectedMatter
-                    ? "bg-[#edf4fa] border-[#cbe0f2] text-[#2c5478]"
-                    : "border-stone-200 bg-white text-stone-600 hover:border-[#cbe0f2] hover:bg-[#f7fbfe]"
+                    ? "border-[#cbe0f2] bg-[#edf4fa] text-[#2c5478] hover:bg-[#e2edf6]"
+                    : "border-stone-200 bg-white text-stone-600 hover:border-[#cbe0f2] hover:bg-[#f7fbfe] hover:text-[#2c5478]"
                 }`}
               >
-                <FolderKanbanIcon
-                  size={12}
-                  className={
-                    selectedMatter ? "text-[#487aa8]" : "text-stone-500"
-                  }
+                <FolderIcon
+                  size={13}
+                  className={selectedMatter ? "text-[#487aa8]" : "text-stone-500"}
                 />
-                <span className="truncate">
-                  {selectedMatter ? selectedMatter.name : "No Matter"}
+                <span className="truncate font-semibold">
+                  {selectedMatter ? selectedMatter.name : "Attach Matter"}
                 </span>
+                {selectedSourceIds.length > 0 && (
+                  <span className="rounded-full bg-white px-1.5 py-0.2 text-[10px] font-mono text-[#2c5478]">
+                    {selectedSourceIds.length} doc
+                  </span>
+                )}
                 <ChevronDownIcon
                   size={11}
-                  className="text-stone-400 shrink-0"
+                  className={`shrink-0 text-stone-400 transition-transform duration-150 ${
+                    matterDropdownOpen ? "rotate-180" : ""
+                  }`}
                 />
               </button>
 
               {matterDropdownOpen && (
-                <div className="absolute bottom-full left-0 z-50 mb-1.5 w-72 rounded-lg border border-[#cbe0f2] bg-white p-1.5 shadow-[0_14px_36px_rgba(44,84,120,0.16)]">
-                  <div className="flex items-center gap-1.5 border-b border-stone-100 px-2 py-1.5">
-                    <SearchIcon size={12} className="text-stone-400" />
-                    <input
-                      type="text"
-                      value={matterSearch}
-                      onChange={(e) => setMatterSearch(e.target.value)}
-                      placeholder="Search matters..."
-                      className="w-full text-xs text-stone-800 placeholder:text-stone-400 focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="max-h-52 overflow-y-auto py-1">
-                    <button
-                      type="button"
-                      onClick={() => { setSelectedMatterId(null); setActiveThreadId(null); setSelectedSourceIds([]); setMatterDropdownOpen(false); }}
-                      className={`flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-xs ${selectedMatterId === null ? "bg-[#edf4fa] font-semibold text-[#2c5478]" : "text-stone-700 hover:bg-stone-50"}`}
-                    >
-                      <span>General conversation</span>
-                      {selectedMatterId === null && <CheckIcon size={12} />}
-                    </button>
-                    {filteredMatters.map((m) => (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setMatterDropdownOpen(false)}
+                  />
+                  <div className="absolute bottom-full left-0 z-50 mb-2 w-80 rounded-xl border border-stone-200/90 bg-white p-2 shadow-[0_16px_40px_rgba(0,0,0,0.14)] animate-in fade-in slide-in-from-bottom-2 duration-150 select-none">
+                    <div className="flex items-center gap-2 border-b border-stone-100 px-2 pb-2 pt-1">
+                      <SearchIcon size={13} className="text-stone-400 shrink-0" />
+                      <input
+                        value={matterSearch}
+                        onChange={(e) => setMatterSearch(e.target.value)}
+                        placeholder="Search matters by name or number..."
+                        className="w-full text-xs text-stone-800 placeholder:text-stone-400 focus:outline-none bg-transparent"
+                        autoFocus
+                      />
+                    </div>
+                    <div className="max-h-56 overflow-y-auto py-1">
                       <button
-                        key={m.id}
                         type="button"
                         onClick={() => {
-                          setSelectedMatterId(m.id);
+                          setSelectedMatterId(null);
                           setActiveThreadId(null);
                           setSelectedSourceIds([]);
                           setMatterDropdownOpen(false);
                         }}
-                        className={`flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-xs cursor-pointer ${
-                          selectedMatterId === m.id
-                            ? "bg-[#edf4fa] text-[#2c5478] font-semibold"
-                            : "hover:bg-stone-50 text-stone-700"
+                        className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs transition-colors cursor-pointer ${
+                          selectedMatterId === null
+                            ? "bg-[#edf4fa] font-semibold text-[#2c5478]"
+                            : "text-stone-700 hover:bg-stone-50"
                         }`}
                       >
-                        <span className="truncate pr-2">{m.name}</span>
-                        {selectedMatterId === m.id && (
-                          <CheckIcon
-                            size={12}
-                            className="text-[#487aa8] shrink-0"
-                          />
+                        <div>
+                          <span className="block font-medium">General consultation</span>
+                          <span className="block text-[10px] text-stone-400">
+                            No matter attached
+                          </span>
+                        </div>
+                        {selectedMatterId === null && (
+                          <CheckIcon size={12} className="shrink-0 text-[#2c5478]" />
                         )}
                       </button>
-                    ))}
+
+                      {filteredMatters.map((matter) => (
+                        <button
+                          key={matter.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedMatterId(matter.id);
+                            setActiveThreadId(null);
+                            setSelectedSourceIds([]);
+                            setMatterDropdownOpen(false);
+                            setMatterSearch("");
+                          }}
+                          className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs transition-colors cursor-pointer ${
+                            selectedMatterId === matter.id
+                              ? "bg-[#edf4fa] font-semibold text-[#2c5478]"
+                              : "text-stone-700 hover:bg-stone-50"
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1 pr-2">
+                            <span className="block truncate font-medium">
+                              {matter.name}
+                            </span>
+                            <span className="block text-[10px] text-stone-400 font-mono truncate">
+                              {matter.caseNumber || "No case number"}
+                            </span>
+                          </div>
+                          {selectedMatterId === matter.id && (
+                            <CheckIcon size={12} className="shrink-0 text-[#2c5478]" />
+                          )}
+                        </button>
+                      ))}
+                      {filteredMatters.length === 0 && (
+                        <p className="px-2 py-3 text-center text-xs text-stone-400">
+                          No matters found
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
+                </>
               )}
             </div>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setAgentDropdownOpen((prev) => !prev);
+                  setAddMenuOpen(false);
+                  setMatterDropdownOpen(false);
+                }}
+                aria-expanded={agentDropdownOpen}
+                aria-label="Select active agent"
+                className="flex h-8 items-center gap-1.5 rounded-full border border-stone-200/90 bg-stone-50 px-3 text-xs font-semibold text-stone-700 hover:bg-stone-100 hover:text-stone-900 transition-colors cursor-pointer shadow-2xs select-none"
+              >
+                <activeAgentConfig.icon size={13} className="text-[#2c5478]" />
+                <span>{activeAgentConfig.badge}</span>
+                <ChevronDownIcon
+                  size={11}
+                  className={`text-stone-400 transition-transform duration-150 ${
+                    agentDropdownOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {agentDropdownOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setAgentDropdownOpen(false)}
+                  />
+                  <div className="absolute bottom-full right-0 z-50 mb-2 w-64 rounded-xl border border-stone-200/90 bg-white p-1.5 shadow-[0_16px_40px_rgba(0,0,0,0.14)] animate-in fade-in slide-in-from-bottom-2 duration-150 select-none">
+                    <div className="px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wider text-stone-400">
+                      Select Agent
+                    </div>
+                    {AGENT_OPTIONS.map((agent) => {
+                      const Icon = agent.icon;
+                      const isSelected = selectedAgent === agent.id;
+                      return (
+                        <button
+                          key={agent.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedAgent(agent.id);
+                            setAgentDropdownOpen(false);
+                          }}
+                          className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors cursor-pointer ${
+                            isSelected ? "bg-[#edf4fa]" : "hover:bg-stone-50"
+                          }`}
+                        >
+                          <div
+                            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${
+                              isSelected
+                                ? "bg-[#2c5478] text-white"
+                                : "bg-stone-100 text-stone-600"
+                            }`}
+                          >
+                            <Icon size={13} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between">
+                              <span
+                                className={`text-xs font-semibold ${
+                                  isSelected
+                                    ? "text-[#2c5478]"
+                                    : "text-stone-800"
+                                }`}
+                              >
+                                {agent.name}
+                              </span>
+                              {isSelected && (
+                                <CheckIcon
+                                  size={12}
+                                  className="text-[#2c5478] shrink-0"
+                                />
+                              )}
+                            </div>
+                            <span className="block text-[10px] text-stone-500 truncate">
+                              {agent.description}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+
             <button
               type="button"
               onClick={() => void handleSend()}
               disabled={!input.trim() || busy}
-              className={`h-7.5 w-7.5 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
+              className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors cursor-pointer shadow-2xs ${
                 !input.trim() || busy
-                  ? "bg-[#d8d5cf] text-white cursor-not-allowed"
-                  : "bg-[#487aa8] hover:bg-[#38648c] text-white"
+                  ? "bg-stone-200 text-stone-400 cursor-not-allowed"
+                  : "bg-[#244b6d] hover:bg-[#183f60] text-white"
               }`}
               aria-label="Send message"
             >
               {busy ? (
                 <div className="h-3.5 w-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
               ) : (
-                <ArrowUpIcon size={13} />
+                <ArrowUpIcon size={14} />
               )}
             </button>
           </div>
@@ -772,7 +1065,7 @@ export function AgentChatView({
           <AgentMark agentId={currentAgent.id} compact interactive />
           <span>Veritas</span>
           <span className="rounded-full bg-white px-1.5 py-0.5 text-[10px] font-medium text-[#6383a0]">
-            Main Agent
+            {activeAgentConfig.name}
           </span>
         </div>
 
@@ -1001,7 +1294,8 @@ export function AgentChatView({
                               </div>
                             )}
 
-                            <div className="mt-2.5 flex items-center gap-1.5 select-none">
+                            {msg.content.trim() && (
+                              <div className="mt-2.5 flex items-center gap-1.5 select-none">
                               <button
                                 type="button"
                                 onClick={() =>
@@ -1027,7 +1321,8 @@ export function AgentChatView({
                                   </>
                                 )}
                               </button>
-                            </div>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

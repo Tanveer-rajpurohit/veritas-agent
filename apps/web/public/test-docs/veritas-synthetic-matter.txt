@@ -1,0 +1,12 @@
+VERITAS SYNTHETIC MATTER RECORD
+
+This document is synthetic and exists only for testing the Veritas evidence workflow.
+
+Matter: Northstar Components Private Limited
+Creditor: Meridian Commercial Bank
+Document: Account statement extract
+
+The statement records an outstanding amount of INR 48,500,000 as of 14 March 2026.
+A separate synthetic notice may intentionally record a different amount so that the Fact Reviewer can surface a contradiction.
+
+No person, company, account number, or amount in this fixture represents a real client record. Do not rely on this document for legal, financial, or filing decisions.

@@ -48,3 +48,13 @@ export function useDownloadSource() {
     mutationFn: (sourceId) => sourceService.downloadSource(sourceId),
   });
 }
+
+export function usePreviewSource() {
+  return useMutation<
+    { url: string; expires_in: number; mime_type: string },
+    Error,
+    string
+  >({
+    mutationFn: (sourceId) => sourceService.previewSource(sourceId),
+  });
+}

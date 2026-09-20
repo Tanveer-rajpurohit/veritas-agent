@@ -30,6 +30,7 @@ import {
 } from "../../hooks/documents/useDocuments";
 import {
   useDownloadSource,
+  usePreviewSource,
   useSources,
   useUploadSource,
 } from "../../hooks/sources/useSources";
@@ -124,8 +125,8 @@ export function MatterDetailView({
   const { data: backendSources } = useSources(matter.id);
   const uploadSourceMutation = useUploadSource();
   const downloadSourceMutation = useDownloadSource();
+  const previewSourceMutation = usePreviewSource();
   const setActiveMatterId = useWorkspaceStore((s) => s.setActiveMatterId);
-  const setActiveDocumentId = useWorkspaceStore((s) => s.setActiveDocumentId);
 
   useEffect(() => {
     setActiveMatterId(matter.id);
@@ -233,6 +234,11 @@ export function MatterDetailView({
       matterId: matter.id,
       file: data.file,
     });
+  }
+
+  async function handlePreviewSource(sourceId: string) {
+    const preview = await previewSourceMutation.mutateAsync(sourceId);
+    window.open(preview.url, "_blank", "noopener,noreferrer");
   }
 
   async function handleDownloadSource(sourceId: string, filename: string) {
@@ -498,15 +504,11 @@ export function MatterDetailView({
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
-                        onClick={() => {
-                          setActiveDocumentId(doc.id);
-                          alert(
-                            `Inspecting candidate evidence spans for ${doc.name}...`,
-                          );
-                        }}
+                        onClick={() => void handlePreviewSource(doc.id)}
                         className="inline-flex h-6 items-center gap-1 rounded-sm border border-stone-200 px-2 text-[10.5px] font-medium text-stone-600 hover:bg-stone-50 hover:text-stone-900 cursor-pointer"
                       >
                         <EyeIcon size={11} />
+                        <span>View</span>
                         <span>Spans</span>
                       </button>
                       <button

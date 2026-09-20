@@ -9,6 +9,8 @@ const NAV_LINKS = [
   { href: "#overview", label: "Product" },
   { href: "#evidence", label: "Evidence" },
   { href: "#workflow", label: "Workflow" },
+  { href: "#plans", label: "Pricing" },
+  { href: "#faq", label: "FAQ" },
 ] as const;
 
 const SCROLL_START = 40;
@@ -211,14 +213,11 @@ export function SiteNav() {
             </div>
 
             <div className="flex shrink-0 items-center gap-3">
-              <Link href="/login" className="text-xs font-semibold text-stone-600 hover:text-[#315f86]">
-                Log in
-              </Link>
               <Link
-                href="/register"
+                href="/workspace"
                 className="inline-flex items-center justify-center rounded-md bg-brand-strong px-3.5 py-[7px] text-xs font-semibold whitespace-nowrap text-white shadow-2xs transition-colors hover:bg-[#3d6991] active:scale-95 md:text-[13px]"
               >
-                Create workspace
+                Launch Workspace
               </Link>
             </div>
           </nav>
@@ -313,11 +312,11 @@ export function SiteNav() {
             </Link>
 
             <Link
-              href="/register"
+              href="/workspace"
               onClick={() => setIsMenuOpen(false)}
               className="inline-flex items-center justify-center gap-2 rounded-md bg-[#487aa8] hover:bg-[#3b668f] py-2.5 text-xs font-semibold text-white shadow-2xs transition-all active:scale-95"
             >
-              <span>Create workspace</span>
+              <span>Launch Workspace</span>
               <span>↗</span>
             </Link>
           </div>

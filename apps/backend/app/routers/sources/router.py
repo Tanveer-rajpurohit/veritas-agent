@@ -142,6 +142,16 @@ def download_source(source_id: UUID, db: DbSession, user: CurrentUser) -> Respon
     )
 
 
+@router.get("/sources/{source_id}/preview")
+def preview_source(source_id: UUID, db: DbSession, user: CurrentUser) -> dict[str, str | int]:
+    _, version, _ = get_source_for_user(db, source_id, user.id, "viewer")
+    return {
+        "url": storage_service.create_preview_url(version.object_key, version.mime_type),
+        "expires_in": 300,
+        "mime_type": version.mime_type,
+    }
+
+
 @router.get("/sources/{source_id}/pages/{page_number}", response_model=PageResponse)
 def get_source_page(
     source_id: UUID, page_number: int, db: DbSession, user: CurrentUser

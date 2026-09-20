@@ -72,5 +72,27 @@ class ObjectStore:
     def delete(self, key: str) -> None:
         self.client.delete_object(Bucket=self.bucket, Key=key)
 
+    def presigned_url(
+        self,
+        key: str,
+        *,
+        expires_in: int = 300,
+        content_type: str | None = None,
+        disposition: str = "inline",
+    ) -> str:
+        self._ensure_bucket()
+        params: dict[str, str] = {
+            "Bucket": self.bucket,
+            "Key": key,
+            "ResponseContentDisposition": disposition,
+        }
+        if content_type:
+            params["ResponseContentType"] = content_type
+        return self.client.generate_presigned_url(
+            "get_object",
+            Params=params,
+            ExpiresIn=expires_in,
+        )
+
 
 object_store = ObjectStore()

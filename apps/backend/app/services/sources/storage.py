@@ -35,6 +35,15 @@ class StorageService:
         self._validate_key(object_key)
         return self.store.get(object_key)
 
+    def create_preview_url(self, object_key: str, mime_type: str, expires_in: int = 300) -> str:
+        self._validate_key(object_key)
+        return self.store.presigned_url(
+            object_key,
+            expires_in=expires_in,
+            content_type=mime_type,
+            disposition="inline",
+        )
+
     def delete_file(self, object_key: str) -> None:
         self._validate_key(object_key)
         self.store.delete(object_key)
