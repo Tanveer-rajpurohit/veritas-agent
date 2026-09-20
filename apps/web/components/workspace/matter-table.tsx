@@ -7,7 +7,6 @@ import { classifyStage, EMPTY_FILTERS } from "../../lib/workspace-data";
 import {
   BuildingIcon,
   FolderIcon,
-  FolderKanbanIcon,
   GavelIcon,
   HandshakeIcon,
   LandmarkIcon,
