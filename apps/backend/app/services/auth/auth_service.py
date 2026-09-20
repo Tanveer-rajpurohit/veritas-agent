@@ -158,13 +158,6 @@ class AuthService:
                 status_code=401,
             )
 
-        if not user.is_email_verified:
-            raise AuthException(
-                code="EMAIL_NOT_VERIFIED",
-                message="Email is not verified. Please verify your email before logging in.",
-                status_code=403,
-            )
-
         # Upgrade legacy scrypt hash to Argon2id in the same transaction
         if user.password_hash and not user.password_hash.startswith("$argon2"):
             user.password_hash = hash_password(password)
