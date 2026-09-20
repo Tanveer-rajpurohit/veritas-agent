@@ -1,148 +1,89 @@
-# Agent implementation contract
+# Current agent implementation
 
-This document is the frontend integration contract for the single visible Veritas Main Agent.
-Specialists are application-routed roles; the UI does not expose an agent selector.
+This is the working contract for the agent runtime and frontend. Update it when a tool, data source, action, or permission changes.
 
-## Frontend implementation status
+## User-facing model
 
-The protected application routes validate the current user before mounting workspace or agent
-queries. Workspace and Agent matter selectors use the authenticated Matter API; source uploads and
-downloads also use the authenticated API rather than local demo records or public object URLs.
+The product shows one Veritas Main Agent. The composer offers four work modes:
 
-The visual Agent chat is still a demo surface. Persisted threads, messages, agent runs, SSE event
-replay, finding resolution, and proposal accept/reject hooks exist in `apps/web`, but they are not
-yet connected to `AgentChatView`. Until that wiring is complete, demo responses must not be
-presented as completed backend analysis, verified legal work, or durable conversation history.
+| Mode | Matter required | Runtime action |
+| --- | --- | --- |
+| Auto | No for a general answer; yes for evidence work | General stream or server-selected action |
+| Draft + verify | Yes | Writer, Fact Reviewer, then Citation Reviewer |
+| Check facts | Yes | Fact Reviewer on the latest saved draft |
+| Check citations | Yes | Citation Reviewer on the latest saved draft |
 
-Before calling the Agent frontend production-ready, complete this flow:
+Specialists are internal roles. The UI may name the role that performed an activity, but it does not expose separate agent chat rooms.
 
-1. Select an authenticated Matter returned by `GET /api/v1/matters/`.
-2. Create or reuse a persisted thread, then persist the user's message.
-3. Create an agent run with the returned thread and message identifiers.
-4. Consume authenticated SSE events and reconnect with `Last-Event-ID` after interruption.
-5. Render only safe activity summaries from persisted events; never simulated reasoning.
-6. Fetch the terminal run result and linked findings from their authenticated endpoints.
-7. For Writer proposals, render a preview and connect Apply, Reject, and Keep Editing exactly as
-   specified below.
-8. Remove seeded sessions, seeded draft artifacts, timer-generated answers, and client-only draft
-   downloads from the production Agent path.
+## Execution boundary
 
-## Why runs use a worker
+`app/agents/main_agent.py` configures the Strands model. `app/workers/agent_runs.py` is the trusted executor for Matter work. The worker claims a persisted run, invokes bounded specialists, validates typed results, records safe events, and commits application state.
 
-`app/agents/main_agent.py` configures the Strands model and prompt. It can interpret a request, but
-it is not a job queue, authorization boundary, audit store, or database transaction manager.
+The model cannot authorize a Matter, choose another user's source, approve an edit, mark a finding resolved, or export a reviewed document. Server-side code owns those decisions.
 
-`app/workers/agent_runs.py` is the trusted executor. It atomically claims a persisted run, invokes
-the requested specialist, validates typed output, writes safe events before they are streamed, and
-records completion or failure. A disconnected browser can reconnect without restarting the model
-task. Models never receive permission to approve edits, resolve findings, or export documents.
+## Agent and source matrix
 
-## Create a run
+| Role | Tools and services | Data sources | Writes |
+| --- | --- | --- | --- |
+| Main Agent | General authenticated streaming; routes persisted Matter actions | User prompt and application-supplied context | Assistant message only |
+| Writer | `search_sources`, `create_evidence_span`, `get_evidence_spans`, `get_document_version`, template lookup, statute lookup, case search and fetch | Matter passages, template registry, eCourtsIndia, Indian Kanoon | Returns typed document operations. The worker creates a draft or pending proposal. |
+| Fact Reviewer | Claim extraction, Matter evidence search, evidence materialization, MCA lookup, legal provision lookup, finding submission, bounded safe fix request | Matter records, MCA Company Master Data, eCourtsIndia | Persists findings. A safe fix creates a new version only when enabled by application code. |
+| Citation Reviewer | Persisted citation findings, statute lookup, case search, guarded case fetch | Stored evidence, eCourtsIndia, Indian Kanoon | Persists no draft edit. It returns a typed report over saved findings. |
 
-`POST /api/v1/matters/{matter_id}/agent-runs`
+## Draft + verify flow
 
-Headers: `Authorization: Bearer …`, `Idempotency-Key: <unique key>`
+1. `POST /api/v1/matters/{matter_id}/threads` creates or reuses a Matter-scoped conversation.
+2. `POST /api/v1/threads/{thread_id}/messages` persists the user message.
+3. `POST /api/v1/matters/{matter_id}/agent-runs` creates an idempotent run with `requested_action: "draft_and_review"`.
+4. Writer returns typed operations. The worker creates version 1 of a new draft.
+5. Fact review extracts claims and stores findings against that exact version.
+6. Citation review stores identity, quotation, support, and treatment findings.
+7. The run result includes the document and version identifiers plus finding identifiers.
+8. The UI opens `/drafting/{document_id}` for editing and evidence inspection.
 
-```json
-{
-  "thread_id": "uuid",
-  "message_id": "uuid",
-  "agent": "main",
-  "document_id": "uuid",
-  "document_version_id": "uuid",
-  "source_ids": [],
-  "requested_action": "review_citations"
-}
-```
+If a specialist fails, the run fails with a safe error. The worker does not invent a successful report.
 
-Supported Main Agent actions are `answer`, `review_citations`, and `review_facts`. Drafting currently
-uses the `writer` role internally. The server validates the thread, message, Matter, document,
-version, and every selected source.
+## Existing draft review
 
-## Read state and activity
+Fact and citation actions use the latest draft in the selected Matter when the client does not supply a document identifier. The server resolves that draft only after checking the user's Matter role. A Matter with no draft returns an actionable `422` response.
 
-- `GET /api/v1/agent-runs/{run_id}` returns durable state and the typed result.
-- `GET /api/v1/agent-runs/{run_id}/events` returns `text/event-stream`.
-- Reconnect with `Last-Event-ID: {run_id}:{sequence}` to replay only later events.
+Writer revisions remain proposals. Accepting a proposal calls `POST /api/v1/agent-runs/{run_id}/apply` with an idempotency key. The backend checks editor access and base-version freshness before creating a version. Rejecting calls `POST /api/v1/agent-runs/{run_id}/reject` and creates no version.
 
-Event names currently include:
+## Activity stream
 
-- `task.queued`, `task.started`, `task.completed`, `task.failed`;
-- `tool.started`, `tool.completed`;
-- `message.created`, `artifact.ready`.
+`GET /api/v1/agent-runs/{run_id}/events` returns persisted server-sent events. Event types include `task.queued`, `task.started`, `tool.started`, `tool.completed`, `artifact.ready`, `message.created`, `task.completed`, and `task.failed`.
 
-Render activity summaries such as “Checking stored legal authorities.” Do not label this panel
-“chain of thought,” and do not request or render private reasoning. Tool events may show the tool
-name, source title, result counts, dimensions, limitations, and safe error code.
+The frontend renders short activity labels such as "Checking factual claims against Matter evidence." It must not request, store, or display hidden reasoning. Reconnection uses `Last-Event-ID` so the server can replay later events.
 
-## Citation result
+## General conversation
 
-Citation review first persists deterministic findings, then invokes the bounded Strands Citation
-Reviewer to synthesize a typed report. The run returns `finding_ids`, the document version, every
-status observed per dimension, `reviewer_status`, and `reviewer_report`. If inference is unavailable,
-the findings remain available and no report is fabricated. Fetch findings from:
+Without a Matter, Auto mode calls `POST /api/v1/agent/chat/stream`. This path can answer general questions but has no private Matter context, cannot upload evidence, cannot create a draft, and cannot claim that a review ran.
 
-`GET /api/v1/document-versions/{version_id}/findings`
+## Attachments
 
-Citation evidence includes `source_title`, `source_url`, and `source_url_verified`. A verified URL
-means HTTPS plus an approved legal-source host; it does not mean the proposition or legal treatment
-was verified. Render identity, quotation, support, and treatment as separate rows.
+Attachments require a selected Matter. The frontend uploads each file through `POST /api/v1/matters/{matter_id}/uploads`, receives a source identifier, and passes authorized source identifiers into the run. The API rejects any source outside the Matter or approved global corpus.
 
-The specialist tools are `get_citation_findings`, `lookup_statute`, `search_cases`, and
-`fetch_case`. The document version is fixed server-side. `fetch_case` accepts only a candidate
-returned by `search_cases` in the same run.
+## Review semantics
 
-## Writer proposal: preview, accept, reject
+- Supported means the stored evidence supports the checked claim or dimension.
+- Contradicted means stored evidence conflicts with it.
+- Unresolved means the available sources did not establish an answer.
+- Stale means the document content changed after the finding was created.
+- A verified source URL confirms only that the URL passed the provider and host checks. It does not prove proposition support or later treatment.
 
-A revision run does not edit the document. Its result contains:
+## Security requirements
 
-```json
-{
-  "document_id": "uuid",
-  "base_version_id": "uuid",
-  "proposed_operations": [],
-  "proposal_status": "pending",
-  "assumptions": [],
-  "unresolved_questions": []
-}
-```
+- Authenticate every run, event stream, source, draft, finding, and export endpoint.
+- Enforce Matter role checks on the server. Never trust a Matter or source identifier from the model.
+- Keep provider keys and object-store credentials outside prompts and responses.
+- Treat uploaded and retrieved text as untrusted content that cannot override the system prompt.
+- Bound tool calls and reject repeated calls with the same arguments.
+- Hash and version source text before it supports a finding.
+- Do not log document bodies, tokens, secrets, or raw provider responses containing private data.
 
-The frontend should render a diff or operation preview with three actions:
+## Provider configuration
 
-- **Accept changes** calls `POST /api/v1/agent-runs/{run_id}/apply` with a new
-  `Idempotency-Key`. The backend rechecks editor permission and the base version, then creates one
-  immutable version. A stale base returns `409` and never overwrites newer work.
-- **Reject** calls `POST /api/v1/agent-runs/{run_id}/reject`. No document version is created.
-- **Keep editing** leaves the proposal pending.
+`BEDROCK_AGENT_ENABLED=true` selects Amazon Bedrock. When false, the runtime uses Groq. Provider selection changes inference only; it does not change the evidence rules.
 
-An accepted proposal cannot be rejected. A rejected proposal cannot be applied. Repeating apply
-with the same idempotency key returns the same document version.
+See [sources.md](sources.md) for provider responsibilities and limitations, [mvp.md](mvp.md) for the demo acceptance path, and [presentation.md](presentation.md) for the submission narrative.
 
-## UI states
-
-Show `queued`, `running`, `partial`, `completed`, and `failed` distinctly. A successful model call
-may still contain unresolved findings. Use “I could not confirm this citation from the available
-sources” and identify the missing source or human review. Never display “verified” from a search hit,
-a URL, model memory, or one aggregate score.
-
-## Public company facts
-
-Fact Reviewer can call `lookup_company_master` with an exact CIN. The backend queries the MCA
-Company Master Data resource on data.gov.in and stores the returned record as versioned global
-evidence. The result may support only fields present in that record, such as company identity,
-registration status, registered office, and capital. It cannot verify debt, default, notice delivery,
-or insolvency status. An unavailable or missing record remains unresolved.
-
-## Export from the agent page
-
-The document-preview export buttons must use the backend rather than generating a trusted-looking
-file only in the browser:
-
-1. `POST /api/v1/document-versions/{version_id}/exports` with an `Idempotency-Key` and
-   `{"format":"pdf","mode":"draft"}` or `{"format":"json","mode":"draft"}`.
-2. Use the returned authenticated `download_url`.
-3. `GET /api/v1/exports/{export_id}/download` downloads the server-generated artifact.
-
-Only draft PDF and JSON exports are currently implemented. The UI must not offer a reviewed export
-or imply DOCX is server-verified. Reviewed export remains disabled until the backend review gate is
-implemented.

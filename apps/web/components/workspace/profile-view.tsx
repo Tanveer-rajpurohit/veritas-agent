@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useId, useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import { useUpdateProfile, useUser } from "../../hooks/auth/useAuth";
+import type { UserProfile } from "../../types/auth/types";
 import { NameBlobAvatar } from "../brand/name-blob-avatar";
 import { CheckIcon } from "./workspace-icons";
 
@@ -30,31 +31,7 @@ const fields: Array<{ key: keyof ProfileForm; label: string; placeholder: string
 ];
 
 export function ProfileView() {
-  const formId = useId();
   const { data: user, isLoading, error } = useUser();
-  const updateProfile = useUpdateProfile();
-  const [form, setForm] = useState<ProfileForm>(EMPTY_PROFILE);
-  const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    if (!user) return;
-    setForm({
-      full_name: user.full_name ?? user.display_name ?? "",
-      phone_number: user.phone_number ?? "",
-      law_firm: user.law_firm ?? "",
-      bar_council_number: user.bar_council_number ?? "",
-      city: user.city ?? "",
-    });
-  }, [user]);
-
-  const displayName = form.full_name || user?.email.split("@")[0] || "Veritas user";
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSaved(false);
-    await updateProfile.mutateAsync(form);
-    setSaved(true);
-  }
 
   if (isLoading) return <div className="p-7 text-sm text-stone-500">Loading your profile…</div>;
   if (error || !user) {
@@ -64,6 +41,30 @@ export function ProfileView() {
         <p className="mt-2 text-sm text-stone-600">Sign in again to load your account details.</p>
       </div>
     );
+  }
+
+  return <ProfileEditor key={user.updated_at} user={user} />;
+}
+
+function ProfileEditor({ user }: { user: UserProfile }) {
+  const formId = useId();
+  const updateProfile = useUpdateProfile();
+  const [form, setForm] = useState<ProfileForm>({
+    ...EMPTY_PROFILE,
+    full_name: user.full_name ?? user.display_name ?? "",
+    phone_number: user.phone_number ?? "",
+    law_firm: user.law_firm ?? "",
+    bar_council_number: user.bar_council_number ?? "",
+    city: user.city ?? "",
+  });
+  const [saved, setSaved] = useState(false);
+  const displayName = form.full_name || user.email.split("@")[0] || "Veritas user";
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaved(false);
+    await updateProfile.mutateAsync(form);
+    setSaved(true);
   }
 
   return (
