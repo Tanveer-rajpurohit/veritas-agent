@@ -8,7 +8,6 @@ import type {
   ResetPasswordPayload,
   UpdateProfilePayload,
   UserProfile,
-  VerifyEmailPayload,
 } from "../../types/auth/types";
 
 export function useUser() {
@@ -44,19 +43,12 @@ export function useResetPassword() {
   });
 }
 
-export function useVerifyEmail() {
-  return useMutation<void, Error, VerifyEmailPayload>({
-    mutationFn: (payload) => authService.verifyEmail(payload),
-  });
-}
-
 export function useAuth() {
   const queryClient = useQueryClient();
   const userQuery = useUser();
   const updateProfileMutation = useUpdateProfile();
   const forgotPasswordMutation = useForgotPassword();
   const resetPasswordMutation = useResetPassword();
-  const verifyEmailMutation = useVerifyEmail();
 
   const loginMutation = useMutation<void, Error, LoginRequest>({
     mutationFn: (payload) => authService.login(payload),
@@ -96,9 +88,6 @@ export function useAuth() {
     forgotPassword: forgotPasswordMutation.mutateAsync,
     isSendingForgotPassword: forgotPasswordMutation.isPending,
     forgotPasswordError: forgotPasswordMutation.error,
-    verifyEmail: verifyEmailMutation.mutateAsync,
-    isVerifyingEmail: verifyEmailMutation.isPending,
-    verifyEmailError: verifyEmailMutation.error,
     resetPassword: resetPasswordMutation.mutateAsync,
     isResettingPassword: resetPasswordMutation.isPending,
     resetPasswordError: resetPasswordMutation.error,

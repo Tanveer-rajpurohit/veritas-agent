@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "../../hooks/auth/useAuth";
 import { ApiError } from "../../service/fetch";
@@ -12,12 +13,12 @@ const linkClassName =
   "font-semibold text-[#487aa8] no-underline transition-colors hover:text-[#3d6991]";
 
 export function RegisterForm() {
-  const { register, isRegistering, registerError } = useAuth();
+  const router = useRouter();
+  const { register, login, isRegistering, isLoggingIn, registerError } = useAuth();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<AuthFieldErrors>({});
 
   const registerErrorMessage =
@@ -33,28 +34,13 @@ export function RegisterForm() {
       return;
     }
     try {
-      await register({ name: name.trim(), email: email.trim(), password });
-      setRegisteredEmail(email.trim());
+      const cleanEmail = email.trim();
+      await register({ name: name.trim(), email: cleanEmail, password });
+      await login({ email: cleanEmail, password });
+      router.replace("/workspace");
     } catch {
       return;
     }
-  }
-
-  if (registeredEmail) {
-    return (
-      <div className="flex flex-col gap-4 py-8">
-        <h1 className="m-0 text-3xl font-bold tracking-tight text-stone-900">
-          Verify your email
-        </h1>
-        <p className="m-0 text-sm leading-relaxed text-stone-600">
-          We sent a verification link to {registeredEmail}. Verify it before
-          logging in.
-        </p>
-        <Link href="/login" className={linkClassName}>
-          Continue to login
-        </Link>
-      </div>
-    );
   }
 
   return (
@@ -119,7 +105,7 @@ export function RegisterForm() {
           </p>
         )}
 
-        <AuthSubmit pending={isRegistering} pendingLabel="Creating account…">
+        <AuthSubmit pending={isRegistering || isLoggingIn} pendingLabel="Creating account…">
           Create account
         </AuthSubmit>
 

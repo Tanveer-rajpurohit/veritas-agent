@@ -17,7 +17,7 @@ from app.core.security import (
 from app.models.auth import User
 from app.repositories.auth.auth_repository import AuthRepository
 from app.schemas.auth.auth import RegisterRequest
-from app.services.auth.email_service import send_password_reset, send_verification
+from app.services.auth.email_service import send_password_reset
 
 
 class AuthService:
@@ -25,7 +25,7 @@ class AuthService:
         self.db = db
         self.repo = AuthRepository(db)
 
-    async def register(self, payload: RegisterRequest) -> tuple[User, str]:
+    async def register(self, payload: RegisterRequest) -> User:
         email = normalize_email(payload.email)
         if "@" not in email or len(email) < 5:
             raise AuthException(
@@ -62,70 +62,9 @@ class AuthService:
                 status_code=409,
             ) from None
 
-        raw_token = generate_opaque_token(32)
-        token_hash = hash_token(raw_token)
-        expires_at = datetime.now(UTC) + timedelta(seconds=settings.AUTH_TOKEN_TTL_SECONDS)
-        self.repo.create_action_token(
-            user_id=user.id,
-            purpose="verify_email",
-            token_hash=token_hash,
-            expires_at=expires_at,
-        )
-
         self.db.commit()
         self.db.refresh(user)
-
-        # Dispatch email strictly after transaction commit
-        await send_verification(user.email, raw_token)
-        return user, raw_token
-
-    async def verify_email(self, token: str) -> None:
-        token_clean = token.strip()
-        token_hash = hash_token(token_clean)
-
-        action_token = self.repo.get_valid_action_token_for_update(
-            token_hash=token_hash, purpose="verify_email"
-        )
-        if action_token is None:
-            raise AuthException(
-                code="TOKEN_INVALID_OR_EXPIRED",
-                message="Invalid or expired verification token",
-                status_code=400,
-            )
-
-        user = self.repo.get_user_by_id(action_token.user_id)
-        if user is None:
-            raise AuthException(
-                code="TOKEN_INVALID_OR_EXPIRED",
-                message="Invalid or expired verification token",
-                status_code=400,
-            )
-
-        self.repo.consume_action_token(action_token)
-        self.repo.mark_email_verified(user)
-        self.db.commit()
-
-    async def resend_verification(self, email: str) -> str | None:
-        clean_email = normalize_email(email)
-        user = self.repo.get_user_by_email(clean_email)
-
-        if user is None or user.is_email_verified or not user.is_active:
-            return None
-
-        self.repo.revoke_action_tokens_for_user(user.id, purpose="verify_email")
-        raw_token = generate_opaque_token(32)
-        token_hash = hash_token(raw_token)
-        expires_at = datetime.now(UTC) + timedelta(seconds=settings.AUTH_TOKEN_TTL_SECONDS)
-        self.repo.create_action_token(
-            user_id=user.id,
-            purpose="verify_email",
-            token_hash=token_hash,
-            expires_at=expires_at,
-        )
-        self.db.commit()
-
-        await send_verification(user.email, raw_token)
-        return raw_token
+        return user
 
     def login(self, email: str, password: str) -> User:
         clean_email = normalize_email(email)
@@ -149,13 +88,6 @@ class AuthService:
                 code="INVALID_CREDENTIALS",
                 message="Invalid email or password",
                 status_code=401,
-            )
-
-        if not user.is_email_verified:
-            raise AuthException(
-                code="EMAIL_NOT_VERIFIED",
-                message="Verify your email before logging in",
-                status_code=403,
             )
 
         # Upgrade legacy scrypt hash to Argon2id in the same transaction

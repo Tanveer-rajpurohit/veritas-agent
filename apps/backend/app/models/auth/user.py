@@ -19,9 +19,6 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False)
     password_hash: Mapped[str | None] = mapped_column(String(256), nullable=True)
     display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    email_verified_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
     is_active: Mapped[bool] = mapped_column(
         Boolean, default=True, server_default=sa.text("true"), nullable=False
     )
@@ -46,7 +43,3 @@ class User(Base):
     action_tokens: Mapped[list["ActionToken"]] = relationship(
         "ActionToken", back_populates="user", cascade="all, delete-orphan"
     )
-
-    @property
-    def is_email_verified(self) -> bool:
-        return self.email_verified_at is not None

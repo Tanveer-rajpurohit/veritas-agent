@@ -6,7 +6,6 @@ import type {
   ResetPasswordPayload,
   UpdateProfilePayload,
   UserProfile,
-  VerifyEmailPayload,
 } from "../../types/auth/types";
 
 export const authService = {
@@ -45,10 +44,6 @@ export const authService = {
       "/auth/password/forgot",
       payload,
     );
-  },
-
-  verifyEmail(payload: VerifyEmailPayload): Promise<void> {
-    return fetchClient.post<void>("/auth/email/verify", payload);
   },
 
   resetPassword(payload: ResetPasswordPayload): Promise<{ message: string }> {

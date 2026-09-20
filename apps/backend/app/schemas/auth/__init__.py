@@ -6,13 +6,11 @@ from app.schemas.auth.auth import (
     MessageResponse,
     RefreshRequest,
     RegisterRequest,
-    ResendVerificationRequest,
     ResetPasswordRequest,
     SessionResponse,
     TokenPair,
     UpdateProfileRequest,
     UserResponse,
-    VerifyEmailRequest,
 )
 
 __all__ = [
@@ -22,12 +20,10 @@ __all__ = [
     "LoginRequest",
     "MessageResponse",
     "RegisterRequest",
-    "ResendVerificationRequest",
     "ResetPasswordRequest",
     "SessionResponse",
     "UpdateProfileRequest",
     "UserResponse",
-    "VerifyEmailRequest",
     "TokenPair",
     "RefreshRequest",
 ]

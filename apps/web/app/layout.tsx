@@ -1,4 +1,5 @@
 import "./globals.css";
+import "blobatar/motion.css";
 import type { Metadata, Viewport } from "next";
 import { fontMono, fontSans, fontSerif } from "./fonts";
 import { QueryProvider } from "../providers/QueryProvider";

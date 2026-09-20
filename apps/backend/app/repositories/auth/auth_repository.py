@@ -41,11 +41,6 @@ class AuthRepository:
         user.updated_at = datetime.now(UTC)
         self.db.add(user)
 
-    def mark_email_verified(self, user: User) -> None:
-        user.email_verified_at = datetime.now(UTC)
-        user.updated_at = datetime.now(UTC)
-        self.db.add(user)
-
     def create_action_token(
         self,
         user_id: UUID,

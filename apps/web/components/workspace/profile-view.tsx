@@ -68,23 +68,20 @@ function ProfileEditor({ user }: { user: UserProfile }) {
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-[#f8fafc] px-4 py-6 sm:px-7">
-      <div className="mx-auto max-w-4xl">
+    <div className="h-full overflow-y-auto bg-[#f8fafc] px-5 py-7 sm:px-8">
+      <div className="mx-auto max-w-5xl">
         <header className="mb-6">
           <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.18em] text-[#6383a0]">Account</p>
           <h1 className="m-0 text-2xl font-semibold tracking-tight text-stone-950">Your profile</h1>
           <p className="mt-1 text-sm text-stone-500">Details used across matters, drafts, and exports.</p>
         </header>
 
-        <section className="overflow-hidden rounded-2xl border border-[#cbe0f2] bg-white shadow-[0_14px_42px_rgba(44,84,120,0.08)]">
+        <section className="overflow-hidden rounded-xl border border-[#cbe0f2] bg-white">
           <div className="flex flex-col gap-5 border-b border-[#dce9f4] bg-[#f2f7fb] p-5 sm:flex-row sm:items-center sm:p-7">
             <NameBlobAvatar name={displayName} size={78} className="shrink-0 drop-shadow-sm" />
             <div className="min-w-0">
               <h2 className="m-0 truncate text-xl font-semibold text-[#183f60]">{displayName}</h2>
               <p className="mt-1 truncate text-sm text-[#58758e]">{user.email}</p>
-              <span className={`mt-3 inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${user.email_verified ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-                {user.email_verified ? "Email verified" : "Email verification pending"}
-              </span>
             </div>
           </div>
 

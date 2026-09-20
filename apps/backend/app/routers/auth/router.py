@@ -24,13 +24,11 @@ from app.schemas.auth import (
     MessageResponse,
     RefreshRequest,
     RegisterRequest,
-    ResendVerificationRequest,
     ResetPasswordRequest,
     SessionResponse,
     TokenPair,
     UpdateProfileRequest,
     UserResponse,
-    VerifyEmailRequest,
 )
 from app.services.auth import AuthService
 from app.services.auth.session_store import RedisSession, SessionStore
@@ -43,7 +41,6 @@ def _to_user_response(user: User) -> UserResponse:
         id=user.id,
         email=user.email,
         display_name=user.display_name or user.full_name,
-        email_verified=user.is_email_verified,
         full_name=user.full_name,
         phone_number=user.phone_number,
         law_firm=user.law_firm,
@@ -61,29 +58,8 @@ async def register(
     db: Annotated[Session, Depends(get_db)],
 ) -> UserResponse:
     service = AuthService(db)
-    user, _ = await service.register(payload)
+    user = await service.register(payload)
     return _to_user_response(user)
-
-
-@router.post("/email/verify", status_code=status.HTTP_204_NO_CONTENT)
-async def verify_email(
-    payload: VerifyEmailRequest,
-    db: Annotated[Session, Depends(get_db)],
-) -> None:
-    service = AuthService(db)
-    await service.verify_email(payload.token)
-
-
-@router.post("/email/resend", status_code=status.HTTP_202_ACCEPTED, response_model=MessageResponse)
-async def resend_verification(
-    payload: ResendVerificationRequest,
-    db: Annotated[Session, Depends(get_db)],
-) -> MessageResponse:
-    service = AuthService(db)
-    await service.resend_verification(payload.email)
-    return MessageResponse(
-        message="If that email is registered and unverified, a verification link has been sent."
-    )
 
 
 @router.post("/login", response_model=TokenPair)

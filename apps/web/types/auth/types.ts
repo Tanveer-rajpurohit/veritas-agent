@@ -17,10 +17,6 @@ export interface ForgotPasswordPayload {
   email: string;
 }
 
-export interface VerifyEmailPayload {
-  token: string;
-}
-
 export interface ResetPasswordPayload {
   token: string;
   new_password: string;
@@ -30,7 +26,6 @@ export interface UserProfile {
   id: string;
   email: string;
   display_name: string | null;
-  email_verified: boolean;
   full_name: string | null;
   phone_number: string | null;
   law_firm: string | null;
