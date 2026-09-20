@@ -145,17 +145,19 @@ const SUGGESTIONS = [
   "Draft Synopsis & Chronological List of Dates",
 ];
 
-type WorkMode = "auto" | "draft" | "facts" | "citations";
+type WorkMode = "auto" | "draft" | "revise" | "facts" | "citations";
 
 const WORK_MODES: Array<{ id: WorkMode; label: string; description: string }> = [
   { id: "auto", label: "Auto", description: "Answer or choose the right workflow" },
   { id: "draft", label: "Draft + verify", description: "Draft, fact-check, then review citations" },
+  { id: "revise", label: "Propose edits", description: "Preview changes to the latest draft before accepting" },
   { id: "facts", label: "Check facts", description: "Review the latest Matter draft" },
   { id: "citations", label: "Check citations", description: "Review authorities in the latest draft" },
 ];
 
 function inferRequestedAction(text: string, mode: WorkMode): AgentAction {
   if (mode === "draft") return "draft_and_review";
+  if (mode === "revise") return "revise_working_brief";
   if (mode === "facts") return "review_facts";
   if (mode === "citations") return "review_citations";
   const t = text.toLowerCase();
@@ -272,8 +274,9 @@ export function AgentChatView({
       let label = labelMap[eventType] ?? eventType;
       try {
         const parsed = JSON.parse(data) as Record<string, unknown>;
-        if (eventType === "tool.started" && typeof parsed.tool_name === "string") label = `Running: ${parsed.tool_name}`;
-        if (eventType === "tool.completed" && typeof parsed.tool_name === "string") label = `Checked: ${parsed.tool_name}`;
+        const toolName = parsed.tool_name ?? parsed.tool;
+        if (eventType === "tool.started" && typeof toolName === "string") label = `Running: ${toolName}`;
+        if (eventType === "tool.completed" && typeof toolName === "string") label = `Checked: ${toolName}`;
         if (eventType === "task.failed" && typeof parsed.message === "string") setRunError(parsed.message);
       } catch { void 0; }
       setSseStages((prev) => {
@@ -281,25 +284,15 @@ export function AgentChatView({
         return [...prev, { id: eventId || `sse-${Date.now()}-${Math.random()}`, event_type: eventType, label, status: "done" as const, timestamp: Date.now() }];
       });
     };
-    // Native EventSource with Last-Event-ID resume; falls back to fetch-poll on error.
-    let es: EventSource | null = null;
-    let poll: ReturnType<typeof setInterval> | null = null;
-    try {
-      const stored = localStorage.getItem(`veritas-sse:${activeRunId}`) ?? "";
-      const url = stored ? `${eventsUrl}?lastEventId=${encodeURIComponent(stored)}` : eventsUrl;
-      es = new EventSource(url, { withCredentials: true });
-      for (const name of Object.keys(labelMap)) {
-        es.addEventListener(name, (e) => {
-          const me = e as MessageEvent;
-          handleEvent(name, (me as MessageEvent & { lastEventId?: string }).lastEventId ?? "", String(me.data ?? ""));
-        });
-      }
-      es.onerror = () => { es?.close(); es = null; };
-    } catch { es = null; }
-    // Fallback poll keeps UI alive if EventSource is blocked.
-    poll = setInterval(() => {
-      if (es) return;
-      fetch(eventsUrl, { credentials: "include", headers: lastEventId ? { "Last-Event-ID": lastEventId } : {} })
+    const poll = setInterval(() => {
+      const accessToken = localStorage.getItem("veritas_access_token");
+      fetch(eventsUrl, {
+        credentials: "include",
+        headers: {
+          ...(lastEventId ? { "Last-Event-ID": lastEventId } : {}),
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+      })
         .then((res) => (res.ok ? res.text() : ""))
         .then((text) => {
           if (!text) return;
@@ -314,8 +307,8 @@ export function AgentChatView({
           }
         })
         .catch(() => void 0);
-    }, 3000);
-    return () => { es?.close(); if (poll) clearInterval(poll); };
+    }, 1200);
+    return () => clearInterval(poll);
   }, [activeRunId]);
 
   const [handledRunId, setHandledRunId] = useState<string | null>(null);
@@ -350,7 +343,9 @@ export function AgentChatView({
       const assistantMsg: MessageItem = {
         id: `run-${runData.run_id}`,
         role: "assistant",
-        content: messageText,
+        content: documentId
+          ? `${messageText}\n\n[Open the working draft](/drafting/${documentId})`
+          : messageText,
         agentId: mapAgentToRole(runData.agent),
         runId: runData.run_id,
         proposalStatus: proposalStatus ?? undefined,
@@ -484,11 +479,12 @@ export function AgentChatView({
         ),
       );
 
+      const requestedAction = inferRequestedAction(text, workMode);
       const run = await agentRunService.createRun(currentMatterId, {
         thread_id: threadId,
         message_id: message.id,
-        agent: "main",
-        requested_action: inferRequestedAction(text, workMode),
+        agent: requestedAction === "revise_working_brief" ? "writer" : "main",
+        requested_action: requestedAction,
         source_ids: selectedSourceIds,
       });
 
@@ -507,6 +503,7 @@ export function AgentChatView({
     setLocalMessages([]);
     setSseStages([]);
     setRunError(null);
+    setSelectedSourceIds([]);
     setSideViewerOpen(false);
     onNewChat?.();
   };

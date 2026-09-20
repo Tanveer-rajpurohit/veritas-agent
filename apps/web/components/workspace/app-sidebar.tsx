@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { VeritasOrb } from "../brand/veritas-orb";
+import { NameBlobAvatar } from "../brand/name-blob-avatar";
+import { useUser } from "../../hooks/auth/useAuth";
 import {
   BriefcaseIcon,
   ChevronDownIcon,
@@ -45,6 +47,8 @@ export function AppSidebar({
   mobileOpen,
   onCloseMobile,
 }: AppSidebarProps) {
+  const { data: user } = useUser();
+  const userName = user?.full_name || user?.display_name || user?.email.split("@")[0] || "Veritas user";
   const [newMenuOpen, setNewMenuOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(true);
 
@@ -349,15 +353,7 @@ export function AppSidebar({
                 : "hover:bg-[#edf4fa]/60 text-stone-800"
             } ${collapsed ? "justify-center p-0" : ""}`}
           >
-            <div
-              className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full font-sans text-[11px] font-bold border transition-colors ${
-                activeNav === "profile"
-                  ? "bg-white text-[#2c5478] border-[#487aa8]"
-                  : "bg-[#edf4fa] text-[#2c5478] border-[#cbe0f2]"
-              }`}
-            >
-              TS
-            </div>
+            <NameBlobAvatar name={userName} size={28} className="shrink-0" />
             {!collapsed && (
               <div className="min-w-0 flex-1 text-left">
                 <p
@@ -367,10 +363,10 @@ export function AppSidebar({
                       : "text-stone-800"
                   }`}
                 >
-                  Tanveer Singh
+                  {userName}
                 </p>
                 <p className="m-0 text-[10px] text-stone-400 truncate">
-                  tanveersinghrajpurohit4@gmail.com
+                  {user?.email || "Signed-out account"}
                 </p>
               </div>
             )}

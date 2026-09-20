@@ -11,7 +11,6 @@ from app.core.security import (
     AuthException,
     decode_access_token,
     hash_password,
-    hash_token,
     validate_origin,
     verify_password,
 )
@@ -28,14 +27,33 @@ def set_session_cookie(response: Response, refresh_token: str) -> None:
         httponly=True,
         secure=settings.SESSION_COOKIE_SECURE,
         samesite="lax",
-        path="/",
+        path="/api/v1/auth",
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+    )
+
+
+def set_access_cookie(response: Response, access_token: str) -> None:
+    response.set_cookie(
+        key=settings.ACCESS_COOKIE_NAME,
+        value=access_token,
+        httponly=True,
+        secure=settings.SESSION_COOKIE_SECURE,
+        samesite="lax",
+        path="/",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
 
 
 def clear_session_cookie(response: Response) -> None:
     response.delete_cookie(
         key=settings.SESSION_COOKIE_NAME,
+        path="/api/v1/auth",
+        httponly=True,
+        secure=settings.SESSION_COOKIE_SECURE,
+        samesite="lax",
+    )
+    response.delete_cookie(
+        key=settings.ACCESS_COOKIE_NAME,
         path="/",
         httponly=True,
         secure=settings.SESSION_COOKIE_SECURE,
@@ -58,28 +76,18 @@ async def get_current_session(
     store = SessionStore(redis)
     authorization = request.headers.get("authorization", "")
     if authorization.lower().startswith("bearer "):
-        claims = decode_access_token(authorization[7:].strip())
-        if claims:
-            user_id, session_id = claims
-            session = await store.authenticate(user_id, session_id)
-            user = AuthRepository(db).get_user_by_id(UUID(user_id))
-            if user is not None and user.is_active:
-                return user, session
-
-    refresh_token = request.cookies.get(settings.SESSION_COOKIE_NAME)
-    if refresh_token:
-        if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        access_token = authorization[7:].strip()
+    else:
+        access_token = request.cookies.get(settings.ACCESS_COOKIE_NAME, "")
+        if access_token and request.method in {"POST", "PUT", "PATCH", "DELETE"}:
             validate_origin(request)
-        session_id_text, separator, _ = refresh_token.partition(".")
-        if separator:
-            try:
-                session = await store.get(UUID(session_id_text))
-            except ValueError:
-                session = None
-            if session is not None and session.refresh_hash == hash_token(refresh_token):
-                user = AuthRepository(db).get_user_by_id(session.user_id)
-                if user is not None and user.is_active:
-                    return user, session
+    claims = decode_access_token(access_token) if access_token else None
+    if claims:
+        user_id, session_id = claims
+        session = await store.authenticate(user_id, session_id)
+        user = AuthRepository(db).get_user_by_id(UUID(user_id))
+        if user is not None and user.is_active:
+            return user, session
 
     raise AuthException(
         code="AUTHENTICATION_REQUIRED",
@@ -101,5 +109,6 @@ __all__ = [
     "get_current_session",
     "hash_password",
     "set_session_cookie",
+    "set_access_cookie",
     "verify_password",
 ]

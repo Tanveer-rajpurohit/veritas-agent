@@ -10,6 +10,7 @@ from app.core.auth import (
     clear_session_cookie,
     current_user,
     get_current_session,
+    set_access_cookie,
     set_session_cookie,
 )
 from app.core.config import settings
@@ -140,9 +141,11 @@ async def login(
         ip=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent"),
     )
+    access_token = create_access_token(str(logged_user.id), str(session.id))
     set_session_cookie(response, refresh_token)
+    set_access_cookie(response, access_token)
     return TokenPair(
-        access_token=create_access_token(str(logged_user.id), str(session.id)),
+        access_token=access_token,
         refresh_token=refresh_token,
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
@@ -172,9 +175,11 @@ async def refresh(
             message="Account unavailable. Please log in again.",
             status_code=401,
         )
+    access_token = create_access_token(str(user.id), str(session.id))
     set_session_cookie(response, new_refresh)
+    set_access_cookie(response, access_token)
     return TokenPair(
-        access_token=create_access_token(str(user.id), str(session.id)),
+        access_token=access_token,
         refresh_token=new_refresh,
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )

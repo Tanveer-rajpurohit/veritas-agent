@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 from redis.asyncio import Redis
+from redis.exceptions import WatchError
 
 from app.core.config import settings
 from app.core.security import AuthException, generate_refresh_token, hash_identifier, hash_token
@@ -121,29 +122,39 @@ class SessionStore:
                 message="Invalid or expired refresh token.",
                 status_code=401,
             ) from None
-        session = await self.get(session_id)
-        if session is None or session.refresh_hash != hash_token(refresh_token):
+        ttl = settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400
+        key = self._session_key(session_id)
+        try:
+            async with self.redis.pipeline(transaction=True) as pipe:
+                await pipe.watch(key)
+                session = self._decode(await pipe.get(key))
+                if session is None or session.refresh_hash != hash_token(refresh_token):
+                    raise AuthException(
+                        code="AUTHENTICATION_REQUIRED",
+                        message="Invalid or expired refresh token.",
+                        status_code=401,
+                    )
+                now = datetime.now(UTC)
+                next_token = f"{session.id}.{generate_refresh_token()}"
+                rotated = RedisSession(
+                    **{
+                        **asdict(session),
+                        "refresh_hash": hash_token(next_token),
+                        "last_seen_at": now,
+                        "expires_at": now + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
+                    }
+                )
+                pipe.multi()
+                pipe.set(key, self._encode(rotated), ex=ttl)
+                pipe.expire(self._user_key(session.user_id), ttl)
+                await pipe.execute()
+                return rotated, next_token
+        except WatchError:
             raise AuthException(
                 code="AUTHENTICATION_REQUIRED",
-                message="Invalid or expired refresh token.",
+                message="Refresh token was already used. Please log in again.",
                 status_code=401,
-            )
-        now = datetime.now(UTC)
-        next_token = f"{session.id}.{generate_refresh_token()}"
-        rotated = RedisSession(
-            **{
-                **asdict(session),
-                "refresh_hash": hash_token(next_token),
-                "last_seen_at": now,
-                "expires_at": now + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
-            }
-        )
-        ttl = settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400
-        async with self.redis.pipeline(transaction=True) as pipe:
-            pipe.set(self._session_key(session.id), self._encode(rotated), ex=ttl)
-            pipe.expire(self._user_key(session.user_id), ttl)
-            await pipe.execute()
-        return rotated, next_token
+            ) from None
 
     async def revoke(self, user_id: UUID | str, session_id: UUID | str) -> bool:
         session = await self.get(session_id)

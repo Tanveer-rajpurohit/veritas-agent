@@ -3,7 +3,7 @@ import { Fragment, type ReactNode } from "react";
 import { VeritasOrb } from "../brand/veritas-orb";
 import { AuthDemo } from "./auth-demo";
 
-const WORKFLOW = ["Upload records", "Draft the brief", "Check citations", "Settle conflicts", "Export draft"];
+const WORKFLOW = ["Upload records", "Draft", "Check facts", "Review citations", "Export"];
 
 export function AuthShell({ children }: { children: ReactNode }) {
   return (
@@ -42,13 +42,13 @@ export function AuthShell({ children }: { children: ReactNode }) {
 
         <div className="relative z-10 flex flex-col gap-1.5">
           <span className="font-mono text-[10.5px] font-semibold tracking-widest text-sky-100 uppercase">
-            Courtroom Verification Room
+            Evidence-linked drafting
           </span>
           <h2 className="font-display text-2xl lg:text-[26px] font-normal leading-snug tracking-tight text-white m-0">
-            Draft with authentic court records beside you
+            Move from client records to a reviewed working draft
           </h2>
           <p className="text-xs text-sky-50/90 m-0 leading-relaxed max-w-sm">
-            Automatic discrepancy flagging between loan schedules, certified default certificates, and precedents.
+            See the source behind each material claim, then decide what belongs in the next version.
           </p>
         </div>
 
@@ -75,4 +75,3 @@ export function AuthShell({ children }: { children: ReactNode }) {
     </div>
   );
 }
-

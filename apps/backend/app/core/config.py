@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     APP_BASE_URL: str = "http://localhost:3000"
     SESSION_COOKIE_NAME: str = "veritas_session"
-    SESSION_TTL_SECONDS: int = 604800
+    ACCESS_COOKIE_NAME: str = "veritas_access"
     SESSION_COOKIE_SECURE: bool = False
     AUTH_TOKEN_TTL_SECONDS: int = 1800
     EMAIL_FROM: str = "no-reply@veritaslegal.in"
@@ -104,6 +104,8 @@ class Settings(BaseSettings):
         if not self.BUCKET_NAME.strip():
             raise ValueError("BUCKET_NAME is required")
         if self.ENVIRONMENT == "production":
+            if len(self.AUTH_SECRET) < 32 or "replace" in self.AUTH_SECRET.lower():
+                raise ValueError("AUTH_SECRET must be a strong production secret")
             if not self.SESSION_COOKIE_SECURE:
                 raise ValueError("SESSION_COOKIE_SECURE must be True in production")
             if self.OBJECT_STORAGE_BACKEND == "minio":
