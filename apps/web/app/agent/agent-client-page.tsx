@@ -99,8 +99,8 @@ function AgentClientContent() {
   const handleSelectNav = useCallback(
     (nav: string) => {
       setMobileNavOpen(false);
-      if (nav === "home") {
-        router.push("/workspace");
+      if (nav === "home" || nav === "profile" || nav === "settings") {
+        router.push(nav === "home" ? "/workspace" : `/workspace?nav=${nav}`);
       }
     },
     [router],

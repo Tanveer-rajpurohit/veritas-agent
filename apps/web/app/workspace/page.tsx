@@ -80,7 +80,10 @@ function WorkspaceContent() {
       : null);
   const [createOpen, setCreateOpen] = useState<boolean>(false);
   const [uploadOpen, setUploadOpen] = useState<boolean>(false);
-  const [activeNav, setActiveNav] = useState<string>("home");
+  const navParam = searchParams.get("nav");
+  const [activeNav, setActiveNav] = useState<string>(
+    navParam === "profile" || navParam === "settings" ? navParam : "home",
+  );
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const handleCreateMatter = useCallback(

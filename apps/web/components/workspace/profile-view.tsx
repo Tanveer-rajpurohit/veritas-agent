@@ -17,25 +17,18 @@ export interface ProfileDetails {
 }
 
 const INITIAL_PROFILE: ProfileDetails = {
-  fullName: "Tanveer Singh",
-  dateOfBirth: "1998-05-14",
-  profession: "Advocate",
-  location: "New Delhi, India",
-  education: "NLSIU, Bangalore",
-  yearOfPassing: "2021",
-  phone: "+91 98765 43210",
-  website: "https://tanveersingh.legal",
-  bio: "Advocate practicing primarily before the National Company Law Tribunal (NCLT) and the High Court of Delhi. Specializing in insolvency and bankruptcy (IBC), corporate restructuring, debt resolution, and commercial dispute litigation.",
+  fullName: "",
+  dateOfBirth: "",
+  profession: "",
+  location: "",
+  education: "",
+  yearOfPassing: "",
+  phone: "",
+  website: "",
+  bio: "",
 };
 
-const INITIAL_USERNAME = "tanveer";
-
-const ACCOUNT_DETAILS = {
-  email: "tanveersinghrajpurohit4@gmail.com",
-  signInMethod: "Google OAuth",
-  memberSince: "March 2024",
-  currentStreak: "14 days",
-};
+const INITIAL_USERNAME = "user";
 
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -193,7 +186,7 @@ export function ProfileView() {
                   </span>
                 </div>
                 <p className="m-0 text-xs text-stone-500 truncate">
-                  {ACCOUNT_DETAILS.email}
+                  {userProfile?.email || "Not signed in"}
                 </p>
               </div>
             </div>
@@ -534,17 +527,17 @@ export function ProfileView() {
               <span className="block text-[11px] font-medium text-stone-400">
                 Email
               </span>
-              <span className="mt-1 block text-xs font-medium text-stone-800 truncate" title={userProfile?.email || ACCOUNT_DETAILS.email}>
-                {userProfile?.email || ACCOUNT_DETAILS.email}
+              <span className="mt-1 block text-xs font-medium text-stone-800 truncate" title={userProfile?.email || "Not signed in"}>
+                {userProfile?.email || "Not signed in"}
               </span>
             </div>
 
             <div className="rounded-lg border border-stone-200/70 bg-stone-50/70 p-3.5 select-text">
               <span className="block text-[11px] font-medium text-stone-400">
-                Sign-in method
+                Display name
               </span>
               <span className="mt-1 block text-xs font-medium text-stone-800">
-                {ACCOUNT_DETAILS.signInMethod}
+                {userProfile?.display_name || userProfile?.full_name || "—"}
               </span>
             </div>
 
@@ -555,17 +548,16 @@ export function ProfileView() {
               <span className="mt-1 block text-xs font-medium text-stone-800">
                 {userProfile?.created_at
                   ? new Date(userProfile.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" })
-                  : ACCOUNT_DETAILS.memberSince}
+                  : "—"}
               </span>
             </div>
 
-            {/* Current streak */}
             <div className="rounded-lg border border-stone-200/70 bg-stone-50/70 p-3.5 select-text">
               <span className="block text-[11px] font-medium text-stone-400">
-                Current streak
+                Email status
               </span>
               <span className="mt-1 block text-xs font-medium text-stone-800">
-                {ACCOUNT_DETAILS.currentStreak}
+                {userProfile ? (userProfile.email_verified ? "Verified" : "Unverified") : "—"}
               </span>
             </div>
           </div>

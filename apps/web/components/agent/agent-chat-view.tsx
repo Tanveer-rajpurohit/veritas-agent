@@ -145,8 +145,9 @@ const SUGGESTIONS = [
 
 function inferRequestedAction(text: string): "answer" | "review_citations" | "review_facts" {
   const t = text.toLowerCase();
-  if (/(citation|authority|case law|quote|statute|section 7|innoventive)/.test(t)) return "review_citations";
-  if (/(fact|ledger|amount|date|default|annexure|discrepancy|verify)/.test(t)) return "review_facts";
+  if (/(draft|prepare|write|create|revise|update|edit).*(brief|application|petition|synopsis|draft)/.test(t)) return "answer";
+  if (/(review|check|audit|verify|scan).*(citation|authority|case law|quotation|quote)/.test(t)) return "review_citations";
+  if (/(fact.check|verify.*(fact|amount|date|ledger|default)|audit.*(ledger|annexure)|discrepancy)/.test(t)) return "review_facts";
   return "answer";
 }
 
@@ -311,7 +312,12 @@ export function AgentChatView({
     setBusy(false);
 
     if (runData.status === "failed") {
-      setRunError(runData.error_code ?? "The agent could not complete this run.");
+      const resultMsg = (runData.result as { message?: unknown } | null)?.message;
+      const raw = runData.error_code ?? (typeof resultMsg === "string" ? resultMsg : null) ?? "The agent could not complete this run.";
+      const friendly = /document is required/i.test(String(raw))
+        ? "This check needs an open draft. Create or open a draft first, then ask me to review it — or ask me anything general and I'll answer directly."
+        : String(raw);
+      setRunError(friendly);
       setActiveRunId(null);
       return;
     }

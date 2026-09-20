@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { authService } from "../../service/auth/authService";
 import {
   SlidersIcon,
   BellIcon,
@@ -53,8 +55,24 @@ function ToggleSwitch({ id, checked, onChange, ariaLabel }: ToggleSwitchProps) {
 }
 
 export function SettingsView() {
+  const router = useRouter();
   const [activeSection, setActiveSection] =
     useState<SettingsSection>("workspace");
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    setLogoutError(null);
+    try {
+      await authService.logout();
+      router.push("/login");
+    } catch (err) {
+      setLogoutError(err instanceof Error ? err.message : "Could not sign out. Try again.");
+    } finally {
+      setLoggingOut(false);
+    }
+  };
 
   // Workspace settings local state (both default to ON)
   const [autoSave, setAutoSave] = useState<boolean>(true);
@@ -218,10 +236,26 @@ export function SettingsView() {
                   Security, credentials, and sign-in preferences.
                 </p>
               </div>
-              <div className="pt-8 pb-4 text-center">
-                <p className="m-0 text-xs text-stone-400">
-                  Account security and credential settings will be available here.
-                </p>
+              <div className="flex flex-col gap-3 pt-4">
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-stone-200/70 bg-stone-50/70 p-3.5">
+                  <div>
+                    <p className="m-0 text-xs font-semibold text-stone-800">Sign out</p>
+                    <p className="m-0 pt-0.5 text-[11px] text-stone-500">
+                      End this session on this device.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void handleLogout()}
+                    disabled={loggingOut}
+                    className="shrink-0 rounded-lg border border-red-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-red-700 transition-colors hover:bg-red-50 disabled:opacity-50"
+                  >
+                    {loggingOut ? "Signing out…" : "Log out"}
+                  </button>
+                </div>
+                {logoutError && (
+                  <p className="m-0 text-[11px] font-medium text-red-600">{logoutError}</p>
+                )}
               </div>
             </section>
           )}
