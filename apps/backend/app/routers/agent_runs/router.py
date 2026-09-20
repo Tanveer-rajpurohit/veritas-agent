@@ -42,6 +42,7 @@ class CreateRun(BaseModel):
     source_ids: list[UUID] = Field(default_factory=list, max_length=20)
     requested_action: Literal[
         "answer",
+        "draft_and_review",
         "prepare_working_brief",
         "revise_working_brief",
         "review_facts",
@@ -94,7 +95,7 @@ def create_run(
     idempotency_key: Annotated[str, Header(min_length=1, max_length=128)],
 ) -> RunResponse:
     allowed_actions = {
-        "main": {"answer", "review_citations", "review_facts"},
+        "main": {"answer", "draft_and_review", "review_citations", "review_facts"},
         "writer": {"prepare_working_brief", "revise_working_brief"},
         "citation_reviewer": {"review_citations"},
         "fact_reviewer": {"review_facts", "apply_safe_fact_fixes"},
@@ -104,7 +105,12 @@ def create_run(
     required_role: MatterRole = (
         "editor"
         if payload.requested_action
-        in {"prepare_working_brief", "revise_working_brief", "apply_safe_fact_fixes"}
+        in {
+            "draft_and_review",
+            "prepare_working_brief",
+            "revise_working_brief",
+            "apply_safe_fact_fixes",
+        }
         else "reviewer"
     )
     get_matter_for_user(db, matter_id, user.id, required_role)
@@ -115,7 +121,18 @@ def create_run(
         "review_citations",
     }
     if payload.requested_action in document_required_actions and payload.document_id is None:
-        raise HTTPException(status_code=422, detail="A document is required for revision")
+        drafts = draft_repository.list_drafts_by_matter(db, matter_id)
+        if not drafts:
+            raise HTTPException(
+                status_code=422,
+                detail="This review needs a draft. Create a draft in this Matter first.",
+            )
+        latest_draft = drafts[0]
+        latest_version = draft_repository.get_latest_version(db, latest_draft.id)
+        if latest_version is None:
+            raise HTTPException(status_code=409, detail="The latest draft has no saved version")
+        payload.document_id = latest_draft.id
+        payload.document_version_id = latest_version.id
     thread, _ = get_thread_for_user(
         db, payload.thread_id, user.id, required_role, matter_id=matter_id
     )

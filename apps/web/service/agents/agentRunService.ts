@@ -7,6 +7,50 @@ import type {
 } from "../../types/agent/type";
 
 export const agentRunService = {
+  async streamGeneralChat(
+    message: string,
+    onEvent: (event: { type: string; data: Record<string, unknown> }) => void,
+  ): Promise<void> {
+    const base = (
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"
+    ).replace(/\/+$/, "");
+    const accessToken = localStorage.getItem("veritas_access_token");
+    const response = await fetch(`${base}/agent/chat/stream`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+      body: JSON.stringify({ message }),
+    });
+    if (!response.ok || !response.body) {
+      const payload = await response.json().catch(() => null) as { detail?: string } | null;
+      throw new Error(payload?.detail || "Veritas could not start this conversation.");
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      buffer += decoder.decode(value, { stream: !done });
+      const blocks = buffer.split("\n\n");
+      buffer = blocks.pop() ?? "";
+      for (const block of blocks) {
+        let type = "message";
+        let rawData = "{}";
+        for (const line of block.split("\n")) {
+          if (line.startsWith("event: ")) type = line.slice(7);
+          if (line.startsWith("data: ")) rawData = line.slice(6);
+        }
+        const data = JSON.parse(rawData) as Record<string, unknown>;
+        onEvent({ type, data });
+      }
+      if (done) break;
+    }
+  },
+
   createRun(
     matterId: string,
     payload: CreateAgentRunPayload,

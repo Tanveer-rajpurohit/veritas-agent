@@ -2,6 +2,7 @@ export type AgentName = "main" | "writer" | "citation_reviewer" | "fact_reviewer
 
 export type AgentAction =
   | "answer"
+  | "draft_and_review"
   | "prepare_working_brief"
   | "revise_working_brief"
   | "review_facts"

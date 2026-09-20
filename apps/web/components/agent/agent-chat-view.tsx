@@ -33,6 +33,8 @@ import { useMessages } from "../../hooks/conversations/useConversations";
 import { useAgentRun, useApplyProposal, useRejectProposal } from "../../hooks/agents/useAgentRuns";
 import { conversationService } from "../../service/conversations/conversationService";
 import { agentRunService } from "../../service/agents/agentRunService";
+import { useUploadSource } from "../../hooks/sources/useSources";
+import type { AgentAction } from "../../types/agent/type";
 
 export type AgentRoleType =
   "orchestrator" | "writer" | "citation_reviewer" | "fact_reviewer";
@@ -143,9 +145,21 @@ const SUGGESTIONS = [
   "Draft Synopsis & Chronological List of Dates",
 ];
 
-function inferRequestedAction(text: string): "answer" | "review_citations" | "review_facts" {
+type WorkMode = "auto" | "draft" | "facts" | "citations";
+
+const WORK_MODES: Array<{ id: WorkMode; label: string; description: string }> = [
+  { id: "auto", label: "Auto", description: "Answer or choose the right workflow" },
+  { id: "draft", label: "Draft + verify", description: "Draft, fact-check, then review citations" },
+  { id: "facts", label: "Check facts", description: "Review the latest Matter draft" },
+  { id: "citations", label: "Check citations", description: "Review authorities in the latest draft" },
+];
+
+function inferRequestedAction(text: string, mode: WorkMode): AgentAction {
+  if (mode === "draft") return "draft_and_review";
+  if (mode === "facts") return "review_facts";
+  if (mode === "citations") return "review_citations";
   const t = text.toLowerCase();
-  if (/(draft|prepare|write|create|revise|update|edit).*(brief|application|petition|synopsis|draft)/.test(t)) return "answer";
+  if (/(draft|prepare|write|create).*(brief|application|petition|synopsis|draft)/.test(t)) return "draft_and_review";
   if (/(review|check|audit|verify|scan).*(citation|authority|case law|quotation|quote)/.test(t)) return "review_citations";
   if (/(fact.check|verify.*(fact|amount|date|ledger|default)|audit.*(ledger|annexure)|discrepancy)/.test(t)) return "review_facts";
   return "answer";
@@ -175,6 +189,9 @@ export function AgentChatView({
   );
   const [matterDropdownOpen, setMatterDropdownOpen] = useState(false);
   const [matterSearch, setMatterSearch] = useState("");
+  const [workMode, setWorkMode] = useState<WorkMode>("auto");
+  const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
+  const [selectedSourceIds, setSelectedSourceIds] = useState<string[]>([]);
   const [sideViewerDoc, setSideViewerDoc] = useState<SideViewerDocument | null>(
     null,
   );
@@ -195,6 +212,7 @@ export function AgentChatView({
   const { data: runData } = useAgentRun(activeRunId);
   const applyProposal = useApplyProposal();
   const rejectProposal = useRejectProposal();
+  const uploadSource = useUploadSource();
 
   const handleCopyMessage = (content: string, id: string) => {
     navigator.clipboard.writeText(content);
@@ -410,7 +428,6 @@ export function AgentChatView({
   const handleSend = async () => {
     const text = input.trim();
     if (!text || busy) return;
-    if (!currentMatterId) return;
 
     setBusy(true);
     setInput("");
@@ -426,6 +443,28 @@ export function AgentChatView({
     setLocalMessages((prev) => [...prev, userMsg]);
 
     try {
+      if (!currentMatterId) {
+        if (workMode !== "auto") {
+          throw new Error("Select a Matter to draft or run evidence-based checks. General questions work without one.");
+        }
+        const responseId = `run-general-${Date.now()}`;
+        setLocalMessages((prev) => [
+          ...prev,
+          { id: responseId, role: "assistant", content: "", agentId: "orchestrator" },
+        ]);
+        await agentRunService.streamGeneralChat(text, ({ type, data }) => {
+          if (type === "text" && typeof data.delta === "string") {
+            setLocalMessages((prev) => prev.map((item) => item.id === responseId ? { ...item, content: item.content + data.delta } : item));
+          } else if (type === "tool" && typeof data.name === "string") {
+            setSseStages((prev) => [...prev, { id: `general-${prev.length}`, event_type: "tool.started", label: `Using ${data.name}`, status: "done", timestamp: Date.now() }]);
+          } else if (type === "error") {
+            throw new Error(typeof data.message === "string" ? data.message : "The agent is temporarily unavailable.");
+          }
+        });
+        setBusy(false);
+        return;
+      }
+
       let threadId = activeThreadId;
       if (!threadId) {
         const thread = await conversationService.createThread(currentMatterId, {
@@ -449,7 +488,8 @@ export function AgentChatView({
         thread_id: threadId,
         message_id: message.id,
         agent: "main",
-        requested_action: inferRequestedAction(text),
+        requested_action: inferRequestedAction(text, workMode),
+        source_ids: selectedSourceIds,
       });
 
       setActiveRunId(run.run_id);
@@ -541,9 +581,9 @@ export function AgentChatView({
           placeholder={
             busy
               ? "Veritas agent is thinking..."
-              : !currentMatterId
-                ? "Select a matter before asking Veritas"
-                : "Ask Veritas to draft, check facts, or review citations"
+              : currentMatterId
+                ? "Ask Veritas to draft, check facts, or review citations"
+                : "Ask a general question, or select a Matter for evidence-based work"
           }
           rows={localMessages.length > 0 ? 2 : 4}
           aria-label="Agent prompt"
@@ -557,13 +597,17 @@ export function AgentChatView({
               type="file"
               multiple
               className="hidden"
-              onChange={(e) => {
-                if (e.target.files && e.target.files.length > 0) {
-                  setInput((prev) =>
-                    prev
-                      ? `${prev} (Attached: ${e.target.files![0]?.name})`
-                      : `Review attached ${e.target.files![0]?.name}`,
-                  );
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file || !currentMatterId) return;
+                try {
+                  const source = await uploadSource.mutateAsync({ matterId: currentMatterId, file });
+                  setSelectedSourceIds((current) => [...new Set([...current, source.id])]);
+                  setInput((prev) => prev || `Review ${file.name}`);
+                } catch (error) {
+                  setRunError(error instanceof Error ? error.message : "Upload failed.");
+                } finally {
+                  e.target.value = "";
                 }
               }}
             />
@@ -571,11 +615,41 @@ export function AgentChatView({
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
+              disabled={!currentMatterId || uploadSource.isPending}
+              title={currentMatterId ? "Upload a source to this Matter" : "Select a Matter before attaching a source"}
               className="flex h-7 items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 text-xs font-medium text-stone-600 transition-colors hover:border-[#cbe0f2] hover:bg-[#f7fbfe] hover:text-[#2c5478]"
             >
               <PaperclipIcon size={12} className="text-stone-500" />
-              <span>Attach</span>
+              <span>{uploadSource.isPending ? "Uploading…" : selectedSourceIds.length ? `${selectedSourceIds.length} source` : "Attach"}</span>
             </button>
+
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setModeDropdownOpen((open) => !open)}
+                aria-expanded={modeDropdownOpen}
+                className="flex h-7 items-center gap-1.5 rounded-md border border-[#cbe0f2] bg-[#edf4fa] px-2.5 text-xs font-semibold text-[#2c5478]"
+              >
+                <AgentMark agentId="orchestrator" compact />
+                <span>{WORK_MODES.find((mode) => mode.id === workMode)?.label}</span>
+                <ChevronDownIcon size={11} />
+              </button>
+              {modeDropdownOpen && (
+                <div className="absolute bottom-full left-0 z-50 mb-1.5 w-64 rounded-lg border border-[#cbe0f2] bg-white p-1.5 shadow-[0_14px_36px_rgba(44,84,120,0.16)]">
+                  {WORK_MODES.map((mode) => (
+                    <button
+                      key={mode.id}
+                      type="button"
+                      onClick={() => { setWorkMode(mode.id); setModeDropdownOpen(false); }}
+                      className={`w-full rounded-md px-2.5 py-2 text-left ${workMode === mode.id ? "bg-[#edf4fa]" : "hover:bg-stone-50"}`}
+                    >
+                      <span className="block text-xs font-semibold text-stone-800">{mode.label}</span>
+                      <span className="mt-0.5 block text-[10px] leading-snug text-stone-500">{mode.description}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <div className="relative">
               <button
@@ -594,7 +668,7 @@ export function AgentChatView({
                   }
                 />
                 <span className="truncate">
-                  {selectedMatter ? selectedMatter.name : "Select Matter"}
+                  {selectedMatter ? selectedMatter.name : "No Matter"}
                 </span>
                 <ChevronDownIcon
                   size={11}
@@ -616,12 +690,22 @@ export function AgentChatView({
                   </div>
 
                   <div className="max-h-52 overflow-y-auto py-1">
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedMatterId(null); setActiveThreadId(null); setSelectedSourceIds([]); setMatterDropdownOpen(false); }}
+                      className={`flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-xs ${selectedMatterId === null ? "bg-[#edf4fa] font-semibold text-[#2c5478]" : "text-stone-700 hover:bg-stone-50"}`}
+                    >
+                      <span>General conversation</span>
+                      {selectedMatterId === null && <CheckIcon size={12} />}
+                    </button>
                     {filteredMatters.map((m) => (
                       <button
                         key={m.id}
                         type="button"
                         onClick={() => {
                           setSelectedMatterId(m.id);
+                          setActiveThreadId(null);
+                          setSelectedSourceIds([]);
                           setMatterDropdownOpen(false);
                         }}
                         className={`flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-xs cursor-pointer ${
@@ -649,9 +733,9 @@ export function AgentChatView({
             <button
               type="button"
               onClick={() => void handleSend()}
-              disabled={!input.trim() || busy || !currentMatterId}
+              disabled={!input.trim() || busy}
               className={`h-7.5 w-7.5 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
-                !input.trim() || busy || !currentMatterId
+                !input.trim() || busy
                   ? "bg-[#d8d5cf] text-white cursor-not-allowed"
                   : "bg-[#487aa8] hover:bg-[#38648c] text-white"
               }`}

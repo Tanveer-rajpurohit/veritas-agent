@@ -45,7 +45,120 @@ def process_agent_run(run_id: UUID) -> None:
         _append_event(db, run_id, "task.started", {"agent": run.agent})
         try:
             message = db.get(Message, run.message_id)
-            if run.agent == "writer":
+            if run.agent == "main" and run.requested_action == "draft_and_review":
+                _append_event(
+                    db,
+                    run_id,
+                    "tool.started",
+                    {"tool": "writer", "summary": "Drafting from authorized Matter sources"},
+                )
+                writer = create_writer_agent(db, run.matter_id, allow_document_writes=False)
+                writer_context = [
+                    message.content,
+                    "Create a new working draft. Use placeholders for missing facts and cite only "
+                    "evidence returned by tools.",
+                ]
+                if run.source_ids:
+                    writer_context.append(
+                        f"Sources selected by the user: {', '.join(run.source_ids)}"
+                    )
+                writer_result = writer("\n\n".join(writer_context))
+                proposal = WriterResult.model_validate(writer_result.structured_output)
+                if not proposal.operations:
+                    raise ValueError("Writer returned no document operations")
+
+                title = message.content.strip().splitlines()[0][:120] or "Legal working draft"
+                version = draft_service.create_draft(
+                    db=db,
+                    matter_id=run.matter_id,
+                    title=title,
+                    operations=proposal.operations,
+                    created_by_id=str(run.user_id),
+                )
+                run.document_id = version.draft_id
+                run.base_version_id = version.id
+                db.add(run)
+                db.commit()
+                _append_event(
+                    db,
+                    run_id,
+                    "tool.completed",
+                    {"tool": "writer", "summary": "Created an immutable working draft"},
+                )
+
+                _append_event(
+                    db,
+                    run_id,
+                    "tool.started",
+                    {"tool": "fact_review", "summary": "Checking factual claims against Matter evidence"},
+                )
+                fact_review = fact_review_service.run(
+                    db=db,
+                    version_id=version.id,
+                    user_id=run.user_id,
+                    request=FactReviewRunRequest(checks=["fact"], mode="review_only"),
+                    idempotency_key=f"{run.idempotency_key}:facts",
+                )
+                _append_event(
+                    db,
+                    run_id,
+                    "tool.completed",
+                    {
+                        "tool": "fact_review",
+                        "summary": f"Recorded {len(fact_review.findings)} factual finding(s)",
+                        "summary_counts": fact_review.summary,
+                    },
+                )
+
+                _append_event(
+                    db,
+                    run_id,
+                    "tool.started",
+                    {"tool": "citation_review", "summary": "Checking citations in the new draft"},
+                )
+                reviewed_version = draft_service.get_document_version(
+                    db=db,
+                    version_id=fact_review.document_version_id,
+                    matter_id=run.matter_id,
+                )
+                citation_findings = check_citations(db, reviewed_version)
+                _append_event(
+                    db,
+                    run_id,
+                    "tool.completed",
+                    {
+                        "tool": "citation_review",
+                        "summary": f"Recorded {len(citation_findings)} citation finding(s)",
+                    },
+                )
+                _append_event(
+                    db,
+                    run_id,
+                    "artifact.ready",
+                    {
+                        "document_id": str(version.draft_id),
+                        "document_version_id": str(reviewed_version.id),
+                    },
+                )
+                fact_counts = fact_review.summary
+                run.result = {
+                    "document_id": str(version.draft_id),
+                    "document_version_id": str(reviewed_version.id),
+                    "fact_finding_ids": [str(item.id) for item in fact_review.findings],
+                    "citation_finding_ids": [str(item.id) for item in citation_findings],
+                    "assumptions": proposal.assumptions,
+                    "unresolved_questions": proposal.unresolved_questions,
+                    "message": (
+                        "I created the working draft and completed the first review pass. "
+                        f"Fact review recorded {len(fact_review.findings)} finding(s) "
+                        f"({fact_counts.get('supported', 0)} supported, "
+                        f"{fact_counts.get('contradicted', 0)} contradicted, "
+                        f"{fact_counts.get('unresolved', 0)} unresolved). "
+                        f"Citation review recorded {len(citation_findings)} finding(s). "
+                        "Open the draft to inspect the exact evidence and unresolved items."
+                    ),
+                }
+            elif run.agent == "writer":
                 agent = create_writer_agent(db, run.matter_id, allow_document_writes=False)
                 context = [message.content]
                 if run.base_version_id:
