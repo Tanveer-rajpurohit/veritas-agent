@@ -17,6 +17,7 @@ import { PanelLeftIcon } from "../../components/workspace/workspace-icons";
 import { useMatters, useCreateMatter, useDeleteMatter } from "../../hooks/matters/useMatters";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 import { useUploadSource } from "../../hooks/sources/useSources";
+import { useThreads, useDeleteThread } from "../../hooks/conversations/useConversations";
 
 function WorkspaceContent() {
   const router = useRouter();
@@ -28,6 +29,13 @@ function WorkspaceContent() {
   const deleteMatterMutation = useDeleteMatter();
   const uploadSourceMutation = useUploadSource();
   const setActiveMatterId = useWorkspaceStore((s) => s.setActiveMatterId);
+  const { data: threads } = useThreads(null);
+  const deleteThreadMutation = useDeleteThread();
+  const chatSessions = (threads ?? []).map((t) => ({
+    id: t.id,
+    title: t.title || "Untitled consultation",
+    time: new Date(t.created_at).toLocaleDateString("en-IN"),
+  }));
 
   const [collapsed, setCollapsed] = useState<boolean>(false);
   const [deletedIds, setDeletedIds] = useState<string[]>([]);
@@ -188,6 +196,24 @@ function WorkspaceContent() {
     [currentMatter, router],
   );
 
+  const handleSelectChatSession = useCallback(
+    (threadId: string) => {
+      router.push(`/agent?c=${threadId}`);
+    },
+    [router],
+  );
+
+  const handleDeleteChatSession = useCallback(
+    async (threadId: string) => {
+      try {
+        await deleteThreadMutation.mutateAsync({ threadId });
+      } catch {
+        void 0;
+      }
+    },
+    [deleteThreadMutation],
+  );
+
   const handleOpenMobileNav = useCallback(() => {
     if (collapsed) setCollapsed(false);
     setMobileNavOpen(true);
@@ -202,6 +228,9 @@ function WorkspaceContent() {
         onOpenUpload={handleOpenUpload}
         activeNav={activeNav}
         onSelectNav={handleSelectNav}
+        chatSessions={chatSessions}
+        onSelectChatSession={handleSelectChatSession}
+        onDeleteChatSession={handleDeleteChatSession}
         mobileOpen={mobileNavOpen}
         onCloseMobile={() => setMobileNavOpen(false)}
       />

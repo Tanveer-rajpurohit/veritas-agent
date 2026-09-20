@@ -8,13 +8,29 @@ import type {
   ThreadRecord,
 } from "../../types/conversation/type";
 
-export function useThreads(matterId: string | null | undefined) {
+export function useThreads(matterId?: string | null) {
   return useQuery<ThreadRecord[], Error>({
     queryKey: matterId
       ? queryKeys.conversations.threads(matterId)
-      : ["matters", "null", "threads"],
-    queryFn: () => conversationService.listThreads(matterId as string),
-    enabled: Boolean(matterId),
+      : ["threads", "all"],
+    queryFn: () =>
+      matterId
+        ? conversationService.listThreads(matterId)
+        : conversationService.listAllThreads(),
+  });
+}
+
+export function useDeleteThread() {
+  const queryClient = useQueryClient();
+
+  return useMutation<void, Error, { threadId: string; matterId?: string }>({
+    mutationFn: ({ threadId }) => conversationService.deleteThread(threadId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey.some((k) => typeof k === "string" && k.includes("thread")),
+      });
+    },
   });
 }
 

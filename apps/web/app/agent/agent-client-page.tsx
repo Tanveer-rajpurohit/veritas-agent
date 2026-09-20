@@ -13,7 +13,7 @@ import { PanelLeftIcon } from "../../components/workspace/workspace-icons";
 import { AgentChatView } from "../../components/agent/agent-chat-view";
 import { useCreateMatter, useMatters } from "../../hooks/matters/useMatters";
 import { useUploadSource } from "../../hooks/sources/useSources";
-import { useThreads } from "../../hooks/conversations/useConversations";
+import { useThreads, useDeleteThread } from "../../hooks/conversations/useConversations";
 
 function AgentClientContent() {
   const router = useRouter();
@@ -23,9 +23,9 @@ function AgentClientContent() {
 
   const [collapsed, setCollapsed] = useState<boolean>(false);
   const { data: backendMatters } = useMatters();
-  // Real threads for the selected matter — replaces seeded demo sessions.
   const activeMatterId = matterIdParam ?? null;
   const { data: threads } = useThreads(activeMatterId);
+  const deleteThreadMutation = useDeleteThread();
   const chatSessions = (threads ?? []).map((t) => ({
     id: t.id,
     title: t.title || "Untitled consultation",
@@ -125,6 +125,20 @@ function AgentClientContent() {
     router.push("/agent");
   }, [router]);
 
+  const handleDeleteChatSession = useCallback(
+    async (threadId: string) => {
+      try {
+        await deleteThreadMutation.mutateAsync({ threadId, matterId: activeMatterId ?? undefined });
+        if (sessionParam === threadId) {
+          router.push(activeMatterId ? `/agent?matterId=${activeMatterId}` : "/agent");
+        }
+      } catch {
+        void 0;
+      }
+    },
+    [deleteThreadMutation, activeMatterId, sessionParam, router],
+  );
+
   return (
     <div className="flex h-screen w-full gap-1 overflow-hidden bg-[#eaf0f6] p-1 font-sans text-stone-900 antialiased sm:gap-1.5 sm:p-1.5 select-none">
       <AppSidebar
@@ -135,6 +149,7 @@ function AgentClientContent() {
         activeNav="agent"
         onSelectNav={handleSelectNav}
         onSelectChatSession={handleSelectChatSession}
+        onDeleteChatSession={handleDeleteChatSession}
         chatSessions={chatSessions}
         mobileOpen={mobileNavOpen}
         onCloseMobile={() => setMobileNavOpen(false)}

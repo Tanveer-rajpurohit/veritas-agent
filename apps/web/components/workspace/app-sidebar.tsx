@@ -15,6 +15,7 @@ import {
   SettingsIcon,
   BotIcon,
   FileTextIcon,
+  TrashIcon,
 } from "./workspace-icons";
 
 export interface SidebarChatSession {
@@ -31,6 +32,7 @@ interface AppSidebarProps {
   activeNav: string;
   onSelectNav: (nav: string) => void;
   onSelectChatSession?: (sessionId: string) => void;
+  onDeleteChatSession?: (sessionId: string) => void;
   chatSessions?: SidebarChatSession[];
   mobileOpen: boolean;
   onCloseMobile: () => void;
@@ -44,6 +46,7 @@ export function AppSidebar({
   activeNav,
   onSelectNav,
   onSelectChatSession,
+  onDeleteChatSession,
   chatSessions = [],
   mobileOpen,
   onCloseMobile,
@@ -316,20 +319,40 @@ export function AppSidebar({
               historyOpen && (
                 <div className="flex flex-col gap-0.5 pt-1">
                   {chatSessions.map((session) => (
-                    <button
+                    <div
                       key={session.id}
-                      type="button"
                       onClick={() => onSelectChatSession?.(session.id)}
-                      className="group flex flex-col items-start rounded-md px-2.5 py-1.5 text-left text-xs transition-colors hover:bg-[#edf4fa] cursor-pointer"
+                      className="group flex items-center justify-between rounded-md px-2.5 py-1.5 text-left text-xs transition-colors hover:bg-[#edf4fa] cursor-pointer"
                     >
-                      <span className="font-medium text-stone-800 group-hover:text-[#487aa8] truncate w-full">
-                        {session.title}
-                      </span>
-                      <span className="text-[10px] text-stone-400 font-mono pt-0.5">
-                        {session.time}
-                      </span>
-                    </button>
+                      <div className="min-w-0 flex-1 pr-1.5">
+                        <span className="block font-medium text-stone-800 group-hover:text-[#487aa8] truncate w-full">
+                          {session.title}
+                        </span>
+                        <span className="block text-[10px] text-stone-400 font-mono pt-0.5">
+                          {session.time}
+                        </span>
+                      </div>
+                      {onDeleteChatSession && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteChatSession(session.id);
+                          }}
+                          aria-label={`Delete ${session.title}`}
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-stone-200/70 text-stone-400 hover:text-red-600 transition-all shrink-0 cursor-pointer"
+                          title="Delete consultation"
+                        >
+                          <TrashIcon size={12} />
+                        </button>
+                      )}
+                    </div>
                   ))}
+                  {chatSessions.length === 0 && (
+                    <div className="px-2.5 py-3 text-center text-[11px] text-stone-400">
+                      No consultations yet
+                    </div>
+                  )}
                 </div>
               )
             )}

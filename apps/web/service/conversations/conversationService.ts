@@ -34,4 +34,13 @@ export const conversationService = {
       payload
     );
   },
+
+  listAllThreads(): Promise<ThreadRecord[]> {
+    return fetchClient.get<ThreadRecord[]>("/threads");
+  },
+
+  deleteThread(threadId: string): Promise<void> {
+    return fetchClient.delete<void>(`/threads/${threadId}`);
+  },
 };
+

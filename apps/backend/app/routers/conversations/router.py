@@ -119,3 +119,23 @@ def list_messages(thread_id: UUID, db: DbSession, user: CurrentUser) -> list[Mes
         select(Message).where(Message.thread_id == thread.id).order_by(Message.created_at)
     ).all()
     return [_message_response(message) for message in messages]
+
+
+@router.get("/threads", response_model=list[ThreadResponse])
+def list_user_threads(db: DbSession, user: CurrentUser) -> list[ThreadResponse]:
+    threads = db.scalars(
+        select(Thread)
+        .join(MatterMember, MatterMember.matter_id == Thread.matter_id)
+        .where(MatterMember.user_id == user.id)
+        .order_by(Thread.created_at.desc())
+        .limit(50)
+    ).all()
+    return [_thread_response(thread) for thread in threads]
+
+
+@router.delete("/threads/{thread_id}", status_code=204)
+def delete_thread(thread_id: UUID, db: DbSession, user: CurrentUser) -> None:
+    thread, _ = get_thread_for_user(db, thread_id, user.id, "editor")
+    db.delete(thread)
+    db.commit()
+

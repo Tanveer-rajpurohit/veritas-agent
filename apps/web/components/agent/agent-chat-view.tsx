@@ -19,16 +19,18 @@ import {
   CopyIcon,
   DownloadIcon,
   FolderIcon,
-  PaperclipIcon,
   SearchIcon,
   PlusIcon,
   ColoredFileIcon,
   AlertCircleIcon,
   SparklesIcon,
-  FileTextIcon,
   ShieldCheckIcon,
   ScaleIcon,
+  StreamlineFolderUploadIcon,
+  StreamlineFileEditIcon,
 } from "../workspace/workspace-icons";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../../service/queryKeys";
 import { ThinkingOrb } from "./thinking-orb";
 import { AgentSideViewer, type SideViewerDocument } from "./agent-side-viewer";
 import { AgentAvatar } from "./agent-avatar";
@@ -92,16 +94,7 @@ export interface AgentOption {
   icon: ({ size, className }: { size?: number; className?: string }) => React.JSX.Element;
 }
 
-export const AGENT_OPTIONS: AgentOption[] = [
-  {
-    id: "main",
-    role: "orchestrator",
-    name: "Veritas Orchestrator",
-    label: "Orchestrator",
-    badge: "Orchestrator",
-    description: "Coordinates research, drafting, and multi-agent review",
-    icon: SparklesIcon,
-  },
+export const SPECIALIZED_AGENTS: AgentOption[] = [
   {
     id: "writer",
     role: "writer",
@@ -109,7 +102,7 @@ export const AGENT_OPTIONS: AgentOption[] = [
     label: "Writer Agent",
     badge: "Writer Agent",
     description: "Drafts applications, petitions & legal notices",
-    icon: FileTextIcon,
+    icon: StreamlineFileEditIcon,
   },
   {
     id: "fact_reviewer",
@@ -125,10 +118,23 @@ export const AGENT_OPTIONS: AgentOption[] = [
     role: "citation_reviewer",
     name: "Citation Reviewer",
     label: "Citation Reviewer",
-    badge: "⚖️ Citation Reviewer",
+    badge: "Citation Reviewer",
     description: "Verifies Indian statutes, NCLAT & SC case authorities",
     icon: ScaleIcon,
   },
+];
+
+export const AGENT_OPTIONS: AgentOption[] = [
+  {
+    id: "main",
+    role: "orchestrator",
+    name: "Veritas Orchestrator",
+    label: "Orchestrator",
+    badge: "Orchestrator",
+    description: "Coordinates research, drafting, and multi-agent review",
+    icon: SparklesIcon,
+  },
+  ...SPECIALIZED_AGENTS,
 ];
 
 function AgentMark({
@@ -255,7 +261,6 @@ export function AgentChatView({
   const [matterDropdownOpen, setMatterDropdownOpen] = useState(false);
   const [matterSearch, setMatterSearch] = useState("");
   const [selectedAgent, setSelectedAgent] = useState<AgentName>("main");
-  const [agentDropdownOpen, setAgentDropdownOpen] = useState(false);
 
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [selectedSourceIds, setSelectedSourceIds] = useState<string[]>([]);
@@ -280,6 +285,7 @@ export function AgentChatView({
   const applyProposal = useApplyProposal();
   const rejectProposal = useRejectProposal();
   const uploadSource = useUploadSource();
+  const queryClient = useQueryClient();
 
   const handleCopyMessage = (content: string, id: string) => {
     navigator.clipboard.writeText(content);
@@ -485,8 +491,6 @@ export function AgentChatView({
 
   const activeAgentConfig =
     AGENT_OPTIONS.find((a) => a.id === selectedAgent) ?? AGENT_OPTIONS[0]!;
-  const currentAgent =
-    AGENTS.find((item) => item.id === activeAgentConfig.role) ?? AGENTS[0]!;
 
   const handleSend = async () => {
     const text = input.trim();
@@ -517,6 +521,8 @@ export function AgentChatView({
         });
         threadId = thread.id;
         setActiveThreadId(threadId);
+        queryClient.invalidateQueries({ queryKey: ["threads"] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.conversations.threads(currentMatterId) });
       }
 
       const message = await conversationService.sendMessage(threadId, {
@@ -558,7 +564,6 @@ export function AgentChatView({
     setSelectedAgent("main");
     setAddMenuOpen(false);
     setMatterDropdownOpen(false);
-    setAgentDropdownOpen(false);
     onNewChat?.();
   };
 
@@ -675,7 +680,6 @@ export function AgentChatView({
                 onClick={() => {
                   setAddMenuOpen((prev) => !prev);
                   setMatterDropdownOpen(false);
-                  setAgentDropdownOpen(false);
                 }}
                 aria-expanded={addMenuOpen}
                 aria-label="Add document or select agent"
@@ -715,7 +719,7 @@ export function AgentChatView({
                       className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-[#edf4fa] transition-colors cursor-pointer group"
                     >
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#edf4fa] text-[#2c5478] group-hover:bg-[#dce9f4]">
-                        <PaperclipIcon size={14} />
+                        <StreamlineFolderUploadIcon size={16} />
                       </div>
                       <div className="min-w-0 flex-1">
                         <span className="block text-xs font-semibold text-stone-800">
@@ -755,10 +759,10 @@ export function AgentChatView({
                     <div className="my-1.5 border-t border-stone-100" />
 
                     <div className="px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wider text-stone-400">
-                      Select Agent
+                      Specialized Agents
                     </div>
 
-                    {AGENT_OPTIONS.map((agent) => {
+                    {SPECIALIZED_AGENTS.map((agent) => {
                       const Icon = agent.icon;
                       const isSelected = selectedAgent === agent.id;
                       return (
@@ -766,7 +770,7 @@ export function AgentChatView({
                           key={agent.id}
                           type="button"
                           onClick={() => {
-                            setSelectedAgent(agent.id);
+                            setSelectedAgent((prev) => (prev === agent.id ? "main" : agent.id));
                             setAddMenuOpen(false);
                           }}
                           className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors cursor-pointer ${
@@ -818,7 +822,6 @@ export function AgentChatView({
                 onClick={() => {
                   setMatterDropdownOpen((prev) => !prev);
                   setAddMenuOpen(false);
-                  setAgentDropdownOpen(false);
                 }}
                 aria-expanded={matterDropdownOpen}
                 aria-label="Select Matter"
@@ -912,9 +915,6 @@ export function AgentChatView({
                             <span className="block truncate font-medium">
                               {matter.name}
                             </span>
-                            <span className="block text-[10px] text-stone-400 font-mono truncate">
-                              {matter.caseNumber || "No case number"}
-                            </span>
                           </div>
                           {selectedMatterId === matter.id && (
                             <CheckIcon size={12} className="shrink-0 text-[#2c5478]" />
@@ -934,91 +934,21 @@ export function AgentChatView({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => {
-                  setAgentDropdownOpen((prev) => !prev);
-                  setAddMenuOpen(false);
-                  setMatterDropdownOpen(false);
-                }}
-                aria-expanded={agentDropdownOpen}
-                aria-label="Select active agent"
-                className="flex h-8 items-center gap-1.5 rounded-full border border-stone-200/90 bg-stone-50 px-3 text-xs font-semibold text-stone-700 hover:bg-stone-100 hover:text-stone-900 transition-colors cursor-pointer shadow-2xs select-none"
-              >
+            {selectedAgent !== "main" && (
+              <div className="flex items-center gap-1.5 rounded-full border border-[#cbe0f2] bg-[#edf4fa] px-2.5 py-1 text-xs font-semibold text-[#2c5478] shadow-2xs animate-in fade-in duration-150">
                 <activeAgentConfig.icon size={13} className="text-[#2c5478]" />
-                <span>{activeAgentConfig.badge}</span>
-                <ChevronDownIcon
-                  size={11}
-                  className={`text-stone-400 transition-transform duration-150 ${
-                    agentDropdownOpen ? "rotate-180" : ""
-                  }`}
-                />
-              </button>
-
-              {agentDropdownOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-40"
-                    onClick={() => setAgentDropdownOpen(false)}
-                  />
-                  <div className="absolute bottom-full right-0 z-50 mb-2 w-64 rounded-xl border border-stone-200/90 bg-white p-1.5 shadow-[0_16px_40px_rgba(0,0,0,0.14)] animate-in fade-in slide-in-from-bottom-2 duration-150 select-none">
-                    <div className="px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wider text-stone-400">
-                      Select Agent
-                    </div>
-                    {AGENT_OPTIONS.map((agent) => {
-                      const Icon = agent.icon;
-                      const isSelected = selectedAgent === agent.id;
-                      return (
-                        <button
-                          key={agent.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedAgent(agent.id);
-                            setAgentDropdownOpen(false);
-                          }}
-                          className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors cursor-pointer ${
-                            isSelected ? "bg-[#edf4fa]" : "hover:bg-stone-50"
-                          }`}
-                        >
-                          <div
-                            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${
-                              isSelected
-                                ? "bg-[#2c5478] text-white"
-                                : "bg-stone-100 text-stone-600"
-                            }`}
-                          >
-                            <Icon size={13} />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between">
-                              <span
-                                className={`text-xs font-semibold ${
-                                  isSelected
-                                    ? "text-[#2c5478]"
-                                    : "text-stone-800"
-                                }`}
-                              >
-                                {agent.name}
-                              </span>
-                              {isSelected && (
-                                <CheckIcon
-                                  size={12}
-                                  className="text-[#2c5478] shrink-0"
-                                />
-                              )}
-                            </div>
-                            <span className="block text-[10px] text-stone-500 truncate">
-                              {agent.description}
-                            </span>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-            </div>
+                <span>{activeAgentConfig.name}</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedAgent("main")}
+                  className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full text-stone-400 hover:bg-[#dce9f4] hover:text-[#2c5478] cursor-pointer transition-colors"
+                  aria-label="Remove agent filter"
+                  title="Switch back to full orchestration"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
 
             <button
               type="button"
@@ -1027,7 +957,7 @@ export function AgentChatView({
               className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors cursor-pointer shadow-2xs ${
                 !input.trim() || busy
                   ? "bg-stone-200 text-stone-400 cursor-not-allowed"
-                  : "bg-[#244b6d] hover:bg-[#183f60] text-white"
+                  : "bg-[#487aa8] hover:bg-[#38648c] active:bg-[#2c5478] text-white"
               }`}
               aria-label="Send message"
             >
@@ -1060,27 +990,19 @@ export function AgentChatView({
 
   return (
     <div className="w-full h-full flex flex-col bg-white overflow-hidden relative">
-      <div className="absolute top-3 left-4 z-30 flex items-center gap-2">
-        <div className="inline-flex h-9 items-center gap-2 rounded-full border border-[#cbe0f2] bg-[#f4f8fc] px-3 text-xs font-semibold text-[#244b6d] shadow-2xs">
-          <AgentMark agentId={currentAgent.id} compact interactive />
-          <span>Veritas</span>
-          <span className="rounded-full bg-white px-1.5 py-0.5 text-[10px] font-medium text-[#6383a0]">
-            {activeAgentConfig.name}
-          </span>
-        </div>
-
-        {localMessages.length > 0 && (
+      {localMessages.length > 0 && (
+        <div className="absolute top-3 left-4 z-30 flex items-center gap-2">
           <button
             type="button"
             onClick={handleReset}
-            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 text-[11px] font-semibold text-stone-600 transition-colors hover:border-[#cbe0f2] hover:bg-[#f7fbfe] hover:text-[#2c5478]"
+            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-stone-200/90 bg-white/95 backdrop-blur-xs px-3 text-xs font-semibold text-stone-600 transition-colors hover:border-[#cbe0f2] hover:bg-[#f7fbfe] hover:text-[#2c5478] shadow-2xs cursor-pointer"
             title="Start new consultation"
           >
-            <PlusIcon size={11} />
-            <span>New</span>
+            <PlusIcon size={12} />
+            <span>New Chat</span>
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       <div
         className={`flex-1 min-h-0 grid overflow-hidden ${
