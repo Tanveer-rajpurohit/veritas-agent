@@ -1,49 +1,39 @@
-# Submission presentation
+# Presentation notes
 
-## One-sentence pitch
+## Start with the problem
 
-Veritas turns client records into an editable legal draft, then checks its facts and citations against the evidence before the lawyer exports it.
+- Legal AI can write a polished paragraph that is still unsafe to file.
+- On 2 July 2026, the Supreme Court of India set aside NCLT and NCLAT decisions that relied on non-existent authorities, mismatched citations, and invented passages attributed to real judgments.
+- A lawyer cannot solve this by checking whether a citation merely looks real. The case, quotation, legal proposition, and current treatment all need separate checks.
+- Client facts create a second risk. Dates, amounts, parties, and events can conflict across notices, agreements, statements, and annexures.
+- Existing AI often gives the lawyer a faster first draft but leaves the entire verification burden behind.
 
-## Three-minute demo
+## Introduce Veritas
 
-### 0:00 to 0:25: show the risk
+Veritas is an evidence-linked legal drafting workspace for Indian lawyers. One request can create a working draft, check its factual claims, review its citations, and show the lawyer exactly what remains unresolved.
 
-Open a polished draft containing a wrong amount and an unreliable citation. Explain that legal AI can sound correct while leaving the lawyer with the same manual verification burden.
+## Show the workflow
 
-### 0:25 to 0:55: create the Matter
+- Create a Matter and upload client records.
+- Ask the Main Agent to draft and verify.
+- The Writer uses only authorized Matter passages and retrieved legal sources.
+- The Fact Reviewer compares dates, amounts, parties, and events with Matter evidence and public registries.
+- The Citation Reviewer checks authority identity, quotation accuracy, proposition support, and later treatment.
+- Open a finding beside the exact supporting or conflicting passage.
+- Accept or reject a proposed correction. An accepted change creates a new immutable document version.
+- Export the working draft and its audit data.
 
-Sign in, open a Matter, and upload two records. Point out that files are stored in S3-compatible object storage while extracted passages and provenance are stored in PostgreSQL.
+## Explain what makes it different
 
-### 0:55 to 1:35: draft and verify
+- Retrieval results are candidates, not proof.
+- Every accepted source keeps its provider URL, content hash, document version, page, and passage.
+- Agents can propose edits; application code enforces access control and creates versions.
+- Editing verified text makes the previous finding stale, so an old approval cannot silently survive a change.
+- Unavailable or conflicting evidence is reported as unresolved. The system does not fill gaps from model memory.
+- Matter boundaries are enforced server-side. A model never chooses which tenant or Matter it may access.
 
-Choose Draft + verify and enter one request. Show the safe activity stream as Veritas drafts from Matter sources, checks factual claims, and reviews citations. Avoid describing these summaries as chain-of-thought.
+## Close
 
-### 1:35 to 2:15: inspect the evidence
+Veritas does not replace legal judgment. It removes the repetitive work between a first draft and a reviewable draft, while keeping the evidence and the final decision with the lawyer.
 
-Open the draft. Select the disputed amount and show both source passages. Then inspect a citation across identity, quotation, support, and later treatment. Explain why a real case can still be the wrong authority.
-
-### 2:15 to 2:40: keep the lawyer in control
-
-Preview a proposed correction. Reject or accept it, then show the new immutable version. Edit a checked sentence and show that the old finding becomes stale.
-
-### 2:40 to 3:00: export and close
-
-Export the working PDF and show the unresolved-items appendix or audit JSON. Close with: "Veritas gives the lawyer a draft and the evidence needed to judge it."
-
-## What judges should remember
-
-- One prompt can produce a draft and run two independent review passes.
-- Each claim can be traced to a source passage and document version.
-- Search, evidence, model output, and lawyer decisions remain separate.
-- AWS Strands coordinates bounded agents while application code enforces permissions and state changes.
-- The product reduces repetitive verification without pretending to replace legal judgment.
-
-## Submission checklist
-
-- Start from a clean account and use a prepared demo Matter.
-- Test Groq and Bedrock configuration before recording.
-- Keep a local MinIO demo path if cloud storage is unavailable.
-- Use real provider responses or label provider downtime clearly.
-- Do not expose API keys, access tokens, client names, or private documents in the video.
-- Record a backup before final UI polish.
-
+Sources for the opening example: [Supreme Court of India judgment summary](https://www.sci.gov.in/landmark-judgment-summaries/) and [Indian Express case explainer](https://indianexpress.com/article/legal-news/ai-hallucinated-judgments-explained-supreme-court-nclt-order-fake-precedents-10771396/).
