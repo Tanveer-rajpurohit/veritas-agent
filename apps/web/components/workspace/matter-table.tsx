@@ -406,7 +406,7 @@ export function MatterTable({
           )}
         </div>
 
-        <div className="hidden overflow-x-auto rounded-lg border border-stone-200 bg-white md:block">
+        <div className="hidden overflow-x-auto rounded-lg border border-stone-200 bg-white md:block min-h-[160px]">
           <table className="w-full border-collapse text-left text-xs">
             <thead>
               <tr className="border-b border-stone-200 bg-[#fbfbfb] text-[11.5px] font-medium text-stone-500">
@@ -426,111 +426,128 @@ export function MatterTable({
                   </td>
                 </tr>
               ) : (
-                filteredMatters.map((matter) => (
-                  <tr
-                    key={matter.id}
-                    className="group transition-colors hover:bg-[#f7f9fa]"
-                  >
-                    <td className="py-3 px-3.5">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span className="shrink-0 text-stone-500 group-hover:text-[#487aa8] transition-colors">
-                          {getMatterIcon(matter.matterType)}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => onSelectMatter(matter)}
-                          className="max-w-[280px] truncate text-left font-medium text-stone-900 transition-colors group-hover:text-[#487aa8] hover:underline hover:underline-offset-4 focus-visible:ring-2 focus-visible:ring-[#487aa8]/30 focus-visible:outline-none sm:max-w-md"
-                        >
-                          {matter.name}
-                        </button>
-                      </div>
-                    </td>
-
-                    <td className="py-3 px-3 whitespace-nowrap text-stone-600 font-normal">
-                      {matter.matterType}
-                    </td>
-
-                    <td className="py-3 px-3 whitespace-nowrap text-stone-600 font-normal">
-                      {matter.stage}
-                    </td>
-
-                    <td className="py-3 px-3 whitespace-nowrap text-stone-500 font-normal font-mono text-[11px]">
-                      {matter.createdDate}
-                    </td>
-
-                    <td className="py-3 px-3 whitespace-nowrap">
-                      <span
-                        className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-medium ${
-                          matter.health === "Healthy"
-                            ? "bg-[#edf8f1] text-[#1e6f3d]"
-                            : matter.health === "Needs attention"
-                              ? "bg-[#fef7ee] text-[#b26b18]"
-                              : "bg-[#fef2f1] text-[#b9382b]"
-                        }`}
-                      >
-                        <span
-                          className={`h-1.5 w-1.5 rounded-full ${
-                            matter.health === "Healthy"
-                              ? "bg-[#2e7d46]"
-                              : matter.health === "Needs attention"
-                                ? "bg-[#d97706]"
-                                : "bg-[#dc2626]"
-                          }`}
-                        />
-                        <span>{matter.health}</span>
-                      </span>
-                    </td>
-
-                    <td
-                      className="py-3 px-3 text-right whitespace-nowrap relative"
-                      onClick={(e) => e.stopPropagation()}
+                filteredMatters.map((matter, index) => {
+                  const isNearBottom =
+                    index > 0 && index >= filteredMatters.length - 2;
+                  const isMenuOpen = actionMenuMatterId === matter.id;
+                  return (
+                    <tr
+                      key={matter.id}
+                      className={`group transition-colors hover:bg-[#f7f9fa] ${
+                        isMenuOpen ? "relative z-30" : ""
+                      }`}
                     >
-                      <button
-                        type="button"
-                        aria-label={`Open actions for ${matter.name}`}
-                        aria-expanded={actionMenuMatterId === matter.id}
-                        onClick={() =>
-                          setActionMenuMatterId(
-                            actionMenuMatterId === matter.id ? null : matter.id,
-                          )
-                        }
-                        className="flex h-6 w-6 items-center justify-center rounded-sm text-stone-400 hover:bg-stone-200/60 hover:text-stone-700 ml-auto cursor-pointer"
-                      >
-                        <MoreHorizontalIcon size={14} />
-                      </button>
-
-                      {actionMenuMatterId === matter.id && (
-                        <div className="absolute right-3 top-8 z-40 w-44 rounded-md border border-stone-200 bg-white p-1 text-left shadow-lg">
+                      <td className="py-3 px-3.5">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="shrink-0 text-stone-500 group-hover:text-[#487aa8] transition-colors">
+                            {getMatterIcon(matter.matterType)}
+                          </span>
                           <button
                             type="button"
-                            onClick={() => {
-                              setActionMenuMatterId(null);
-                              onSelectMatter(matter);
-                            }}
-                            className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs text-stone-700 hover:bg-stone-100 cursor-pointer"
+                            onClick={() => onSelectMatter(matter)}
+                            className="max-w-[280px] truncate text-left font-medium text-stone-900 transition-colors group-hover:text-[#487aa8] hover:underline hover:underline-offset-4 focus-visible:ring-2 focus-visible:ring-[#487aa8]/30 focus-visible:outline-none sm:max-w-md"
                           >
-                            <FolderKanbanIcon
-                              size={13}
-                              className="text-[#487aa8]"
-                            />
-                            <span>Open matter</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setActionMenuMatterId(null);
-                              setPendingDelete(matter);
-                            }}
-                            className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs text-rose-600 hover:bg-rose-50 cursor-pointer"
-                          >
-                            <TrashIcon size={13} />
-                            <span>Delete matter</span>
+                            {matter.name}
                           </button>
                         </div>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                      </td>
+
+                      <td className="py-3 px-3 whitespace-nowrap text-stone-600 font-normal">
+                        {matter.matterType}
+                      </td>
+
+                      <td className="py-3 px-3 whitespace-nowrap text-stone-600 font-normal">
+                        {matter.stage}
+                      </td>
+
+                      <td className="py-3 px-3 whitespace-nowrap text-stone-500 font-normal font-mono text-[11px]">
+                        {matter.createdDate}
+                      </td>
+
+                      <td className="py-3 px-3 whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-medium ${
+                            matter.health === "Healthy"
+                              ? "bg-[#edf8f1] text-[#1e6f3d]"
+                              : matter.health === "Needs attention"
+                                ? "bg-[#fef7ee] text-[#b26b18]"
+                                : "bg-[#fef2f1] text-[#b9382b]"
+                          }`}
+                        >
+                          <span
+                            className={`h-1.5 w-1.5 rounded-full ${
+                              matter.health === "Healthy"
+                                ? "bg-[#2e7d46]"
+                                : matter.health === "Needs attention"
+                                  ? "bg-[#d97706]"
+                                  : "bg-[#dc2626]"
+                            }`}
+                          />
+                          <span>{matter.health}</span>
+                        </span>
+                      </td>
+
+                      <td
+                        className="py-3 px-3 text-right whitespace-nowrap relative"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          type="button"
+                          aria-label={`Open actions for ${matter.name}`}
+                          aria-expanded={actionMenuMatterId === matter.id}
+                          onClick={() =>
+                            setActionMenuMatterId(
+                              actionMenuMatterId === matter.id ? null : matter.id,
+                            )
+                          }
+                          className="flex h-6 w-6 items-center justify-center rounded-sm text-stone-400 hover:bg-stone-200/60 hover:text-stone-700 ml-auto cursor-pointer"
+                        >
+                          <MoreHorizontalIcon size={14} />
+                        </button>
+
+                        {isMenuOpen && (
+                          <>
+                            <div
+                              className="fixed inset-0 z-40"
+                              onClick={() => setActionMenuMatterId(null)}
+                            />
+                            <div
+                              className={`absolute right-3 ${
+                                isNearBottom ? "bottom-8" : "top-8"
+                              } z-50 w-44 rounded-md border border-stone-200 bg-white p-1 text-left shadow-lg`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActionMenuMatterId(null);
+                                  onSelectMatter(matter);
+                                }}
+                                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs text-stone-700 hover:bg-stone-100 cursor-pointer"
+                              >
+                                <FolderKanbanIcon
+                                  size={13}
+                                  className="text-[#487aa8]"
+                                />
+                                <span>Open matter</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActionMenuMatterId(null);
+                                  setPendingDelete(matter);
+                                }}
+                                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs text-rose-600 hover:bg-rose-50 cursor-pointer"
+                              >
+                                <TrashIcon size={13} />
+                                <span>Delete matter</span>
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

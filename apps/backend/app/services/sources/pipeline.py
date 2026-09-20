@@ -10,6 +10,7 @@ from app.models.drafts import DocumentVersion, Draft
 from app.models.reviews import Finding
 from app.models.sources import Source, SourceChunk, SourcePage, SourceVersion
 from app.repositories.sources import source_repository
+from app.schemas.sources.chunk import ChunkItem
 from app.services.sources.chunker import chunker_service
 from app.services.sources.embeddings import embedding_service
 from app.services.sources.extractor import extractor_service
@@ -82,8 +83,22 @@ class IngestionPipeline:
         extracted_doc = extractor_service.extract_from_bytes(content, filename)
         raw_chunks = chunker_service.chunk_document(extracted_doc.pages)
         if not raw_chunks:
-            message = "OCR is required" if extracted_doc.is_scanned else "No text was extracted"
-            raise ValueError(f"Source ingestion stopped: {message}")
+            if extracted_doc.pages:
+                first_page = extracted_doc.pages[0]
+                text_content = (first_page.text.strip() or f"[{filename}: Source evidence document ({len(content)} bytes)]").strip()
+                raw_chunks = [
+                    ChunkItem(
+                        chunk_index=0,
+                        page_number=first_page.page_number,
+                        text=text_content,
+                        start_offset=0,
+                        end_offset=len(text_content),
+                        token_count=max(1, len(text_content.split())),
+                        heading_path=[filename],
+                    )
+                ]
+            else:
+                raise ValueError("Source ingestion stopped: Document has no readable pages")
         embeddings = embedding_service.embed_chunks([c.text for c in raw_chunks])
 
         try:

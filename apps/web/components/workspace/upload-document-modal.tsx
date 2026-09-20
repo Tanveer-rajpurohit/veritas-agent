@@ -267,39 +267,42 @@ export function UploadDocumentModal({
                   fileInputRef.current?.click();
                 }
               }}
-              className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-[background-color,border-color,box-shadow] cursor-pointer focus-visible:ring-2 focus-visible:ring-[#487aa8]/20 focus-visible:outline-none ${
+              className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed text-center transition-[background-color,border-color,box-shadow] cursor-pointer focus-visible:ring-2 focus-visible:ring-[#487aa8]/20 focus-visible:outline-none ${
                 isDragging
-                  ? "border-[#487aa8] bg-[#edf4fa]/60"
+                  ? "border-[#487aa8] bg-[#edf4fa]/60 p-6"
                   : selectedFile
-                    ? "border-[#487aa8]/50 bg-[#f8fbfe]"
-                    : "border-stone-200/90 bg-stone-50/40 hover:border-[#487aa8]/40 hover:bg-[#edf4fa]/30"
+                    ? "border-[#487aa8]/50 bg-[#f8fbfe] p-3 sm:p-3.5"
+                    : "border-stone-200/90 bg-stone-50/40 hover:border-[#487aa8]/40 hover:bg-[#edf4fa]/30 p-6"
               }`}
             >
               {selectedFile ? (
-                <div className="flex items-center gap-3 w-full max-w-sm">
-                  <ColoredFileIcon
-                    filename={selectedFile.name}
-                    category={category}
-                    size="md"
-                  />
-                  <div className="min-w-0 flex-1 text-left">
-                    <p className="m-0 text-xs font-semibold text-stone-900 truncate">
-                      {selectedFile.name}
-                    </p>
-                    <p className="m-0 text-[11px] text-stone-500 font-mono pt-0.5">
-                      {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB ·
-                      Ready to upload
-                    </p>
+                <div className="flex items-center justify-between gap-3 w-full px-1">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <ColoredFileIcon
+                      filename={selectedFile.name}
+                      category={category}
+                      size="md"
+                    />
+                    <div className="min-w-0 text-left">
+                      <p className="m-0 text-xs font-semibold text-stone-900 truncate">
+                        {selectedFile.name}
+                      </p>
+                      <p className="m-0 text-[11px] text-stone-500 font-mono pt-0.5">
+                        {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB ·
+                        Ready to upload
+                      </p>
+                    </div>
                   </div>
                   <button
                     type="button"
+                    aria-label="Remove selected file"
                     onClick={(e) => {
                       e.stopPropagation();
                       setSelectedFile(null);
                     }}
-                    className="ml-2 rounded-md p-1 text-stone-400 hover:bg-stone-200/60 hover:text-stone-700 cursor-pointer shrink-0"
+                    className="rounded-md p-1.5 text-stone-400 hover:bg-stone-200/60 hover:text-stone-700 cursor-pointer shrink-0 transition-colors"
                   >
-                    <XIcon size={13} />
+                    <XIcon size={14} />
                   </button>
                 </div>
               ) : (

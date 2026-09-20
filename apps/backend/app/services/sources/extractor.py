@@ -20,24 +20,57 @@ class ExtractorService:
         file_bytes: bytes,
         filename: str = "document.pdf",
     ) -> ExtractedDocument:
-        """Extracts text, checksums, and dimensions directly from in-memory bytes."""
         ext = Path(filename).suffix.lower()
         if ext in (".txt", ".md"):
             return self._extract_plain_text(file_bytes)
 
         doc = pymupdf.open(stream=file_bytes, filetype="pdf")
-        return self._process_fitz_doc(doc, method="pymupdf")
+        return self._process_fitz_doc(doc, method="pymupdf", filename=filename)
 
     def extract_from_file(self, file_path: str | Path) -> ExtractedDocument:
-        """Extracts text, checksums, and dimensions from a local file path."""
         path = Path(file_path)
         if path.suffix.lower() in (".txt", ".md"):
             return self._extract_plain_text(path.read_bytes())
 
         doc = pymupdf.open(str(path))
-        return self._process_fitz_doc(doc, method="pymupdf")
+        return self._process_fitz_doc(doc, method="pymupdf", filename=path.name)
 
-    def _process_fitz_doc(self, doc, method: str) -> ExtractedDocument:
+    def _try_ocr_page(self, page) -> str | None:
+        try:
+            tp = page.get_textpage_ocr(dpi=150)
+            text = tp.extractText().strip()
+            if text:
+                return text
+        except Exception:
+            pass
+
+        try:
+            from rapidocr_onnxruntime import RapidOCR
+            engine = RapidOCR()
+            pix = page.get_pixmap(dpi=150)
+            result, _ = engine(pix.tobytes("png"))
+            if result:
+                lines = [line[1] for line in result if line and len(line) > 1 and line[1]]
+                if lines:
+                    return "\n".join(lines).strip()
+        except Exception:
+            pass
+
+        try:
+            import io
+            import pytesseract
+            from PIL import Image
+            pix = page.get_pixmap(dpi=150)
+            img = Image.open(io.BytesIO(pix.tobytes("png")))
+            text = pytesseract.image_to_string(img).strip()
+            if text:
+                return text
+        except Exception:
+            pass
+
+        return None
+
+    def _process_fitz_doc(self, doc, method: str, filename: str = "document.pdf") -> ExtractedDocument:
         pages: list[ExtractedPage] = []
         total_chars = 0
         total_pages = len(doc)
@@ -50,15 +83,36 @@ class ExtractorService:
             height = float(rect.height)
 
             raw_text = page.get_text("text").strip()
-            char_count = len(raw_text)
-            total_chars += char_count
+            if not raw_text or len(raw_text) < 30:
+                blocks = page.get_text("blocks")
+                block_texts = [b[4].strip() for b in blocks if len(b) > 4 and b[4].strip()]
+                if block_texts:
+                    raw_text = "\n".join(block_texts).strip()
 
             images = page.get_images()
             confidence = 1.0
-            if char_count < 30 and len(images) > 0:
-                confidence = 0.2
-                has_scanned_pages = True
+            if len(raw_text) < 30 and len(images) > 0:
+                ocr_candidate = self._try_ocr_page(page)
+                if ocr_candidate:
+                    raw_text = ocr_candidate
+                    confidence = 0.85
+                else:
+                    confidence = 0.4
+                    has_scanned_pages = True
 
+            if not raw_text:
+                has_scanned_pages = True
+                confidence = 0.3
+                meta_title = (doc.metadata.get("title") or "").strip()
+                lines = [
+                    f"[{filename} - Page {page_num} of {total_pages}: Scanned evidence record ({int(width)}x{int(height)} pt)]"
+                ]
+                if meta_title:
+                    lines.append(f"Title: {meta_title}")
+                raw_text = "\n".join(lines)
+
+            char_count = len(raw_text)
+            total_chars += char_count
             text_hash = self._compute_sha256(raw_text)
 
             pages.append(
