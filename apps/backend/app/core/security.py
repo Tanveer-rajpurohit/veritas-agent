@@ -65,6 +65,30 @@ def generate_opaque_token(nbytes: int = 32) -> str:
     return secrets.token_urlsafe(nbytes)
 
 
+def generate_refresh_token() -> str:
+    return secrets.token_urlsafe(48)
+
+
+def create_access_token(user_id: str, expires_minutes: int | None = None) -> str:
+    import jwt as pyjwt
+    from datetime import UTC, datetime, timedelta
+
+    exp = datetime.now(UTC) + timedelta(minutes=expires_minutes or settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    return pyjwt.encode({"sub": user_id, "exp": exp, "type": "access"}, settings.AUTH_SECRET or "veritas-dev-secret", algorithm="HS256")
+
+
+def decode_access_token(token: str) -> str | None:
+    import jwt as pyjwt
+
+    try:
+        payload = pyjwt.decode(token, settings.AUTH_SECRET or "veritas-dev-secret", algorithms=["HS256"])
+        if payload.get("type") != "access":
+            return None
+        return str(payload.get("sub"))
+    except Exception:
+        return None
+
+
 def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 

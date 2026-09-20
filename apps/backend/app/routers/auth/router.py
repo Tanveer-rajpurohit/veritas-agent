@@ -22,10 +22,12 @@ from app.schemas.auth import (
     ForgotPasswordRequest,
     LoginRequest,
     MessageResponse,
+    RefreshRequest,
     RegisterRequest,
     ResendVerificationRequest,
     ResetPasswordRequest,
     SessionResponse,
+    TokenPair,
     UpdateProfileRequest,
     UserResponse,
     VerifyEmailRequest,
@@ -83,14 +85,14 @@ async def resend_verification(
     )
 
 
-@router.post("/login", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/login", response_model=TokenPair)
 async def login(
     payload: LoginRequest,
     request: Request,
     response: Response,
     db: Annotated[Session, Depends(get_db)],
     redis: Annotated[Redis | None, redis_dependency] = None,
-) -> None:
+):
     email_clean = normalize_email(payload.email)
     failed_key = f"failed_logins:email:{email_clean}"
 
@@ -104,7 +106,7 @@ async def login(
 
     service = AuthService(db)
     try:
-        _, raw_session_token, _ = service.login(
+        logged_user, raw_session_token, _ = service.login(
             email=payload.email,
             password=payload.password,
             ip=request.client.host if request.client else None,
@@ -132,7 +134,39 @@ async def login(
         with contextlib.suppress(Exception):
             await redis.delete(failed_key)
 
+    from app.core.security import create_access_token, generate_refresh_token
+
     set_session_cookie(response, raw_session_token)
+    access_token = create_access_token(str(logged_user.id))
+    refresh_token = generate_refresh_token()
+    if redis is not None:
+        with contextlib.suppress(Exception):
+            await redis.set(f"refresh_token:{refresh_token}", str(logged_user.id), ex=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400)
+    return TokenPair(access_token=access_token, refresh_token=refresh_token, expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60)
+
+
+@router.post("/refresh", response_model=TokenPair)
+async def refresh(
+    payload: RefreshRequest,
+    db: Annotated[Session, Depends(get_db)],
+    redis: Annotated[Redis | None, redis_dependency] = None,
+) -> TokenPair:
+    from app.core.security import create_access_token, generate_refresh_token
+    from app.repositories.auth.auth_repository import AuthRepository
+
+    if redis is None:
+        raise AuthException(code="SESSION_UNAVAILABLE", message="Session storage unavailable. Please log in again.", status_code=503)
+    user_id = await redis.get(f"refresh_token:{payload.refresh_token}")
+    if not user_id:
+        raise AuthException(code="AUTHENTICATION_REQUIRED", message="Invalid or expired refresh token.", status_code=401)
+    user_id_str = user_id.decode() if isinstance(user_id, bytes) else str(user_id)
+    await redis.delete(f"refresh_token:{payload.refresh_token}")
+    user = AuthRepository(db).get_user_by_id(user_id_str)
+    if user is None or not user.is_active:
+        raise AuthException(code="AUTHENTICATION_REQUIRED", message="Account unavailable. Please log in again.", status_code=401)
+    new_refresh = generate_refresh_token()
+    await redis.set(f"refresh_token:{new_refresh}", user_id_str, ex=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400)
+    return TokenPair(access_token=create_access_token(user_id_str), refresh_token=new_refresh, expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60)
 
 
 @router.get("/me", response_model=UserResponse)

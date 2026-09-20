@@ -35,40 +35,49 @@ class ExtractorService:
         doc = pymupdf.open(str(path))
         return self._process_fitz_doc(doc, method="pymupdf", filename=path.name)
 
-    def _try_ocr_page(self, page) -> str | None:
-        try:
-            tp = page.get_textpage_ocr(dpi=150)
-            text = tp.extractText().strip()
-            if text:
-                return text
-        except Exception:
-            pass
+    _rapid_engine = None
 
-        try:
+    def _rapid_engine_singleton(self):
+        if ExtractorService._rapid_engine is None:
             from rapidocr_onnxruntime import RapidOCR
-            engine = RapidOCR()
+
+            ExtractorService._rapid_engine = RapidOCR()
+        return ExtractorService._rapid_engine
+
+    def _try_ocr_page(self, page) -> tuple[str | None, str]:
+        try:
+            engine = self._rapid_engine_singleton()
             pix = page.get_pixmap(dpi=150)
             result, _ = engine(pix.tobytes("png"))
             if result:
                 lines = [line[1] for line in result if line and len(line) > 1 and line[1]]
                 if lines:
-                    return "\n".join(lines).strip()
+                    text = "\n".join(lines).strip()
+                    if text:
+                        return text, "rapidocr"
         except Exception:
             pass
-
+        try:
+            tp = page.get_textpage_ocr(dpi=150)
+            text = tp.extractText().strip()
+            if text:
+                return text, "pymupdf-ocr"
+        except Exception:
+            pass
         try:
             import io
+
             import pytesseract
             from PIL import Image
+
             pix = page.get_pixmap(dpi=150)
             img = Image.open(io.BytesIO(pix.tobytes("png")))
             text = pytesseract.image_to_string(img).strip()
             if text:
-                return text
+                return text, "tesseract"
         except Exception:
             pass
-
-        return None
+        return None, "ocr_unavailable"
 
     def _process_fitz_doc(self, doc, method: str, filename: str = "document.pdf") -> ExtractedDocument:
         pages: list[ExtractedPage] = []
@@ -91,14 +100,17 @@ class ExtractorService:
 
             images = page.get_images()
             confidence = 1.0
+            method_used = method
             if len(raw_text) < 30 and len(images) > 0:
-                ocr_candidate = self._try_ocr_page(page)
+                ocr_candidate, ocr_method = self._try_ocr_page(page)
                 if ocr_candidate:
                     raw_text = ocr_candidate
                     confidence = 0.85
+                    method_used = ocr_method
                 else:
                     confidence = 0.4
                     has_scanned_pages = True
+                    method_used = "needs_review_ocr_unavailable"
 
             if not raw_text:
                 has_scanned_pages = True

@@ -41,12 +41,22 @@ def clear_session_cookie(response: Response) -> None:
 def get_current_session(
     request: Request,
     db: Annotated[Session, Depends(get_db)],
-) -> tuple[User, UserSession]:
+) -> tuple[User, UserSession | None]:
+    from app.core.security import decode_access_token
+
+    auth_header = request.headers.get("authorization", "")
+    if auth_header.lower().startswith("bearer "):
+        user_id = decode_access_token(auth_header[7:].strip())
+        if user_id:
+            repo = AuthRepository(db)
+            user = repo.get_user_by_id(user_id)
+            if user is not None:
+                return user, None
     raw_token = request.cookies.get(settings.SESSION_COOKIE_NAME)
     if not raw_token:
         raise AuthException(
             code="AUTHENTICATION_REQUIRED",
-            message="Authentication required",
+            message="Authentication required. Please log in again.",
             status_code=401,
         )
 

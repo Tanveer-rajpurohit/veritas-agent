@@ -15,8 +15,11 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: list[str] = [
         "http://localhost:3000",
         "http://localhost:3001",
+        "http://127.0.0.1:3000",
         "http://127.0.0.1:3001",
     ]
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     APP_BASE_URL: str = "http://localhost:3000"
     SESSION_COOKIE_NAME: str = "veritas_session"
     SESSION_TTL_SECONDS: int = 604800

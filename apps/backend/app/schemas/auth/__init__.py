@@ -11,6 +11,8 @@ from app.schemas.auth.auth import (
     UpdateProfileRequest,
     UserResponse,
     VerifyEmailRequest,
+    TokenPair,
+    RefreshRequest,
 )
 
 __all__ = [
@@ -26,4 +28,6 @@ __all__ = [
     "UpdateProfileRequest",
     "UserResponse",
     "VerifyEmailRequest",
+    "TokenPair",
+    "RefreshRequest",
 ]

@@ -14,5 +14,8 @@ pgvector>=0.3.6
 psycopg[binary]>=3.2.4
 pwdlib[argon2]>=0.2.0
 pymupdf>=1.25.3
+rapidocr-onnxruntime>=1.3.0
+pillow>=10.0.0
+pyjwt>=2.8.0
 redis>=5.0.0
 sqlalchemy==2.0.54
