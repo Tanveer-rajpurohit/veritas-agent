@@ -6,11 +6,23 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class NormalizedFact(BaseModel):
+    """A normalized atomic fact extracted from a draft block.
+
+    NOTE on field limits: the previous cap of 1000 characters on ``raw_value``
+    and ``canonical_value`` was the direct cause of the
+    ``ValidationError: ... String should have at most 1000 characters`` crash
+    that killed agent runs whenever a long legal paragraph (e.g. a multi-line
+    recommendation block) was normalized as an ``event`` claim. The limits are
+    now aligned with the parent ``FactClaim.text`` field (4000 chars) plus a
+    safety margin, and the extractor additionally truncates defensively, so a
+    single long block can never break a whole drafting run.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
     kind: Literal["monetary_amount", "date", "party", "identifier", "event", "legal_text"]
-    raw_value: str = Field(min_length=1, max_length=1000)
-    canonical_value: str = Field(min_length=1, max_length=1000)
+    raw_value: str = Field(min_length=1, max_length=8000)
+    canonical_value: str = Field(min_length=1, max_length=8000)
     unit_or_currency: str | None = Field(default=None, max_length=50)
     numeric_value: float | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)

@@ -14,6 +14,8 @@ import {
   EyeIcon,
   PanelLeftIcon,
   SearchIcon,
+  CheckIcon,
+  CopyIcon,
 } from "../../components/workspace/workspace-icons";
 import { useMatters, useCreateMatter } from "../../hooks/matters/useMatters";
 import { useUploadSource } from "../../hooks/sources/useSources";
@@ -87,14 +89,27 @@ const TEST_DOCUMENTS: TestDocument[] = [
     badgeColor: "border-[#cbe0f2] bg-[#edf4fa] text-[#2c5478]",
   },
   {
+    id: "ibc-section-7-statute",
+    title: "IBC Section 7 — Statute Extract (Financial Creditor CIRP)",
+    category: "Official Gazette & Rules",
+    sourceName: "India Code / eCourts Statute Repository",
+    fileSize: "9.2 KB",
+    description:
+      "Verbatim statutory text of Section 7 IBC 2016 governing initiation of CIRP by a financial creditor. Used to verify Writer grounds a Section 7 petition on the correct provision.",
+    testingRole: "Confirms lookup_statute materializes exact provision text as evidence.",
+    href: "/test-docs/ibc-section-7-statute.pdf",
+    format: "PDF",
+    badgeColor: "border-[#cbe0f2] bg-[#edf4fa] text-[#2c5478]",
+  },
+  {
     id: "nesl-record-default",
     title: "NeSL Information Utility Record of Default (Form D Certificate)",
     category: "Evidence Dossiers",
     sourceName: "National E-Governance Services Ltd (IU)",
     fileSize: "9.6 KB",
     description:
-      "Authenticated default certificate (UDI-2024-ND-883921) recording default date as 15.01.2023. Contains intentional date discrepancy against Annexure B ledger statement (28.02.2023).",
-    testingRole: "Triggers Fact Reviewer discrepancy detection between NeSL IU record and bank ledger.",
+      "Authenticated default certificate (UDI-2024-ND-883921) recording default date as 15.01.2023. Contains intentional date discrepancy against the bank ledger statement (28.02.2023).",
+    testingRole: "Triggers Fact Reviewer discrepancy detection between NeSL IU record and the bank ledger.",
     href: "/test-docs/nesl-record-of-default.pdf",
     format: "PDF",
     badgeColor: "border-amber-200 bg-amber-50 text-amber-800",
@@ -125,6 +140,134 @@ const TEST_DOCUMENTS: TestDocument[] = [
     format: "PDF",
     badgeColor: "border-purple-200 bg-purple-50 text-purple-800",
   },
+  {
+    id: "gst-tax-invoice",
+    title: "GST Tax Invoice — Apex Logistics (INR 30.09 L, Overdue)",
+    category: "Evidence Dossiers",
+    sourceName: "Commercial Invoice / GST Evidence",
+    fileSize: "4.1 KB",
+    description:
+      "GST-compliant tax invoice APX-GST/2023-24/0042 dated 28.02.2023 for freight, warehousing and last-mile delivery. Records a balance due of INR 30,09,000/- overdue since 31.03.2023.",
+    testingRole:
+      "Tests Writer drafting a Section 8/9 IBC demand from a GST invoice and Fact Reviewer detection of an unpaid operational debt. Pairs with the bank-ledger and Section 8 notice dossiers.",
+    href: "/test-docs/gst-tax-invoice.pdf",
+    format: "PDF",
+    badgeColor: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  },
+  {
+    id: "bank-ledger-statement",
+    title: "Bank Account Ledger Statement — Essel Infra (Default 15.01.2023)",
+    category: "Evidence Dossiers",
+    sourceName: "Banking Record / Default Evidence",
+    fileSize: "3.8 KB",
+    description:
+      "J&K Bank term-loan ledger recording EMI default on 15.01.2023 (discrepant with NeSL IU date 28.02.2023) and outstanding INR 3.07 Cr. Classifies the account as NPA on 10.03.2023.",
+    testingRole:
+      "Triggers Fact Reviewer to detect the date discrepancy between the bank ledger (15.01.2023) and the NeSL record of default (28.02.2023).",
+    href: "/test-docs/bank-ledger-statement.pdf",
+    format: "PDF",
+    badgeColor: "border-amber-200 bg-amber-50 text-amber-800",
+  },
+  {
+    id: "section-8-demand-notice",
+    title: "Section 8 IBC Demand Notice — Apex Logistics → Essel Infra",
+    category: "Evidence Dossiers",
+    sourceName: "Statutory Demand Notice",
+    fileSize: "4.5 KB",
+    description:
+      "Complete Section 8 IBC demand notice for INR 30,09,000/- calling upon Essel Infraprojects Ltd to pay within 10 days. Tied to the GST invoice and bank ledger dossiers.",
+    testingRole:
+      "Tests Writer agent's ability to draft a Section 9 IBC petition and Fact Reviewer verification of the 10-day demand period and debt amount.",
+    href: "/test-docs/section-8-demand-notice.pdf",
+    format: "PDF",
+    badgeColor: "border-purple-200 bg-purple-50 text-purple-800",
+  },
+  {
+    id: "legal-notice-section-80",
+    title: "Section 80 CPC Legal Notice — Mehta Trading → Sterling Retail (INR 12.45 L)",
+    category: "Evidence Dossiers",
+    sourceName: "Pre-Suit Statutory Notice",
+    fileSize: "3.5 KB",
+    description:
+      "Section 80 CPC notice giving 60 days to pay INR 12,45,000/- for supplied dry-groceries. Establishes a Contract Act recovery claim with GRN-acknowledged deliveries.",
+    testingRole:
+      "Tests Writer agent's ability to draft a commercial civil suit and Fact Reviewer verification of the 60-day statutory waiting period and debt amount.",
+    href: "/test-docs/legal-notice-section-80-cpc.pdf",
+    format: "PDF",
+    badgeColor: "border-purple-200 bg-purple-50 text-purple-800",
+  },
+];
+
+interface TestPrompt {
+  id: string;
+  title: string;
+  matter: string;
+  uploads: string;
+  prompt: string;
+  expect: string;
+}
+
+const TESTER_PLAYBOOK: TestPrompt[] = [
+  {
+    id: "tp-1",
+    title: "End-to-end: Section 9 IBC petition from a GST invoice",
+    matter: "Create a matter titled “Essel Infra — Operational Debt”",
+    uploads: "gst-tax-invoice.pdf + bank-ledger-statement.pdf + section-8-demand-notice.pdf",
+    prompt:
+      "Draft a Section 9 IBC application by Apex Logistics against Essel Infraprojects Ltd for the unpaid operational debt of INR 30,09,000. Cite the GST invoice, the bank ledger default date, and confirm the 10-day Section 8 demand period was served.",
+    expect:
+      "Writer drafts a complete Form 5 petition with placeholders for IRP/Resolution Professional. Fact Reviewer flags the date discrepancy (15.01.2023 ledger vs 28.02.2023 NeSL). Citation Reviewer checks Section 8 & 9 IBC provisions.",
+  },
+  {
+    id: "tp-2",
+    title: "Citation hallucination trap (Pooja v. J&K Bank)",
+    matter: "Create a matter titled “Citation Provenance Test”",
+    uploads: "pooja-ramesh-singh-sc-2026.pdf",
+    prompt:
+      "Check every authority in this draft against the Supreme Court's 2026 ruling in Pooja Ramesh Singh and flag any hallucinated or non-existent citation.",
+    expect:
+      "Citation Reviewer reports identity, quotation, proposition-support and treatment. Any invented paragraph or fake precedent should surface as “unresolved/contradicted”.",
+  },
+  {
+    id: "tp-3",
+    title: "No-evidence draft (must NOT stop)",
+    matter: "Create an empty matter titled “No Evidence Draft”",
+    uploads: "(none — leave the matter empty)",
+    prompt:
+      "Draft a Section 7 IBC application by a financial creditor based on a default of INR 5 crore. I'll fill in the party names and dates later.",
+    expect:
+      "Writer proceeds using statutory + case-law research and inserts [PLACEHOLDER: …] tokens for the unknown party name, date and account number. The run must NOT fail with “no documents attached”.",
+  },
+  {
+    id: "tp-4",
+    title: "Fact discrepancy detection",
+    matter: "Create a matter titled “Date Discrepancy Audit”",
+    uploads: "nesl-record-of-default.pdf + bank-ledger-statement.pdf",
+    prompt:
+      "Audit the default date in this Matter. The NeSL record says 28.02.2023 and the bank ledger says 15.01.2023 — which one is the operational default date and why?",
+    expect:
+      "Fact Reviewer flags the two dates as “contradicted” across the two evidence spans and the Main Agent explains the discrepancy in one focused answer.",
+  },
+  {
+    id: "tp-5",
+    title: "Section 80 CPC commercial suit",
+    matter: "Create a matter titled “Mehta v. Sterling Retail”",
+    uploads: "legal-notice-section-80-cpc.pdf",
+    prompt:
+      "Prepare a commercial civil suit for recovery of INR 12,45,000 with 18% interest, grounded in the Section 80 CPC notice and the three acknowledged GRNs.",
+    expect:
+      "Writer drafts a plaint with the Contract Act s.73/74 claim, placeholders for court fees, and one unresolved question on whether limitation has run.",
+  },
+  {
+    id: "tp-6",
+    title: "General answer (no matter selected)",
+    matter: "(no matter — Auto mode)",
+    uploads: "(none)",
+    prompt:
+      "What are the grounds to initiate CIRP under Section 7 of the IBC and what evidence does a financial creditor need to show at the admission stage?",
+    expect:
+      "Main Agent answers from statutory + case-law research in iterative visible steps. It must NOT refuse for lack of an attached Matter.",
+  },
 ];
 
 export default function TestDocsPage() {
@@ -136,15 +279,16 @@ export default function TestDocsPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const { data: backendMatters } = useMatters();
+  const { data: backendMatter } = useMatters();
   const createMatterMutation = useCreateMatter();
   const uploadSourceMutation = useUploadSource();
   const { data: threads } = useThreads(null);
   const deleteThreadMutation = useDeleteThread();
 
   const chatSessions = (threads ?? []).map((t) => {
-    const linkedMatter = backendMatters?.find((m) => m.id === t.matter_id);
+    const linkedMatter = backendMatter?.find((m) => m.id === t.matter_id);
     return {
       id: t.id,
       title: t.title || "Untitled consultation",
@@ -154,7 +298,7 @@ export default function TestDocsPage() {
     };
   });
 
-  const matters: Matter[] = (backendMatters ?? []).map((m) => ({
+  const matters: Matter[] = (backendMatter ?? []).map((m) => ({
     id: m.id,
     name: m.title,
     caseNumber: m.case_number ?? `MATTER-${m.id.slice(0, 6).toUpperCase()}`,
@@ -255,6 +399,16 @@ export default function TestDocsPage() {
     });
   }, [searchQuery, categoryFilter]);
 
+  const handleCopyPrompt = useCallback(async (text: string, id: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 1600);
+    } catch {
+      void 0;
+    }
+  }, []);
+
   return (
     <div className="flex h-screen w-full gap-1 overflow-hidden bg-[#eaf0f6] p-1 font-sans text-stone-900 antialiased sm:gap-1.5 sm:p-1.5 select-none">
       <AppSidebar
@@ -289,11 +443,12 @@ export default function TestDocsPage() {
                   Test Library &amp; Evidence Repository
                 </h1>
                 <span className="rounded-sm bg-[#edf4fa] px-2 py-0.5 text-[10.5px] font-medium text-[#2c5478] border border-[#cbe0f2]">
-                  {TEST_DOCUMENTS.length} Official &amp; Benchmark Documents
+                  {TEST_DOCUMENTS.length} Matter &amp; Benchmark Documents
                 </span>
               </div>
               <p className="mt-1 text-xs text-stone-500 max-w-2xl">
-                Official Gazette statutes, Supreme Court landmark rulings on AI hallucinations, and benchmark evidence dossiers for testing Veritas workflows.
+                Official Gazette statutes, Supreme Court landmark rulings on AI hallucinations, and
+                benchmark evidence dossiers for testing Veritas workflows end to end.
               </p>
             </div>
 
@@ -358,6 +513,77 @@ export default function TestDocsPage() {
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:p-6 bg-[#fafbfc]">
+          {/* ---- Tester Playbook ---- */}
+          <section className="mb-6 rounded-xl border border-[#cbe0f2] bg-gradient-to-br from-[#f7fbfe] to-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="text-sm font-semibold text-stone-950">
+                  Tester Playbook — copy-paste prompts for proper testing
+                </h2>
+                <p className="mt-1 text-xs text-stone-500 max-w-3xl">
+                  Each scenario tells you which Matter to create, which PDFs to upload into it, the
+                  exact prompt to paste into the Agent, and what to expect. Follow them in order to
+                  exercise drafting, fact review, citation review and the no-evidence fallback.
+                </p>
+              </div>
+              <span className="inline-flex items-center rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10.5px] font-semibold text-emerald-700">
+                {TESTER_PLAYBOOK.length} test scenarios
+              </span>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+              {TESTER_PLAYBOOK.map((tp) => (
+                <div
+                  key={tp.id}
+                  className="flex flex-col rounded-lg border border-stone-200 bg-white p-3.5 hover:border-[#487aa8]/60 transition-colors"
+                >
+                  <h3 className="text-[13px] font-semibold text-stone-900 leading-snug">
+                    {tp.title}
+                  </h3>
+                  <dl className="mt-2 space-y-1 text-[11.5px] leading-relaxed">
+                    <div className="flex gap-1.5">
+                      <dt className="font-semibold text-[#2c5478] shrink-0">Matter:</dt>
+                      <dd className="text-stone-700">{tp.matter}</dd>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <dt className="font-semibold text-[#2c5478] shrink-0">Upload:</dt>
+                      <dd className="text-stone-700">{tp.uploads}</dd>
+                    </div>
+                  </dl>
+                  <div className="mt-2.5 rounded-md border border-[#cbe0f2]/80 bg-[#f4f8fc] p-2.5">
+                    <p className="text-[11px] leading-relaxed text-stone-800">
+                      <span className="font-semibold text-[#2c5478]">Prompt: </span>
+                      {tp.prompt}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyPrompt(tp.prompt, tp.id)}
+                      className="mt-2 inline-flex h-6 items-center gap-1.5 rounded border border-stone-200 bg-white px-2 text-[10.5px] font-medium text-stone-700 hover:border-[#487aa8] hover:bg-[#edf4fa] hover:text-[#2c5478] transition-colors cursor-pointer"
+                      aria-label="Copy prompt to clipboard"
+                    >
+                      {copiedId === tp.id ? (
+                        <>
+                          <CheckIcon size={11} className="text-emerald-600" />
+                          <span>Copied</span>
+                        </>
+                      ) : (
+                        <>
+                          <CopyIcon size={11} />
+                          <span>Copy prompt</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p className="mt-2 text-[11px] leading-relaxed text-stone-600">
+                    <span className="font-semibold text-stone-800">Expect: </span>
+                    {tp.expect}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* ---- Document grid ---- */}
           <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
             {filteredDocs.map((doc) => (
               <div
@@ -447,6 +673,37 @@ export default function TestDocsPage() {
               <p className="text-xs text-stone-500 mt-1">Try clearing the search query or category filter.</p>
             </div>
           )}
+
+          {/* ---- How to test (upload into a Matter) ---- */}
+          <section className="mt-6 rounded-xl border border-stone-200/90 bg-[#f7fbfe] p-5">
+            <h2 className="text-sm font-semibold text-stone-950">
+              How to test these PDFs end to end
+            </h2>
+            <ol className="mt-3 space-y-2 text-xs leading-relaxed text-stone-700 list-decimal pl-5 marker:font-semibold marker:text-[#487aa8]">
+              <li>
+                Click <span className="font-semibold">“Go to Workspace”</span> above and create a new
+                Matter (e.g. “Essel Infra — Operational Debt”).
+              </li>
+              <li>
+                Open the Matter, click <span className="font-semibold">Upload Document</span>, and
+                upload one or more of the Evidence Dossier PDFs above (e.g. the GST invoice + bank
+                ledger + Section 8 demand notice).
+              </li>
+              <li>
+                Open the Agent from the sidebar, select that Matter in the composer, then paste one of
+                the Tester Playbook prompts above and send it.
+              </li>
+              <li>
+                Watch the Agent work in visible iterative steps (research → drafting → fact review →
+                citation review). Open the resulting draft in <span className="font-semibold">/drafting</span> to inspect
+                evidence spans, placeholders and review findings.
+              </li>
+            </ol>
+            <p className="mt-3 text-[11px] text-stone-500">
+              Tip: the no-evidence scenario (#3) deliberately uses an empty Matter to verify the Agent
+              drafts from statutory + case-law research with placeholders instead of stopping.
+            </p>
+          </section>
         </div>
       </main>
 

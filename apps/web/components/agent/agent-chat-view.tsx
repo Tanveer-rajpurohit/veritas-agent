@@ -287,30 +287,12 @@ export function AgentChatView({
   const [liveText, setLiveText] = useState("");
   const [runError, setRunError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (initialThreadId !== undefined) {
-      setActiveThreadId(initialThreadId);
-    }
-  }, [initialThreadId]);
-
-  useEffect(() => {
-    if (initialMatterId) {
-      setSelectedMatterId(initialMatterId);
-    }
-  }, [initialMatterId]);
-
-  const currentMatterId = selectedMatterId;
-  const selectedMatter = matters.find((m) => m.id === currentMatterId);
-
   const { data: threadMessages } = useMessages(activeThreadId);
-  const { data: threads } = useThreads(currentMatterId);
+  const { data: threads } = useThreads(selectedMatterId);
   const activeThread = threads?.find((t) => t.id === activeThreadId);
 
-  useEffect(() => {
-    if (activeThread?.matter_id && !selectedMatterId) {
-      setSelectedMatterId(activeThread.matter_id);
-    }
-  }, [activeThread?.matter_id, selectedMatterId]);
+  const currentMatterId = selectedMatterId ?? activeThread?.matter_id ?? initialMatterId ?? null;
+  const selectedMatter = matters.find((m) => m.id === currentMatterId);
 
   const { data: runData } = useAgentRun(activeRunId);
   const applyProposal = useApplyProposal();
@@ -433,6 +415,7 @@ export function AgentChatView({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- deduplication guard to prevent reprocessing
     setHandledRunId(runData.run_id);
     setBusy(false);
+    setLiveText("");
 
     if (runData.status === "failed") {
       const resultMsg = (runData.result as { message?: unknown } | null)?.message;
@@ -550,6 +533,7 @@ export function AgentChatView({
     setInput("");
     setRunError(null);
     setSseStages([]);
+    setLiveText("");
 
     const userMsg: MessageItem = {
       id: `usr-${Date.now()}`,
@@ -660,6 +644,7 @@ export function AgentChatView({
     setActiveRunId(null);
     setLocalMessages([]);
     setSseStages([]);
+    setLiveText("");
     setRunError(null);
     setSelectedSourceIds([]);
     setSideViewerOpen(false);
@@ -1396,6 +1381,11 @@ export function AgentChatView({
                                 <span>{stage.label}</span>
                               </div>
                             ))}
+                          </div>
+                        )}
+                        {liveText && (
+                          <div className="mt-3 pl-3 ml-1 border-l-2 border-[#487aa8] text-[14px] leading-7 text-stone-800 animate-in fade-in duration-150">
+                            <MarkdownContent content={liveText} />
                           </div>
                         )}
                       </div>
