@@ -1042,30 +1042,18 @@ export function StreamlineFileTextIcon({ size = 20, className = "" }: IconProps)
       height={size}
       viewBox="0 0 24 24"
       fill="none"
-      xmlns="http://www.w3.org/2000/svg"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       className={className}
       aria-hidden="true"
     >
-      <path
-        d="M21.207 4.5a1 1 0 0 1 0.293 0.707V22.5a1 1 0 0 1 -1 1h-17a1 1 0 0 1 -1 -1v-21a1 1 0 0 1 1 -1h13.293a1 1 0 0 1 0.707 0.293Z"
-        fill="#edf4fa"
-      />
-      <path
-        d="M20.159 3.452 17.5 0.793A1 1 0 0 0 16.793 0.5H3.5a1 1 0 0 0 -1 1v19.61Z"
-        fill="#ffffff"
-      />
-      <path
-        d="M21.207 4.5a1 1 0 0 1 0.293 0.707V22.5a1 1 0 0 1 -1 1h-17a1 1 0 0 1 -1 -1v-21a1 1 0 0 1 1 -1h13.293a1 1 0 0 1 0.707 0.293Z"
-        stroke="#2c5478"
-        strokeWidth="1.3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path d="m6 16 12 0" stroke="#487aa8" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="m6 19 12 0" stroke="#487aa8" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="m6 13 12 0" stroke="#487aa8" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="m6 10 12 0" stroke="#487aa8" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="m6 7 7 0" stroke="#487aa8" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="16" y1="13" x2="8" y2="13" />
+      <line x1="16" y1="17" x2="8" y2="17" />
+      <line x1="10" y1="9" x2="8" y2="9" />
     </svg>
   );
 }
@@ -1077,33 +1065,16 @@ export function StreamlineFileEditIcon({ size = 20, className = "" }: IconProps)
       height={size}
       viewBox="0 0 24 24"
       fill="none"
-      xmlns="http://www.w3.org/2000/svg"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       className={className}
       aria-hidden="true"
     >
-      <path
-        d="M19.207 4.5a1 1 0 0 1 0.293 0.707V22.5a1 1 0 0 1 -1 1h-17a1 1 0 0 1 -1 -1v-21a1 1 0 0 1 1 -1h13.293a1 1 0 0 1 0.707 0.293Z"
-        fill="#edf4fa"
-      />
-      <path
-        d="M18.159 3.452 15.5 0.793A1 1 0 0 0 14.793 0.5H1.5a1 1 0 0 0 -1 1v19.61Z"
-        fill="#ffffff"
-      />
-      <path
-        d="m22.88 15.12 -7.63 7.63 -3.75 0.75 0.75 -3.75 7.63 -7.63a2.114 2.114 0 0 1 2.992 0l0.008 0.008a2.114 2.114 0 0 1 0 2.992"
-        stroke="#2c5478"
-        strokeWidth="1.3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="#cbe0f2"
-      />
-      <path
-        d="M8.5 23.5h-7a1 1 0 0 1 -1 -1v-21a1 1 0 0 1 1 -1h13.293a1 1 0 0 1 0.707 0.293L19.207 4.5a1 1 0 0 1 0.293 0.707V8.5"
-        stroke="#2c5478"
-        strokeWidth="1.3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <path d="M10.4 12.6a2 2 0 1 1 2.8 2.8L9 19l-3 1 1-3 3.4-3.4z" />
     </svg>
   );
 }
@@ -1115,28 +1086,16 @@ export function StreamlineFolderUploadIcon({ size = 20, className = "" }: IconPr
       height={size}
       viewBox="0 0 24 24"
       fill="none"
-      xmlns="http://www.w3.org/2000/svg"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       className={className}
       aria-hidden="true"
     >
-      <path
-        d="M19.5 17.5a1 1 0 0 0 1 -1v-12a1 1 0 0 0 -1 -1H9.618a1 1 0 0 1 -0.894 -0.553l-0.948 -1.894A1 1 0 0 0 6.882 0.5H1.5a1 1 0 0 0 -1 1v15a1 1 0 0 0 1 1Z"
-        fill="#edf4fa"
-      />
-      <path
-        d="M9.618 3.5a1 1 0 0 1 -0.894 -0.553l-0.948 -1.894A1 1 0 0 0 6.882 0.5H1.5a1 1 0 0 0 -1 1v15a1 1 0 0 0 1 1h0.7l14 -14Z"
-        fill="#ffffff"
-      />
-      <path
-        d="M20.5 8.5v-4a1 1 0 0 0 -1 -1H9.618a1 1 0 0 1 -0.894 -0.553l-0.948 -1.894A1 1 0 0 0 6.882 0.5H1.5a1 1 0 0 0 -1 1v15a1 1 0 0 0 1 1h7"
-        stroke="#2c5478"
-        strokeWidth="1.3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="17.5" cy="17.5" r="5.5" fill="#cbe0f2" stroke="#2c5478" strokeWidth="1.3" />
-      <path d="M17.5 20.5v-6" stroke="#2c5478" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="m15.25 16.75 2.25-2.25 2.25 2.25" stroke="#2c5478" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z" />
+      <path d="M12 11v6" />
+      <path d="m9 14 3-3 3 3" />
     </svg>
   );
 }
@@ -1168,33 +1127,15 @@ export function StreamlineShieldCheckIcon({ size = 20, className = "" }: IconPro
       height={size}
       viewBox="0 0 24 24"
       fill="none"
-      xmlns="http://www.w3.org/2000/svg"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       className={className}
       aria-hidden="true"
     >
-      <path
-        d="M12 2.5s8 2.5 8 8.5c0 6.5-6.5 10.5-8 11-1.5-.5-8-4.5-8-11 0-6 8-8.5 8-8.5Z"
-        fill="#edf4fa"
-      />
-      <path
-        d="M12 2.5v19.5c-1.5-.5-8-4.5-8-11 0-6 8-8.5 8-8.5Z"
-        fill="#ffffff"
-      />
-      <path
-        d="M12 2.5s8 2.5 8 8.5c0 6.5-6.5 10.5-8 11-1.5-.5-8-4.5-8-11 0-6 8-8.5 8-8.5Z"
-        stroke="#2c5478"
-        strokeWidth="1.3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="12" cy="11.5" r="4.5" fill="#cbe0f2" stroke="#2c5478" strokeWidth="1.3" />
-      <path
-        d="m10.2 11.5 1.2 1.3 2.5-2.6"
-        stroke="#2c5478"
-        strokeWidth="1.3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <path d="m9 12 2 2 4-4" />
     </svg>
   );
 }
@@ -1206,63 +1147,18 @@ export function StreamlineScaleIcon({ size = 20, className = "" }: IconProps) {
       height={size}
       viewBox="0 0 24 24"
       fill="none"
-      xmlns="http://www.w3.org/2000/svg"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       className={className}
       aria-hidden="true"
     >
-      <path
-        d="M12 3v17.5M8 21h8"
-        stroke="#2c5478"
-        strokeWidth="1.3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M4.5 7h15"
-        stroke="#2c5478"
-        strokeWidth="1.3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="m4.5 7-2 6h5.5l-2-6Z"
-        fill="#edf4fa"
-      />
-      <path
-        d="M2.5 13c0 1.8 1.4 2.8 3.25 2.8s3.25-1 3.25-2.8H2.5Z"
-        fill="#cbe0f2"
-        stroke="#2c5478"
-        strokeWidth="1.3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="m2.5 13 2-6 1.5 6"
-        stroke="#2c5478"
-        strokeWidth="1.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="m19.5 7-2 6h5.5l-2-6Z"
-        fill="#edf4fa"
-      />
-      <path
-        d="M16.5 13c0 1.8 1.4 2.8 3.25 2.8s3.25-1 3.25-2.8h-6.5Z"
-        fill="#cbe0f2"
-        stroke="#2c5478"
-        strokeWidth="1.3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="m16.5 13 2-6 1.5 6"
-        stroke="#2c5478"
-        strokeWidth="1.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="12" cy="4" r="1.5" fill="#cbe0f2" stroke="#2c5478" strokeWidth="1.3" />
+      <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+      <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+      <path d="M7 21h10" />
+      <path d="M12 3v18" />
+      <path d="M3 7h18" />
     </svg>
   );
 }

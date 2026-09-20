@@ -26,11 +26,16 @@ function AgentClientContent() {
   const activeMatterId = matterIdParam ?? null;
   const { data: threads } = useThreads(activeMatterId);
   const deleteThreadMutation = useDeleteThread();
-  const chatSessions = (threads ?? []).map((t) => ({
-    id: t.id,
-    title: t.title || "Untitled consultation",
-    time: new Date(t.created_at).toLocaleDateString("en-IN"),
-  }));
+  const chatSessions = (threads ?? []).map((t) => {
+    const linkedMatter = backendMatters?.find((m) => m.id === t.matter_id);
+    return {
+      id: t.id,
+      title: t.title || "Untitled consultation",
+      time: new Date(t.created_at).toLocaleDateString("en-IN"),
+      matterId: t.matter_id,
+      matterName: linkedMatter?.title,
+    };
+  });
   const createMatterMutation = useCreateMatter();
   const uploadSourceMutation = useUploadSource();
   const matters: Matter[] = (backendMatters ?? []).map((matter) => ({
@@ -148,6 +153,7 @@ function AgentClientContent() {
         onOpenUpload={handleOpenUpload}
         activeNav="agent"
         onSelectNav={handleSelectNav}
+        activeChatId={sessionParam}
         onSelectChatSession={handleSelectChatSession}
         onDeleteChatSession={handleDeleteChatSession}
         chatSessions={chatSessions}

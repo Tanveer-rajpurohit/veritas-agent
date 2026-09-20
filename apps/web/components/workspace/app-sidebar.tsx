@@ -16,12 +16,15 @@ import {
   BotIcon,
   FileTextIcon,
   TrashIcon,
+  ThreeDotsVerticalIcon,
 } from "./workspace-icons";
 
 export interface SidebarChatSession {
   id: string;
   title: string;
   time: string;
+  matterId?: string;
+  matterName?: string;
 }
 
 interface AppSidebarProps {
@@ -31,6 +34,7 @@ interface AppSidebarProps {
   onOpenUpload: () => void;
   activeNav: string;
   onSelectNav: (nav: string) => void;
+  activeChatId?: string | null;
   onSelectChatSession?: (sessionId: string) => void;
   onDeleteChatSession?: (sessionId: string) => void;
   chatSessions?: SidebarChatSession[];
@@ -45,6 +49,7 @@ export function AppSidebar({
   onOpenUpload,
   activeNav,
   onSelectNav,
+  activeChatId,
   onSelectChatSession,
   onDeleteChatSession,
   chatSessions = [],
@@ -55,6 +60,7 @@ export function AppSidebar({
   const userName = user?.full_name || user?.display_name || user?.email.split("@")[0] || "Veritas user";
   const [newMenuOpen, setNewMenuOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(true);
+  const [openMenuSessionId, setOpenMenuSessionId] = useState<string | null>(null);
 
   return (
     <>
@@ -318,36 +324,84 @@ export function AppSidebar({
             ) : (
               historyOpen && (
                 <div className="flex flex-col gap-0.5 pt-1">
-                  {chatSessions.map((session) => (
-                    <div
-                      key={session.id}
-                      onClick={() => onSelectChatSession?.(session.id)}
-                      className="group flex items-center justify-between rounded-md px-2.5 py-1.5 text-left text-xs transition-colors hover:bg-[#edf4fa] cursor-pointer"
-                    >
-                      <div className="min-w-0 flex-1 pr-1.5">
-                        <span className="block font-medium text-stone-800 group-hover:text-[#487aa8] truncate w-full">
-                          {session.title}
-                        </span>
-                        <span className="block text-[10px] text-stone-400 font-mono pt-0.5">
-                          {session.time}
-                        </span>
+                  {chatSessions.map((session) => {
+                    const isActive = activeChatId === session.id;
+                    const isMenuOpen = openMenuSessionId === session.id;
+                    return (
+                      <div
+                        key={session.id}
+                        onClick={() => onSelectChatSession?.(session.id)}
+                        className={`group relative flex items-center justify-between rounded-md px-2.5 py-1.5 text-left text-xs transition-colors cursor-pointer ${
+                          isActive
+                            ? "bg-[#edf4fa] text-[#2c5478] font-semibold border-l-2 border-[#487aa8] pl-2 shadow-2xs"
+                            : "text-stone-700 hover:bg-[#edf4fa]/60 hover:text-[#2c5478]"
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1 pr-1">
+                          <span
+                            className={`block truncate w-full ${
+                              isActive
+                                ? "font-semibold text-[#2c5478]"
+                                : "font-medium text-stone-800 group-hover:text-[#487aa8]"
+                            }`}
+                          >
+                            {session.title}
+                          </span>
+                          <div className="flex items-center gap-1.5 pt-0.5">
+                            <span className="text-[10px] text-stone-400 font-mono">
+                              {session.time}
+                            </span>
+                            {session.matterName && (
+                              <span className="inline-block truncate max-w-[95px] text-[9.5px] px-1 py-0.2 rounded bg-stone-100 text-stone-600 font-medium">
+                                {session.matterName}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {onDeleteChatSession && (
+                          <div className="relative shrink-0">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuSessionId(isMenuOpen ? null : session.id);
+                              }}
+                              aria-label={`Options for ${session.title}`}
+                              className="opacity-70 sm:opacity-0 sm:group-hover:opacity-100 hover:opacity-100 p-1 rounded hover:bg-stone-200/70 text-stone-400 hover:text-stone-700 transition-all cursor-pointer"
+                              title="Options"
+                            >
+                              <ThreeDotsVerticalIcon size={12} />
+                            </button>
+                            {isMenuOpen && (
+                              <>
+                                <div
+                                  className="fixed inset-0 z-40"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenMenuSessionId(null);
+                                  }}
+                                />
+                                <div className="absolute right-0 top-7 z-50 w-32 rounded-lg border border-stone-200 bg-white p-1 shadow-lg animate-in fade-in zoom-in-95 duration-100">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setOpenMenuSessionId(null);
+                                      onDeleteChatSession(session.id);
+                                    }}
+                                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs text-red-600 hover:bg-red-50 cursor-pointer transition-colors"
+                                  >
+                                    <TrashIcon size={12} className="text-red-500" />
+                                    <span>Delete</span>
+                                  </button>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      {onDeleteChatSession && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDeleteChatSession(session.id);
-                          }}
-                          aria-label={`Delete ${session.title}`}
-                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-stone-200/70 text-stone-400 hover:text-red-600 transition-all shrink-0 cursor-pointer"
-                          title="Delete consultation"
-                        >
-                          <TrashIcon size={12} />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                   {chatSessions.length === 0 && (
                     <div className="px-2.5 py-3 text-center text-[11px] text-stone-400">
                       No consultations yet

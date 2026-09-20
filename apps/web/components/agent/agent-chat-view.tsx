@@ -21,6 +21,7 @@ import {
   FolderIcon,
   SearchIcon,
   PlusIcon,
+  XIcon,
   ColoredFileIcon,
   AlertCircleIcon,
   SparklesIcon,
@@ -280,6 +281,9 @@ export function AgentChatView({
   const [sseStages, setSseStages] = useState<SSEEvent[]>([]);
   const [runError, setRunError] = useState<string | null>(null);
 
+  const currentMatterId = selectedMatterId;
+  const selectedMatter = matters.find((m) => m.id === currentMatterId);
+
   const { data: threadMessages } = useMessages(activeThreadId);
   const { data: threads } = useThreads(currentMatterId);
   const activeThread = threads?.find((t) => t.id === activeThreadId);
@@ -294,9 +298,6 @@ export function AgentChatView({
     setCopiedMessageId(id);
     setTimeout(() => setCopiedMessageId(null), 2000);
   };
-
-  const currentMatterId = selectedMatterId;
-  const selectedMatter = matters.find((m) => m.id === currentMatterId);
 
   const filteredMatters = matters.filter(
     (m) =>
@@ -693,7 +694,7 @@ export function AgentChatView({
               >
                 <PlusIcon
                   size={15}
-                  className={`transition-transform duration-150 ${addMenuOpen ? "rotate-45" : ""}`}
+                  className={`transition-transform duration-150 origin-center ${addMenuOpen ? "rotate-45" : ""}`}
                 />
               </button>
 
@@ -915,16 +916,16 @@ export function AgentChatView({
           <div className="flex items-center gap-2 shrink-0">
             {selectedAgent !== "main" && (
               <div className="flex items-center gap-1.5 rounded-full border border-[#cbe0f2] bg-[#edf4fa] px-2.5 py-1 text-xs font-semibold text-[#2c5478] shadow-2xs animate-in fade-in duration-150">
-                <activeAgentConfig.icon size={13} className="text-[#2c5478]" />
+                <activeAgentConfig.icon size={13} className="text-[#2c5478] shrink-0" />
                 <span>{activeAgentConfig.name}</span>
                 <button
                   type="button"
                   onClick={() => setSelectedAgent("main")}
-                  className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full text-stone-400 hover:bg-[#dce9f4] hover:text-[#2c5478] cursor-pointer transition-colors"
+                  className="ml-1 flex items-center justify-center text-[#2c5478]/50 hover:text-[#2c5478] hover:scale-110 active:scale-95 cursor-pointer transition-all focus-visible:outline-none"
                   aria-label="Remove agent filter"
                   title="Switch back to full orchestration"
                 >
-                  ✕
+                  <XIcon size={11} />
                 </button>
               </div>
             )}

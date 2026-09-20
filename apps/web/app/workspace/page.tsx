@@ -31,11 +31,16 @@ function WorkspaceContent() {
   const setActiveMatterId = useWorkspaceStore((s) => s.setActiveMatterId);
   const { data: threads } = useThreads(null);
   const deleteThreadMutation = useDeleteThread();
-  const chatSessions = (threads ?? []).map((t) => ({
-    id: t.id,
-    title: t.title || "Untitled consultation",
-    time: new Date(t.created_at).toLocaleDateString("en-IN"),
-  }));
+  const chatSessions = (threads ?? []).map((t) => {
+    const linkedMatter = backendMatters?.find((m) => m.id === t.matter_id);
+    return {
+      id: t.id,
+      title: t.title || "Untitled consultation",
+      time: new Date(t.created_at).toLocaleDateString("en-IN"),
+      matterId: t.matter_id,
+      matterName: linkedMatter?.title,
+    };
+  });
 
   const [collapsed, setCollapsed] = useState<boolean>(false);
   const [deletedIds, setDeletedIds] = useState<string[]>([]);

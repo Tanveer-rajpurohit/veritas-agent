@@ -236,37 +236,26 @@ export function MatterDetailView({
     });
   }
 
-  const [previewModal, setPreviewModal] = useState<{
-    title: string;
-    url: string;
-    isLoading: boolean;
-  } | null>(null);
-
-  const handleClosePreviewModal = useCallback(() => {
-    if (previewModal?.url && previewModal.url.startsWith("blob:")) {
-      URL.revokeObjectURL(previewModal.url);
-    }
-    setPreviewModal(null);
-  }, [previewModal]);
-
   const handlePreviewPdf = useCallback(
-    async (sourceId: string, filename: string) => {
-      setPreviewModal({ title: filename, url: "", isLoading: true });
+    async (sourceId: string, _filename: string) => {
+      try {
+        const preview = await previewSourceMutation.mutateAsync(sourceId);
+        if (preview?.url) {
+          window.open(preview.url, "_blank", "noopener,noreferrer");
+          return;
+        }
+      } catch {
+        // Fallback to downloading blob
+      }
       try {
         const blob = await downloadSourceMutation.mutateAsync(sourceId);
         const pdfBlob = blob.type.includes("pdf")
           ? blob
           : new Blob([blob], { type: "application/pdf" });
         const objectUrl = URL.createObjectURL(pdfBlob);
-        setPreviewModal({ title: filename, url: objectUrl, isLoading: false });
+        window.open(objectUrl, "_blank", "noopener,noreferrer");
       } catch {
-        try {
-          const preview = await previewSourceMutation.mutateAsync(sourceId);
-          setPreviewModal({ title: filename, url: preview.url, isLoading: false });
-        } catch {
-          alert("Failed to load document preview. Please ensure storage is connected.");
-          setPreviewModal(null);
-        }
+        alert("Failed to load document preview. Please ensure storage is connected.");
       }
     },
     [downloadSourceMutation, previewSourceMutation],
@@ -817,72 +806,6 @@ export function MatterDetailView({
           </div>
         </div>
       )}
-
-      {previewModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-stone-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="relative flex flex-col w-full max-w-5xl h-[90vh] bg-white rounded-xl shadow-2xl border border-stone-200 overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-stone-200/90 bg-[#f8fbfe]">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <ColoredFileIcon format="PDF" size="sm" />
-                <div className="min-w-0">
-                  <h3 className="text-sm font-semibold text-stone-900 truncate">
-                    {previewModal.title}
-                  </h3>
-                  <span className="text-[11px] text-stone-500 font-mono">
-                    Evidence Document Preview
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <a
-                  href={previewModal.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-stone-200 bg-white px-3 text-xs font-semibold text-stone-700 hover:border-[#487aa8] hover:bg-[#edf4fa] hover:text-[#2c5478] transition-colors"
-                  title="Open in new tab"
-                >
-                  <ExternalLinkIcon size={12} />
-                  <span>Open Tab</span>
-                </a>
-                <a
-                  href={previewModal.url}
-                  download={previewModal.title}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#487aa8] px-3.5 text-xs font-semibold text-white shadow-2xs hover:bg-[#38648c] transition-colors"
-                  title="Download file"
-                >
-                  <DownloadIcon size={12} />
-                  <span>Download</span>
-                </a>
-                <button
-                  type="button"
-                  onClick={handleClosePreviewModal}
-                  className="flex h-8 w-8 items-center justify-center rounded-md border border-stone-200 bg-white text-stone-500 hover:bg-stone-100 hover:text-stone-900 transition-colors cursor-pointer"
-                  title="Close preview"
-                >
-                  <XIcon size={15} />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 w-full h-full bg-stone-100 relative">
-              {previewModal.isLoading ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                  <div className="h-8 w-8 rounded-full border-3 border-[#487aa8] border-t-transparent animate-spin" />
-                  <span className="text-xs text-stone-600 font-medium">Loading document preview...</span>
-                </div>
-              ) : (
-                <iframe
-                  src={previewModal.url}
-                  className="w-full h-full border-0"
-                  title={previewModal.title}
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 }

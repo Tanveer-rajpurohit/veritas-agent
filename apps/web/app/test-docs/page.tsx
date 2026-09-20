@@ -11,11 +11,9 @@ import {
 import {
   ColoredFileIcon,
   DownloadIcon,
-  ExternalLinkIcon,
   EyeIcon,
   PanelLeftIcon,
   SearchIcon,
-  XIcon,
 } from "../../components/workspace/workspace-icons";
 import { useMatters, useCreateMatter } from "../../hooks/matters/useMatters";
 import { useUploadSource } from "../../hooks/sources/useSources";
@@ -135,7 +133,6 @@ export default function TestDocsPage() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [previewDoc, setPreviewDoc] = useState<TestDocument | null>(null);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -146,11 +143,16 @@ export default function TestDocsPage() {
   const { data: threads } = useThreads(null);
   const deleteThreadMutation = useDeleteThread();
 
-  const chatSessions = (threads ?? []).map((t) => ({
-    id: t.id,
-    title: t.title || "Untitled consultation",
-    time: new Date(t.created_at).toLocaleDateString("en-IN"),
-  }));
+  const chatSessions = (threads ?? []).map((t) => {
+    const linkedMatter = backendMatters?.find((m) => m.id === t.matter_id);
+    return {
+      id: t.id,
+      title: t.title || "Untitled consultation",
+      time: new Date(t.created_at).toLocaleDateString("en-IN"),
+      matterId: t.matter_id,
+      matterName: linkedMatter?.title,
+    };
+  });
 
   const matters: Matter[] = (backendMatters ?? []).map((m) => ({
     id: m.id,
@@ -378,7 +380,7 @@ export default function TestDocsPage() {
                     <ColoredFileIcon format={doc.format} size="md" />
                     <div className="min-w-0 flex-1">
                       <h3
-                        onClick={() => setPreviewDoc(doc)}
+                        onClick={() => window.open(doc.href, "_blank", "noopener,noreferrer")}
                         className="text-xs font-semibold text-stone-900 group-hover:text-[#2c5478] transition-colors leading-snug cursor-pointer line-clamp-2"
                         title={doc.title}
                       >
@@ -412,9 +414,9 @@ export default function TestDocsPage() {
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
-                      onClick={() => setPreviewDoc(doc)}
+                      onClick={() => window.open(doc.href, "_blank", "noopener,noreferrer")}
                       className="inline-flex h-6.5 items-center gap-1 rounded-md border border-stone-200 bg-white px-2.5 text-[11px] font-medium text-stone-700 hover:border-[#487aa8] hover:bg-[#edf4fa] hover:text-[#2c5478] transition-colors cursor-pointer shadow-2xs"
-                      title="Preview PDF"
+                      title="Preview PDF in new tab"
                     >
                       <EyeIcon size={12} />
                       <span>Preview</span>
@@ -442,64 +444,6 @@ export default function TestDocsPage() {
           )}
         </div>
       </main>
-
-      {previewDoc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-stone-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="relative flex flex-col w-full max-w-5xl h-[90vh] bg-white rounded-xl shadow-2xl border border-stone-200 overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-stone-200/90 bg-[#f8fbfe]">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <ColoredFileIcon format={previewDoc.format} size="sm" />
-                <div className="min-w-0">
-                  <h3 className="text-sm font-semibold text-stone-900 truncate">
-                    {previewDoc.title}
-                  </h3>
-                  <span className="text-[11px] text-stone-500 font-mono">
-                    {previewDoc.sourceName} • {previewDoc.fileSize}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <a
-                  href={previewDoc.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-stone-200 bg-white px-3 text-xs font-semibold text-stone-700 hover:border-[#487aa8] hover:bg-[#edf4fa] hover:text-[#2c5478] transition-colors"
-                  title="Open in new tab"
-                >
-                  <ExternalLinkIcon size={12} />
-                  <span>Open Tab</span>
-                </a>
-                <a
-                  href={previewDoc.href}
-                  download
-                  className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#487aa8] px-3.5 text-xs font-semibold text-white shadow-2xs hover:bg-[#38648c] transition-colors"
-                  title="Download file"
-                >
-                  <DownloadIcon size={12} />
-                  <span>Download</span>
-                </a>
-                <button
-                  type="button"
-                  onClick={() => setPreviewDoc(null)}
-                  className="flex h-8 w-8 items-center justify-center rounded-md border border-stone-200 bg-white text-stone-500 hover:bg-stone-100 hover:text-stone-900 transition-colors cursor-pointer"
-                  title="Close preview"
-                >
-                  <XIcon size={15} />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 w-full h-full bg-stone-100 relative">
-              <iframe
-                src={previewDoc.href}
-                className="w-full h-full border-0"
-                title={previewDoc.title}
-              />
-            </div>
-          </div>
-        </div>
-      )}
 
       <CreateMatterModal
         open={createOpen}
