@@ -68,6 +68,53 @@ function buildUrl(endpoint: string, params?: RequestOptions["params"]): string {
   return url.toString();
 }
 
+function getAccessToken(): string | null {
+  try {
+    return localStorage.getItem("veritas_access_token");
+  } catch {
+    return null;
+  }
+}
+
+let refreshPromise: Promise<string | null> | null = null;
+
+async function tryRefresh(): Promise<string | null> {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = (async () => {
+    try {
+      const rt = localStorage.getItem("veritas_refresh_token");
+      if (!rt) return null;
+      const base = API_BASE_URL.replace(/\/+$/, "");
+      const res = await fetch(`${base}/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: rt }),
+      });
+      if (!res.ok) return null;
+      const data = (await res.json()) as { access_token: string; refresh_token: string };
+      localStorage.setItem("veritas_access_token", data.access_token);
+      localStorage.setItem("veritas_refresh_token", data.refresh_token);
+      return data.access_token;
+    } catch {
+      return null;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+  return refreshPromise;
+}
+
+function friendlyError(code: string | null, message: string): string {
+  if (!code) return message;
+  if (code === "OCR_UNAVAILABLE" || message.includes("OCR_UNAVAILABLE"))
+    return "Scan is image-only and on-device OCR could not read it. Marked needs_review — upload a clearer PDF or TXT.";
+  if (message.includes("SCANNED_NEEDS_REVIEW") || message.includes("EXTRACTION_FAILED"))
+    return "We stored the file but text extraction is weak. Open Pages to verify, or upload TXT.";
+  if (code === "PROVIDER_UNAVAILABLE" || message.includes("PROVIDER_UNAVAILABLE"))
+    return "Legal source is temporarily unavailable. Evidence already stored is still usable.";
+  return message;
+}
+
 export async function request<T>(
   endpoint: string,
   options: RequestOptions = {},
@@ -83,6 +130,8 @@ export async function request<T>(
   const requestHeaders: Record<string, string> = {
     ...((headers as Record<string, string>) || {}),
   };
+  const at = getAccessToken();
+  if (at && !requestHeaders["Authorization"]) requestHeaders["Authorization"] = `Bearer ${at}`;
 
   const isFormData =
     typeof FormData !== "undefined" && body instanceof FormData;
@@ -126,6 +175,31 @@ export async function request<T>(
     ? await response.json().catch(() => null)
     : await response.text().catch(() => null);
 
+  if (response.status === 401 && !endpoint.includes("/auth/")) {
+    const fresh = await tryRefresh();
+    if (fresh) {
+      requestHeaders["Authorization"] = `Bearer ${fresh}`;
+      try {
+        response = await fetch(url, { ...config, headers: requestHeaders });
+      } catch (err) {
+        throw new ApiError(0, "Cannot reach the Veritas API. Check that the backend is running and try again.", err);
+      }
+      if (response.ok) {
+        if (response.status === 204) return undefined as unknown as T;
+        if (responseType === "blob") return (await response.blob()) as T;
+        const ct2 = response.headers.get("content-type");
+        const j2 = ct2 && ct2.includes("application/json");
+        const d2: unknown = j2 ? await response.json().catch(() => null) : await response.text().catch(() => null);
+        return d2 as T;
+      }
+      const ct3 = response.headers.get("content-type");
+      const j3 = ct3 && ct3.includes("application/json");
+      const d3: unknown = j3 ? await response.json().catch(() => null) : await response.text().catch(() => null);
+      const m3 = parseErrorMessage(d3, `Request failed with status ${response.status}`);
+      throw new ApiError(response.status, friendlyError(null, m3), d3, null);
+    }
+  }
+
   if (!response.ok) {
     const message = parseErrorMessage(
       responseData,
@@ -137,7 +211,7 @@ export async function request<T>(
       typeof (responseData as ApiErrorPayload).error?.code === "string"
         ? (responseData as ApiErrorPayload).error!.code
         : null;
-    throw new ApiError(response.status, message, responseData, code);
+    throw new ApiError(response.status, friendlyError(code, message), responseData, code);
   }
 
   return responseData as T;

@@ -286,7 +286,14 @@ def process_agent_run(run_id: UUID) -> None:
                 }
             else:
                 agent = create_main_agent()
-                result = agent(message.content)
+                history = db.scalars(select(Message).where(Message.thread_id == run.thread_id).order_by(Message.created_at.desc()).limit(11)).all()
+                history = list(reversed(history))
+                convo = [f"{m.role}: {m.content[:2000]}" for m in history if m.id != message.id][-10:]
+                prompt = ""
+                if convo:
+                    prompt += "Conversation so far:\n" + "\n".join(convo) + "\n\n"
+                prompt += f"Current user message: {message.content}"
+                result = agent(prompt)
                 response_text = str(result)[:10000]
                 db.add(Message(thread_id=run.thread_id, role="assistant", content=response_text))
                 run.result = {"message": response_text}

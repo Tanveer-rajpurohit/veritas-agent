@@ -19,11 +19,17 @@ export const authService = {
     });
   },
 
-  login(payload: LoginRequest): Promise<void> {
-    return fetchClient.post<void>("/auth/login", {
+  async login(payload: LoginRequest): Promise<void> {
+    const tokens = await fetchClient.post<{ access_token: string; refresh_token: string }>("/auth/login", {
       email: payload.email,
       password: payload.password,
     });
+    try {
+      localStorage.setItem("veritas_access_token", tokens.access_token);
+      localStorage.setItem("veritas_refresh_token", tokens.refresh_token);
+    } catch {
+      void 0;
+    }
   },
 
   getMe(): Promise<UserProfile> {
@@ -52,7 +58,18 @@ export const authService = {
     );
   },
 
-  logout(): Promise<void> {
-    return fetchClient.post<void>("/auth/logout");
+  async logout(): Promise<void> {
+    try {
+      await fetchClient.post<void>("/auth/logout");
+    } catch {
+      void 0;
+    } finally {
+      try {
+        localStorage.removeItem("veritas_access_token");
+        localStorage.removeItem("veritas_refresh_token");
+      } catch {
+        void 0;
+      }
+    }
   },
 };
