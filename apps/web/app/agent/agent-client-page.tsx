@@ -154,7 +154,6 @@ function AgentClientContent() {
         <AgentChatView
           key={sessionParam || "new"}
           initialMatterId={matterIdParam}
-          sessionId={sessionParam}
           onOpenMatter={handleOpenMatter}
           onSelectChatSession={handleSelectChatSession}
           onNewChat={handleNewChat}

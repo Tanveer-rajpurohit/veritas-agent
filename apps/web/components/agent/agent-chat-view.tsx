@@ -11,7 +11,6 @@ import {
 import { useRouter } from "next/navigation";
 import type { Matter } from "../../types/workspace/types";
 import type { MessageRecord } from "../../types/conversation/type";
-import type { AgentRunRecord } from "../../types/agent/type";
 import {
   ArrowUpIcon,
   CheckIcon,
@@ -30,8 +29,8 @@ import { ThinkingOrb } from "./thinking-orb";
 import { AgentSideViewer, type SideViewerDocument } from "./agent-side-viewer";
 import { AgentAvatar } from "./agent-avatar";
 import { MarkdownContent } from "./markdown-content";
-import { useCreateThread, useMessages } from "../../hooks/conversations/useConversations";
-import { useCreateAgentRun, useAgentRun, useApplyProposal, useRejectProposal } from "../../hooks/agents/useAgentRuns";
+import { useMessages } from "../../hooks/conversations/useConversations";
+import { useAgentRun, useApplyProposal, useRejectProposal } from "../../hooks/agents/useAgentRuns";
 import { conversationService } from "../../service/conversations/conversationService";
 import { agentRunService } from "../../service/agents/agentRunService";
 
@@ -147,7 +146,6 @@ const SUGGESTIONS = [
 interface AgentChatViewProps {
   matters: Matter[];
   initialMatterId?: string | null;
-  sessionId?: string | null;
   onOpenMatter?: (matterId: string) => void;
   onSelectChatSession?: (id: string) => void;
   onNewChat?: () => void;
@@ -156,7 +154,6 @@ interface AgentChatViewProps {
 export function AgentChatView({
   matters,
   initialMatterId = null,
-  sessionId = null,
   onOpenMatter,
   onNewChat,
 }: AgentChatViewProps) {
@@ -204,18 +201,26 @@ export function AgentChatView({
       m.caseNumber.toLowerCase().includes(matterSearch.toLowerCase()),
   );
 
-  useEffect(() => {
-    if (!threadMessages || threadMessages.length === 0) return;
+  const [lastSyncedThreadKey, setLastSyncedThreadKey] = useState("");
+  const latestThreadKey = threadMessages ? threadMessages.map((m) => m.id).join(",") : "";
 
-    const mapped: MessageItem[] = threadMessages.map((msg: MessageRecord) => ({
+  useEffect(() => {
+    if (!latestThreadKey || latestThreadKey === lastSyncedThreadKey) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- deduplication guard to prevent reprocessing
+    setLastSyncedThreadKey(latestThreadKey);
+    const mapped: MessageItem[] = threadMessages!.map((msg: MessageRecord) => ({
       id: msg.id,
       role: msg.role as "user" | "assistant",
       content: msg.content,
       agentId: msg.role === "assistant" ? ("orchestrator" as AgentRoleType) : undefined,
       matterName: selectedMatter?.name,
     }));
-    setLocalMessages(mapped);
-  }, [threadMessages, selectedMatter?.name]);
+    const pendingIds = new Set(mapped.map((m) => m.id));
+    setLocalMessages((prev) => {
+      const extras = prev.filter((m) => !pendingIds.has(m.id) && m.id.startsWith("run-"));
+      return [...mapped, ...extras];
+    });
+  }, [latestThreadKey, lastSyncedThreadKey, threadMessages, selectedMatter?.name]);
 
   useEffect(() => {
     if (!activeRunId) return;
@@ -302,66 +307,72 @@ export function AgentChatView({
     return () => clearInterval(interval);
   }, [activeRunId]);
 
+  const [handledRunId, setHandledRunId] = useState<string | null>(null);
+
   useEffect(() => {
     if (!runData) return;
-    if (runData.status === "completed" || runData.status === "failed") {
-      setBusy(false);
+    if (runData.status !== "completed" && runData.status !== "failed") return;
+    if (handledRunId === runData.run_id) return;
 
-      if (runData.status === "failed") {
-        setRunError(runData.error_code ?? "The agent could not complete this run.");
-        setActiveRunId(null);
-        return;
-      }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- deduplication guard to prevent reprocessing
+    setHandledRunId(runData.run_id);
+    setBusy(false);
 
-      const result = runData.result as Record<string, unknown> | null;
-      const messageText = typeof result?.message === "string" ? result.message : null;
-      const proposalStatus = typeof result?.proposal_status === "string" ? result.proposal_status : null;
-      const documentId = typeof result?.document_id === "string" ? result.document_id : null;
-
-      if (messageText) {
-        const assistantMsg: MessageItem = {
-          id: `run-${runData.run_id}`,
-          role: "assistant",
-          content: messageText,
-          agentId: mapAgentToRole(runData.agent),
-          runId: runData.run_id,
-          proposalStatus: proposalStatus ?? undefined,
-          thinkingStages: sseStages.map((s) => ({
-            id: s.id,
-            label: s.label,
-            status: "done" as const,
-          })),
-          thinkingDuration: `${((sseStages[sseStages.length - 1]?.timestamp ?? Date.now()) - (sseStages[0]?.timestamp ?? Date.now())) / 1000}s`,
-        };
-
-        setLocalMessages((prev) => {
-          const filtered = prev.filter((m) => m.id !== `run-${runData.run_id}`);
-          return [...filtered, assistantMsg];
-        });
-      } else if (proposalStatus === "pending" && documentId) {
-        const proposalMsg: MessageItem = {
-          id: `run-${runData.run_id}`,
-          role: "assistant",
-          content: "I have prepared a document proposal. Review the changes below and accept or reject them.",
-          agentId: mapAgentToRole(runData.agent),
-          runId: runData.run_id,
-          proposalStatus: "pending",
-          thinkingStages: sseStages.map((s) => ({
-            id: s.id,
-            label: s.label,
-            status: "done" as const,
-          })),
-        };
-        setLocalMessages((prev) => {
-          const filtered = prev.filter((m) => m.id !== `run-${runData.run_id}`);
-          return [...filtered, proposalMsg];
-        });
-      }
-
-      setSseStages([]);
+    if (runData.status === "failed") {
+      setRunError(runData.error_code ?? "The agent could not complete this run.");
       setActiveRunId(null);
+      return;
     }
-  }, [runData, sseStages]);
+
+    const result = runData.result as Record<string, unknown> | null;
+    const messageText = typeof result?.message === "string" ? result.message : null;
+    const proposalStatus = typeof result?.proposal_status === "string" ? result.proposal_status : null;
+    const documentId = typeof result?.document_id === "string" ? result.document_id : null;
+    const now = Date.now();
+
+    if (messageText) {
+      const assistantMsg: MessageItem = {
+        id: `run-${runData.run_id}`,
+        role: "assistant",
+        content: messageText,
+        agentId: mapAgentToRole(runData.agent),
+        runId: runData.run_id,
+        proposalStatus: proposalStatus ?? undefined,
+        thinkingStages: sseStages.map((s) => ({
+          id: s.id,
+          label: s.label,
+          status: "done" as const,
+        })),
+        thinkingDuration: `${((sseStages[sseStages.length - 1]?.timestamp ?? now) - (sseStages[0]?.timestamp ?? now)) / 1000}s`,
+      };
+
+      setLocalMessages((prev) => {
+        const filtered = prev.filter((m) => m.id !== `run-${runData.run_id}`);
+        return [...filtered, assistantMsg];
+      });
+    } else if (proposalStatus === "pending" && documentId) {
+      const proposalMsg: MessageItem = {
+        id: `run-${runData.run_id}`,
+        role: "assistant",
+        content: "I have prepared a document proposal. Review the changes below and accept or reject them.",
+        agentId: mapAgentToRole(runData.agent),
+        runId: runData.run_id,
+        proposalStatus: "pending",
+        thinkingStages: sseStages.map((s) => ({
+          id: s.id,
+          label: s.label,
+          status: "done" as const,
+        })),
+      };
+      setLocalMessages((prev) => {
+        const filtered = prev.filter((m) => m.id !== `run-${runData.run_id}`);
+        return [...filtered, proposalMsg];
+      });
+    }
+
+    setSseStages([]);
+    setActiveRunId(null);
+  }, [runData, handledRunId, sseStages]);
 
   const handleApplyProposal = useCallback(async (runId: string) => {
     try {
