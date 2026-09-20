@@ -40,6 +40,6 @@ export interface RunChecksPayload {
 }
 
 export interface ResolveFindingPayload {
-  action: "resolve" | "dismiss" | "ignore";
-  reason: string;
+  action: "resolve" | "dismiss" | "ignore" | "accepted" | "rejected";
+  reason?: string;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { gsap } from "gsap";
 import type { Matter } from "../../types/workspace/types";
 import { CustomSelect, type SelectOption } from "./custom-select";
@@ -34,6 +35,7 @@ import {
   useUploadSource,
 } from "../../hooks/sources/useSources";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
+import { useFindings, useResolveFinding } from "../../hooks/reviews/useReviews";
 
 interface MatterDetailViewProps {
   matter: Matter;
@@ -135,6 +137,7 @@ export function MatterDetailView({
   onBack,
   onSendToAgent,
 }: MatterDetailViewProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<
     "documents" | "drafts" | "forensics"
   >("documents");
@@ -211,85 +214,42 @@ export function MatterDetailView({
     }));
   }, [backendDocs]);
 
-  const [findings, setFindings] = useState<FindingItem[]>([
-    {
-      id: "find-1",
-      dimension: "Quotation",
-      agent: "Citation Reviewer",
-      status: "Supported",
-      title: "Innoventive Industries Ltd. v. ICICI Bank",
-      citationOrSource: "(2018) 1 SCC 407",
-      proposition:
-        "Adjudicating authority must ascertain default from records and cannot evaluate viability at Section 7 admission.",
-      bench: "2-Judge Bench · Supreme Court",
-      detail:
-        "100% exact character-level verbatim quotation parity confirmed against primary judgment.",
-    },
-    {
-      id: "find-2",
-      dimension: "Subsequent Treatment",
-      agent: "Citation Reviewer",
-      status: "Supported",
-      title: "Swiss Ribbons Pvt. Ltd. v. Union of India",
-      citationOrSource: "(2019) 4 SCC 17",
-      proposition:
-        "Preamble of the Insolvency and Bankruptcy Code prioritizes resolution over liquidation.",
-      bench: "2-Judge Bench · Supreme Court",
-      detail:
-        "Good law; affirmed in subsequent Constitution Bench decisions with no adverse negative treatment.",
-    },
-    {
-      id: "find-3",
-      dimension: "Proposition Support",
-      agent: "Citation Reviewer",
-      status: "Supported",
-      title: "Dena Bank v. C. Shivakumar Reddy",
-      citationOrSource: "(2021) 10 SCC 330",
-      proposition:
-        "Balance sheet entry constitutes written acknowledgment of debt under Section 18 of the Limitation Act, 1963.",
-      bench: "3-Judge Bench · Supreme Court",
-      detail:
-        "98% semantic entailment match; directly supports the limitation extension claim in Paragraph 14 of draft brief.",
-    },
-    {
-      id: "find-4",
-      dimension: "Identity",
-      agent: "Citation Reviewer",
-      status: "Supported",
-      title: "Pooja Ramesh Singh v. J&K Bank Ltd.",
-      citationOrSource: "2026 INSC 668",
-      proposition:
-        "Distinguishes actual cited paragraph from unestablished secondary citations.",
-      bench: "Division Bench · Supreme Court",
-      detail:
-        "Reporter fixture resolved directly via eCourtsIndia and InIRAC adapter.",
-    },
-    {
-      id: "find-5",
-      dimension: "Fact Consistency",
-      agent: "Fact Reviewer",
-      status: "Contradicted",
-      title: "Principal Debt Amount Mismatch",
-      citationOrSource:
-        "Audited_Bank_Ledger_Statements.xlsx vs Statutory_Demand_Notice_Section8.pdf",
-      proposition:
-        "Demand Notice claims ₹18,45,00,000 principal, whereas Audited Bank Ledger records ₹18,50,00,000.",
-      detail:
-        "Material contradiction of ₹5,00,000 detected. Blocking Reviewed Export Gate until resolved or reconciled.",
-    },
-    {
-      id: "find-6",
-      dimension: "Fact Consistency",
-      agent: "Fact Reviewer",
-      status: "Supported",
-      title: "Deemed Default Date Verification",
-      citationOrSource: "NeSL_Default_Authentication_Record.pdf",
-      proposition:
-        "Default date 18 Jul 2025 in Petition ¶12 is confirmed by NeSL Information Utility Certificate #IU-2026-9041.",
-      detail:
-        "Certified record of default matches repayment milestone schedule in Syndicated Facility Agreement.",
-    },
-  ]);
+  const latestVersionId = backendDocs?.[0]?.current_version_id;
+  const { data: rawFindings, isLoading: isLoadingFindings, error: errorFindings } = useFindings(latestVersionId);
+  const resolveFindingMutation = useResolveFinding(latestVersionId ?? "");
+
+  const findings = useMemo<FindingItem[]>(() => {
+    if (!rawFindings) return [];
+    return rawFindings.map((f) => {
+      let dim = f.dimension;
+      if (f.dimension === "fact_consistency") dim = "Fact Consistency";
+      else if (f.dimension === "quotation") dim = "Quotation";
+      else if (f.dimension === "identity") dim = "Identity";
+      else if (f.dimension === "proposition_support") dim = "Proposition Support";
+      else if (f.dimension === "subsequent_treatment") dim = "Subsequent Treatment";
+
+      const agent = f.dimension === "fact_consistency" ? "Fact Reviewer" : "Citation Reviewer";
+
+      let status = "Supported";
+      if (f.status === "contradicted") status = "Contradicted";
+
+      const title = f.claim_text.substring(0, 50) + (f.claim_text.length > 50 ? "..." : "");
+      const firstEvidence = f.evidence?.[0];
+      const citationOrSource = firstEvidence?.source_title || "Unknown Source";
+
+      return {
+        id: f.id,
+        dimension: (dim || f.dimension) as FindingItem["dimension"],
+        agent: agent as FindingItem["agent"],
+        status: status as FindingItem["status"],
+        title: title,
+        citationOrSource: citationOrSource,
+        proposition: f.claim_text,
+        detail: f.reason,
+        humanDecision: f.resolution ? { action: f.resolution as HumanDecision } : undefined,
+      };
+    });
+  }, [rawFindings]);
 
   const tabs = useMemo(
     () => [
@@ -383,21 +343,11 @@ export function MatterDetailView({
   }
 
   function handleAcceptFinding(id: string) {
-    setFindings((prev) =>
-      prev.map((f) =>
-        f.id === id ? { ...f, humanDecision: { action: "accepted" } } : f,
-      ),
-    );
+    resolveFindingMutation.mutate({ findingId: id, payload: { action: "accepted" } });
   }
 
   function handleRejectFinding(id: string, reason: string) {
-    setFindings((prev) =>
-      prev.map((f) =>
-        f.id === id
-          ? { ...f, humanDecision: { action: "rejected", reason } }
-          : f,
-      ),
-    );
+    resolveFindingMutation.mutate({ findingId: id, payload: { action: "rejected", reason } });
     setRejectingFindingId(null);
     setRejectReason("");
   }
@@ -775,9 +725,7 @@ export function MatterDetailView({
                     <button
                       type="button"
                       onClick={() =>
-                        alert(
-                          `Opening ${draft.title} in Veritas structured editor...`,
-                        )
+                        router.push(`/drafting/${encodeURIComponent(draft.id)}`)
                       }
                       className="inline-flex items-center gap-1 text-xs font-semibold text-[#487aa8] hover:text-[#386289] cursor-pointer"
                     >
@@ -825,9 +773,22 @@ export function MatterDetailView({
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {filteredFindings.map((finding) => (
-                <div
-                  key={finding.id}
+              {errorFindings ? (
+                <div className="col-span-full py-10 text-center text-sm text-rose-500">
+                  Error loading findings: {errorFindings.message}
+                </div>
+              ) : isLoadingFindings ? (
+                <div className="col-span-full py-10 text-center text-sm text-stone-500">
+                  Loading findings...
+                </div>
+              ) : filteredFindings.length === 0 ? (
+                <div className="col-span-full py-10 text-center text-sm text-stone-500">
+                  No findings found.
+                </div>
+              ) : (
+                filteredFindings.map((finding) => (
+                  <div
+                    key={finding.id}
                   className="flex flex-col justify-between rounded-lg border border-stone-200 bg-white p-4 shadow-2xs hover:border-[#487aa8]/40 hover:shadow-xs transition-all"
                 >
                   <div className="flex flex-col gap-2.5">
@@ -959,7 +920,7 @@ export function MatterDetailView({
                     </div>
                   </div>
                 </div>
-              ))}
+              )))}
             </div>
           </div>
         )}
