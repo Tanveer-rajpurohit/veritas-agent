@@ -13,14 +13,7 @@ import { PanelLeftIcon } from "../../components/workspace/workspace-icons";
 import { AgentChatView } from "../../components/agent/agent-chat-view";
 import { useCreateMatter, useMatters } from "../../hooks/matters/useMatters";
 import { useUploadSource } from "../../hooks/sources/useSources";
-
-const SESSIONS_MAP = [
-  { id: "chat-1", title: "IBC Sec 7 Financial Debt Claim" },
-  { id: "chat-2", title: "Verify Annexure B Default Date" },
-  { id: "chat-3", title: "Draft Section 9 Relief Petition" },
-  { id: "chat-4", title: "Citation Scan: Innoventive Industries" },
-  { id: "chat-5", title: "Fact Check: Ledger Discrepancy" },
-];
+import { useThreads } from "../../hooks/conversations/useConversations";
 
 function AgentClientContent() {
   const router = useRouter();
@@ -30,6 +23,14 @@ function AgentClientContent() {
 
   const [collapsed, setCollapsed] = useState<boolean>(false);
   const { data: backendMatters } = useMatters();
+  // Real threads for the selected matter — replaces seeded demo sessions.
+  const activeMatterId = matterIdParam ?? null;
+  const { data: threads } = useThreads(activeMatterId);
+  const chatSessions = (threads ?? []).map((t) => ({
+    id: t.id,
+    title: t.title || "Untitled consultation",
+    time: new Date(t.created_at).toLocaleDateString("en-IN"),
+  }));
   const createMatterMutation = useCreateMatter();
   const uploadSourceMutation = useUploadSource();
   const matters: Matter[] = (backendMatters ?? []).map((matter) => ({
@@ -113,14 +114,11 @@ function AgentClientContent() {
   );
 
   const handleSelectChatSession = useCallback(
-    (titleOrId: string) => {
-      const match = SESSIONS_MAP.find(
-        (s) => s.id === titleOrId || s.title === titleOrId,
-      );
-      const targetId = match ? match.id : titleOrId;
-      router.push(`/agent?c=${targetId}`);
+    (threadId: string) => {
+      const base = activeMatterId ? `?matterId=${activeMatterId}&c=${threadId}` : `?c=${threadId}`;
+      router.push(`/agent${base}`);
     },
-    [router],
+    [router, activeMatterId],
   );
 
   const handleNewChat = useCallback(() => {
@@ -137,6 +135,7 @@ function AgentClientContent() {
         activeNav="agent"
         onSelectNav={handleSelectNav}
         onSelectChatSession={handleSelectChatSession}
+        chatSessions={chatSessions}
         mobileOpen={mobileNavOpen}
         onCloseMobile={() => setMobileNavOpen(false)}
       />
@@ -152,8 +151,9 @@ function AgentClientContent() {
 
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-stone-200/90 bg-white pt-11 shadow-2xs md:pt-0">
         <AgentChatView
-          key={sessionParam || "new"}
+          key={`${matterIdParam || "none"}:${sessionParam || "new"}`}
           initialMatterId={matterIdParam}
+          initialThreadId={sessionParam}
           onOpenMatter={handleOpenMatter}
           onSelectChatSession={handleSelectChatSession}
           onNewChat={handleNewChat}

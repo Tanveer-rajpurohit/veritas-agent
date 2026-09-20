@@ -22,8 +22,16 @@ from app.routers.reviews.router import router as reviews_router
 from app.routers.sources.router import router as sources_router
 
 
+import asyncio
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    try:
+        from app.services.sources.embeddings import embedding_service
+        loop = asyncio.get_running_loop()
+        loop.run_in_executor(None, embedding_service._get_model)
+    except Exception:
+        pass
     try:
         yield
     finally:

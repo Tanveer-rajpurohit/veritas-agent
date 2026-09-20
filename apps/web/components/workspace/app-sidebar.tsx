@@ -14,6 +14,12 @@ import {
   BotIcon,
 } from "./workspace-icons";
 
+export interface SidebarChatSession {
+  id: string;
+  title: string;
+  time: string;
+}
+
 interface AppSidebarProps {
   collapsed: boolean;
   onToggleCollapse: () => void;
@@ -21,7 +27,8 @@ interface AppSidebarProps {
   onOpenUpload: () => void;
   activeNav: string;
   onSelectNav: (nav: string) => void;
-  onSelectChatSession?: (sessionTitle: string) => void;
+  onSelectChatSession?: (sessionId: string) => void;
+  chatSessions?: SidebarChatSession[];
   mobileOpen: boolean;
   onCloseMobile: () => void;
 }
@@ -34,27 +41,12 @@ export function AppSidebar({
   activeNav,
   onSelectNav,
   onSelectChatSession,
+  chatSessions = [],
   mobileOpen,
   onCloseMobile,
 }: AppSidebarProps) {
   const [newMenuOpen, setNewMenuOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(true);
-
-  const chatSessions = [
-    { id: "chat-1", title: "IBC Sec 7 Financial Debt Claim", time: "2h ago" },
-    {
-      id: "chat-2",
-      title: "Verify Annexure B Default Date",
-      time: "Yesterday",
-    },
-    { id: "chat-3", title: "Draft Section 9 Relief Petition", time: "3d ago" },
-    {
-      id: "chat-4",
-      title: "Citation Scan: Innoventive Industries",
-      time: "5d ago",
-    },
-    { id: "chat-5", title: "Fact Check: Ledger Discrepancy", time: "1w ago" },
-  ];
 
   return (
     <>
@@ -310,7 +302,7 @@ export function AppSidebar({
                     <button
                       key={session.id}
                       type="button"
-                      onClick={() => onSelectChatSession?.(session.title)}
+                      onClick={() => onSelectChatSession?.(session.id)}
                       className="group flex flex-col items-start rounded-md px-2.5 py-1.5 text-left text-xs transition-colors hover:bg-[#edf4fa] cursor-pointer"
                     >
                       <span className="font-medium text-stone-800 group-hover:text-[#487aa8] truncate w-full">

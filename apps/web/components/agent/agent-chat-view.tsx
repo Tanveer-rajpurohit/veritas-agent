@@ -143,9 +143,17 @@ const SUGGESTIONS = [
   "Draft Synopsis & Chronological List of Dates",
 ];
 
+function inferRequestedAction(text: string): "answer" | "review_citations" | "review_facts" {
+  const t = text.toLowerCase();
+  if (/(citation|authority|case law|quote|statute|section 7|innoventive)/.test(t)) return "review_citations";
+  if (/(fact|ledger|amount|date|default|annexure|discrepancy|verify)/.test(t)) return "review_facts";
+  return "answer";
+}
+
 interface AgentChatViewProps {
   matters: Matter[];
   initialMatterId?: string | null;
+  initialThreadId?: string | null;
   onOpenMatter?: (matterId: string) => void;
   onSelectChatSession?: (id: string) => void;
   onNewChat?: () => void;
@@ -154,6 +162,7 @@ interface AgentChatViewProps {
 export function AgentChatView({
   matters,
   initialMatterId = null,
+  initialThreadId = null,
   onOpenMatter,
   onNewChat,
 }: AgentChatViewProps) {
@@ -175,7 +184,7 @@ export function AgentChatView({
   >(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
-  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(initialThreadId ?? null);
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [localMessages, setLocalMessages] = useState<MessageItem[]>([]);
   const [sseStages, setSseStages] = useState<SSEEvent[]>([]);
@@ -224,87 +233,70 @@ export function AgentChatView({
 
   useEffect(() => {
     if (!activeRunId) return;
-
     const eventsUrl = agentRunService.getEventsUrl(activeRunId);
     let lastEventId = "";
-
-    const poll = () => {
-      const headers: Record<string, string> = {};
-      if (lastEventId) {
-        headers["Last-Event-ID"] = lastEventId;
+    const labelMap: Record<string, string> = {
+      "task.queued": "Queuing agent task",
+      "task.started": "Agent is working",
+      "tool.started": "Running tool",
+      "tool.completed": "Tool finished",
+      "message.created": "Preparing response",
+      "artifact.ready": "Document ready",
+      "task.completed": "Completed",
+      "task.failed": "Agent failed",
+    };
+    const handleEvent = (eventType: string, eventId: string, data: string) => {
+      if (eventId) {
+        lastEventId = eventId;
+        try { localStorage.setItem(`veritas-sse:${activeRunId}`, eventId); } catch { void 0; }
       }
-
-      fetch(eventsUrl, { credentials: "include", headers })
-        .then((res) => {
-          if (!res.ok) return;
-          return res.text();
-        })
+      let label = labelMap[eventType] ?? eventType;
+      try {
+        const parsed = JSON.parse(data) as Record<string, unknown>;
+        if (eventType === "tool.started" && typeof parsed.tool_name === "string") label = `Running: ${parsed.tool_name}`;
+        if (eventType === "tool.completed" && typeof parsed.tool_name === "string") label = `Checked: ${parsed.tool_name}`;
+        if (eventType === "task.failed" && typeof parsed.message === "string") setRunError(parsed.message);
+      } catch { void 0; }
+      setSseStages((prev) => {
+        if (eventId && prev.some((s) => s.id === eventId)) return prev;
+        return [...prev, { id: eventId || `sse-${Date.now()}-${Math.random()}`, event_type: eventType, label, status: "done" as const, timestamp: Date.now() }];
+      });
+    };
+    // Native EventSource with Last-Event-ID resume; falls back to fetch-poll on error.
+    let es: EventSource | null = null;
+    let poll: ReturnType<typeof setInterval> | null = null;
+    try {
+      const stored = localStorage.getItem(`veritas-sse:${activeRunId}`) ?? "";
+      const url = stored ? `${eventsUrl}?lastEventId=${encodeURIComponent(stored)}` : eventsUrl;
+      es = new EventSource(url, { withCredentials: true });
+      for (const name of Object.keys(labelMap)) {
+        es.addEventListener(name, (e) => {
+          const me = e as MessageEvent;
+          handleEvent(name, (me as MessageEvent & { lastEventId?: string }).lastEventId ?? "", String(me.data ?? ""));
+        });
+      }
+      es.onerror = () => { es?.close(); es = null; };
+    } catch { es = null; }
+    // Fallback poll keeps UI alive if EventSource is blocked.
+    poll = setInterval(() => {
+      if (es) return;
+      fetch(eventsUrl, { credentials: "include", headers: lastEventId ? { "Last-Event-ID": lastEventId } : {} })
+        .then((res) => (res.ok ? res.text() : ""))
         .then((text) => {
           if (!text) return;
-          const blocks = text.split("\n\n").filter(Boolean);
-          const newStages: SSEEvent[] = [];
-          for (const block of blocks) {
-            const lines = block.split("\n");
-            let eventType = "";
-            let eventId = "";
-            let data = "";
-            for (const line of lines) {
-              if (line.startsWith("event: ")) eventType = line.slice(7);
-              if (line.startsWith("id: ")) eventId = line.slice(4);
-              if (line.startsWith("data: ")) data = line.slice(6);
+          for (const block of text.split("\n\n").filter(Boolean)) {
+            let et = "", eid = "", d = "";
+            for (const line of block.split("\n")) {
+              if (line.startsWith("event: ")) et = line.slice(7);
+              if (line.startsWith("id: ")) eid = line.slice(4);
+              if (line.startsWith("data: ")) d = line.slice(6);
             }
-            if (eventId) lastEventId = eventId;
-
-            const labelMap: Record<string, string> = {
-              "task.queued": "Queuing agent task",
-              "task.started": "Agent is working",
-              "tool.started": "Running tool",
-              "tool.completed": "Tool finished",
-              "message.created": "Preparing response",
-              "artifact.ready": "Document ready",
-              "task.completed": "Completed",
-              "task.failed": "Agent failed",
-            };
-
-            let label = labelMap[eventType] ?? eventType;
-            try {
-              const parsed = JSON.parse(data) as Record<string, unknown>;
-              if (eventType === "tool.started" && typeof parsed.tool_name === "string") {
-                label = `Running: ${parsed.tool_name}`;
-              }
-              if (eventType === "task.failed" && typeof parsed.message === "string") {
-                setRunError(parsed.message);
-              }
-            } catch {
-              void 0;
-            }
-
-            newStages.push({
-              id: eventId || `sse-${Date.now()}-${Math.random()}`,
-              event_type: eventType,
-              label,
-              status: eventType.includes("completed") || eventType.includes("created") || eventType.includes("ready")
-                ? "done"
-                : eventType.includes("failed")
-                  ? "done"
-                  : "active",
-              timestamp: Date.now(),
-            });
-          }
-          if (newStages.length > 0) {
-            setSseStages((prev) => {
-              const existingIds = new Set(prev.map((s) => s.id));
-              const unique = newStages.filter((s) => !existingIds.has(s.id));
-              return [...prev, ...unique];
-            });
+            if (et) handleEvent(et, eid, d);
           }
         })
         .catch(() => void 0);
-    };
-
-    poll();
-    const interval = setInterval(poll, 2000);
-    return () => clearInterval(interval);
+    }, 3000);
+    return () => { es?.close(); if (poll) clearInterval(poll); };
   }, [activeRunId]);
 
   const [handledRunId, setHandledRunId] = useState<string | null>(null);
@@ -451,7 +443,7 @@ export function AgentChatView({
         thread_id: threadId,
         message_id: message.id,
         agent: "main",
-        requested_action: "answer",
+        requested_action: inferRequestedAction(text),
       });
 
       setActiveRunId(run.run_id);
@@ -501,30 +493,31 @@ export function AgentChatView({
     window.addEventListener("pointerup", handlePointerUp);
   };
 
-  const handleDownloadDraft = () => {
-    if (!sideViewerDoc) return;
-    const activeVer =
-      sideViewerDoc.versions.find(
-        (v) => v.version === sideViewerDoc.currentVersion,
-      ) || sideViewerDoc.versions[0];
-    if (!activeVer) return;
-
-    const content = activeVer.pages
-      .map((p) => {
-        const secTexts = p.sections
-          .map((s) => `${s.title}\n\n${s.content}`)
-          .join("\n\n");
-        return `[PAGE ${p.pageNumber} OF ${p.totalPdfPages}]\n${p.headerTitle}\n\n${secTexts}`;
-      })
-      .join("\n\n------------------------------------\n\n");
-
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${sideViewerDoc.title.toLowerCase().replace(/\s+/g, "-")}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const [downloading, setDownloading] = useState(false);
+  const handleDownloadDraft = async () => {
+    if (!sideViewerDoc || downloading) return;
+    // Server-generated draft export only — no client-only files.
+    const versionId = (sideViewerDoc as unknown as { versionId?: string }).versionId;
+    if (!versionId) {
+      setRunError("No server version linked to this preview yet. Accept a Writer proposal first.");
+      return;
+    }
+    try {
+      setDownloading(true);
+      const { exportService } = await import("../../service/exports/exportService");
+      const rec = await exportService.createExport(versionId, { format: "pdf", mode: "draft" });
+      const blob = await exportService.downloadExport(rec.id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${sideViewerDoc.title.toLowerCase().replace(/\s+/g, "-")}-draft.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setRunError(err instanceof Error ? err.message : "Draft export failed.");
+    } finally {
+      setDownloading(false);
+    }
   };
 
   const composerElement = (
