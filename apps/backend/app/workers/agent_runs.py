@@ -516,7 +516,7 @@ def process_agent_run(run_id: UUID) -> None:
                         if drafts:
                             matter_info += f"\nWorking Drafts in this Matter ({len(drafts)}):\n"
                             for d in drafts[:5]:
-                                matter_info += f"- {d.title} (Status: {d.status})\n"
+                                matter_info += f"- {d.title} (v{d.version_no}, {d.kind})\n"
 
                         matter_info += (
                             f"\nINSTRUCTION REGARDING ATTACHED MATTER:\n"
@@ -552,16 +552,26 @@ def process_agent_run(run_id: UUID) -> None:
             _append_event(db, run_id, "task.completed", {"status": "completed"})
         except Exception as exc:
             db.rollback()
-            logger.error("Agent run %s failed: %s", run_id, type(exc).__name__)
-            run = db.get(AgentRun, run_id)
-            run.status = "failed"
-            run.error_code = "agent_unavailable"
-            _append_event(
-                db,
-                run_id,
-                "task.failed",
-                {"code": "agent_unavailable", "message": "The agent could not complete this run."},
-            )
+            logger.exception("Agent run %s failed: %s: %s", run_id, type(exc).__name__, exc)
+            try:
+                run = db.get(AgentRun, run_id)
+                if run is not None:
+                    err_detail = f"{type(exc).__name__}: {exc}"[:200]
+                    run.status = "failed"
+                    run.error_code = "agent_unavailable"
+                    run.result = {"message": err_detail}
+                    db.add(run)
+                    db.flush()
+                    _append_event(
+                        db,
+                        run_id,
+                        "task.failed",
+                        {"code": "agent_unavailable", "message": err_detail},
+                    )
+                    db.commit()
+            except Exception as commit_exc:
+                logger.error("Failed to persist error state for run %s: %s", run_id, commit_exc)
+                db.rollback()
 
 
 def run_pending() -> None:

@@ -31,7 +31,7 @@ class Settings(BaseSettings):
 
     AGENT_PROVIDER: str = "bedrock"
     BEDROCK_AGENT_ENABLED: bool = True
-    AGENT_MAX_TOKENS: int = 2048
+    AGENT_MAX_TOKENS: int = 4096
     AGENT_TEMPERATURE: float = 0.1
 
     GROQ_API_KEY: str = ""

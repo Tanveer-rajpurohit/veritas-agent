@@ -402,10 +402,19 @@ export function AgentChatView({
 
     if (runData.status === "failed") {
       const resultMsg = (runData.result as { message?: unknown } | null)?.message;
-      const raw = runData.error_code ?? (typeof resultMsg === "string" ? resultMsg : null) ?? "The agent could not complete this run.";
-      const friendly = /document is required/i.test(String(raw))
-        ? "This check needs an open draft. Create or open a draft first, then ask me to review it — or ask me anything general and I'll answer directly."
-        : String(raw);
+      const raw = (typeof resultMsg === "string" ? resultMsg : null)
+        ?? runData.error_code
+        ?? "The agent could not complete this run.";
+      let friendly: string;
+      if (/document is required/i.test(String(raw))) {
+        friendly = "This check needs an open draft. Create or open a draft first, then ask me to review it — or ask me anything general and I'll answer directly.";
+      } else if (/agent_unavailable/i.test(String(raw)) && !resultMsg) {
+        friendly = "The agent couldn't process this request. This usually means the AI model is temporarily unreachable or the request timed out. Try again in a moment.";
+      } else if (/credentials|access.key|auth|token/i.test(String(raw))) {
+        friendly = "The AI service credentials appear to be misconfigured. Check your Bedrock API key and AWS credentials in the backend .env file.";
+      } else {
+        friendly = String(raw);
+      }
       setRunError(friendly);
       setActiveRunId(null);
       return;
@@ -517,10 +526,62 @@ export function AgentChatView({
     setLocalMessages((prev) => [...prev, userMsg]);
 
     try {
+      const requestedAction = inferRequestedAction(text, selectedAgent);
+
+      // --- Matterless general chat via streaming endpoint ---
       if (!currentMatterId) {
-        throw new Error("Select a Matter before starting an evidence-based task.");
+        const needsMatter =
+          selectedAgent !== "main" ||
+          requestedAction !== "answer";
+        if (needsMatter) {
+          setBusy(false);
+          setRunError(
+            "Attach a Matter to use drafting, fact review, or citation review. " +
+            "For general legal questions, just ask — no Matter needed."
+          );
+          return;
+        }
+        // Use the direct streaming chat endpoint (no matter/thread required)
+        let fullResponse = "";
+        const streamStages: SSEEvent[] = [
+          { id: `sse-start-${Date.now()}`, event_type: "task.started", label: "Agent is thinking", status: "done", timestamp: Date.now() },
+        ];
+        setSseStages(streamStages);
+
+        await agentRunService.streamGeneralChat(text, (event) => {
+          if (event.type === "text" && typeof event.data.delta === "string") {
+            fullResponse += event.data.delta;
+          } else if (event.type === "tool" && typeof event.data.name === "string") {
+            const toolStage: SSEEvent = {
+              id: `sse-tool-${Date.now()}-${Math.random()}`,
+              event_type: "tool.started",
+              label: `Using: ${event.data.name}`,
+              status: "done",
+              timestamp: Date.now(),
+            };
+            setSseStages((prev) => [...prev, toolStage]);
+          }
+        });
+
+        const assistantMsg: MessageItem = {
+          id: `stream-${Date.now()}`,
+          role: "assistant",
+          content: fullResponse || "I couldn't generate a response. Please try again.",
+          agentId: "orchestrator",
+          thinkingStages: streamStages.map((s) => ({
+            id: s.id,
+            label: s.label,
+            status: "done" as const,
+          })),
+          thinkingDuration: `${((Date.now() - (streamStages[0]?.timestamp ?? Date.now())) / 1000).toFixed(1)}s`,
+        };
+        setLocalMessages((prev) => [...prev, assistantMsg]);
+        setSseStages([]);
+        setBusy(false);
+        return;
       }
 
+      // --- Matter-based agent run flow ---
       let threadId = activeThreadId;
       if (!threadId) {
         const thread = await conversationService.createThread(currentMatterId, {
@@ -542,7 +603,6 @@ export function AgentChatView({
         ),
       );
 
-      const requestedAction = inferRequestedAction(text, selectedAgent);
       const run = await agentRunService.createRun(currentMatterId, {
         thread_id: threadId,
         message_id: message.id,
