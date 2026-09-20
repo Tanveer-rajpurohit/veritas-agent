@@ -10,7 +10,6 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.models.auth.action_token import ActionToken
-    from app.models.auth.session import UserSession
 
 
 class User(Base):
@@ -44,9 +43,6 @@ class User(Base):
         nullable=False,
     )
 
-    sessions: Mapped[list["UserSession"]] = relationship(
-        "UserSession", back_populates="user", cascade="all, delete-orphan"
-    )
     action_tokens: Mapped[list["ActionToken"]] = relationship(
         "ActionToken", back_populates="user", cascade="all, delete-orphan"
     )

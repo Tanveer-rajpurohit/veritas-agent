@@ -9,15 +9,14 @@ from app.core.security import (
     AuthException,
     generate_opaque_token,
     get_dummy_password_hash,
-    hash_identifier,
     hash_password,
     hash_token,
     normalize_email,
     verify_password,
 )
-from app.models.auth import User, UserSession
+from app.models.auth import User
 from app.repositories.auth.auth_repository import AuthRepository
-from app.schemas.auth.auth import RegisterRequest, SessionResponse
+from app.schemas.auth.auth import RegisterRequest
 from app.services.auth.email_service import send_password_reset, send_verification
 
 
@@ -128,13 +127,7 @@ class AuthService:
         await send_verification(user.email, raw_token)
         return raw_token
 
-    def login(
-        self,
-        email: str,
-        password: str,
-        ip: str | None = None,
-        user_agent: str | None = None,
-    ) -> tuple[User, str, UserSession]:
+    def login(self, email: str, password: str) -> User:
         clean_email = normalize_email(email)
         user = self.repo.get_user_by_email(clean_email)
 
@@ -158,64 +151,21 @@ class AuthService:
                 status_code=401,
             )
 
+        if not user.is_email_verified:
+            raise AuthException(
+                code="EMAIL_NOT_VERIFIED",
+                message="Verify your email before logging in",
+                status_code=403,
+            )
+
         # Upgrade legacy scrypt hash to Argon2id in the same transaction
         if user.password_hash and not user.password_hash.startswith("$argon2"):
             user.password_hash = hash_password(password)
             user.updated_at = datetime.now(UTC)
             self.repo.update_user_password(user, user.password_hash)
 
-        raw_session_token = generate_opaque_token(32)
-        token_hash = hash_token(raw_session_token)
-        expires_at = datetime.now(UTC) + timedelta(seconds=settings.SESSION_TTL_SECONDS)
-        ip_h = hash_identifier(ip) if ip else None
-        ua_h = hash_identifier(user_agent) if user_agent else None
-
-        session = self.repo.create_session(
-            user_id=user.id,
-            token_hash=token_hash,
-            expires_at=expires_at,
-            ip_hash=ip_h,
-            user_agent_hash=ua_h,
-        )
         self.db.commit()
-        self.db.refresh(session)
-        return user, raw_session_token, session
-
-    def logout(self, session_token: str | None) -> None:
-        if not session_token:
-            return
-        token_hash = hash_token(session_token)
-        active = self.repo.get_active_session_by_token_hash(token_hash)
-        if active is not None:
-            session, _ = active
-            self.repo.revoke_session(session)
-            self.db.commit()
-
-    def list_sessions(
-        self, user_id: UUID, current_session_id: UUID | None
-    ) -> list[SessionResponse]:
-        sessions = self.repo.list_active_sessions_for_user(user_id)
-        return [
-            SessionResponse(
-                id=s.id,
-                created_at=s.created_at,
-                expires_at=s.expires_at,
-                last_seen_at=s.last_seen_at,
-                is_current=(s.id == current_session_id),
-            )
-            for s in sessions
-        ]
-
-    def revoke_session(self, user_id: UUID, session_id: UUID) -> None:
-        session = self.repo.get_session_for_user(session_id=session_id, user_id=user_id)
-        if session is None or session.revoked_at is not None:
-            raise AuthException(
-                code="NOT_FOUND",
-                message="Session not found",
-                status_code=404,
-            )
-        self.repo.revoke_session(session)
-        self.db.commit()
+        return user
 
     async def forgot_password(self, email: str) -> str | None:
         clean_email = normalize_email(email)
@@ -239,7 +189,7 @@ class AuthService:
         await send_password_reset(user.email, raw_token)
         return raw_token
 
-    async def reset_password(self, token: str, new_password: str) -> None:
+    async def reset_password(self, token: str, new_password: str) -> UUID:
         token_clean = token.strip()
         token_hash = hash_token(token_clean)
 
@@ -264,6 +214,5 @@ class AuthService:
         self.repo.consume_action_token(action_token)
         new_pwd_hash = hash_password(new_password)
         self.repo.update_user_password(user, new_pwd_hash)
-        # Atomically revoke every active session for this user
-        self.repo.revoke_all_sessions_for_user(user.id)
         self.db.commit()
+        return user.id

@@ -1,30 +1,35 @@
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import Depends, Request, Response
+from redis.asyncio import Redis
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.redis import get_redis
 from app.core.security import (
     AuthException,
+    decode_access_token,
     hash_password,
     hash_token,
     validate_origin,
     verify_password,
 )
 from app.db.session import get_db
-from app.models.auth import User, UserSession
+from app.models.auth import User
 from app.repositories.auth.auth_repository import AuthRepository
+from app.services.auth.session_store import RedisSession, SessionStore
 
 
-def set_session_cookie(response: Response, raw_token: str) -> None:
+def set_session_cookie(response: Response, refresh_token: str) -> None:
     response.set_cookie(
         key=settings.SESSION_COOKIE_NAME,
-        value=raw_token,
+        value=refresh_token,
         httponly=True,
         secure=settings.SESSION_COOKIE_SECURE,
         samesite="lax",
         path="/",
-        max_age=settings.SESSION_TTL_SECONDS,
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
     )
 
 
@@ -38,47 +43,53 @@ def clear_session_cookie(response: Response) -> None:
     )
 
 
-def get_current_session(
+async def get_current_session(
     request: Request,
     db: Annotated[Session, Depends(get_db)],
-) -> tuple[User, UserSession | None]:
-    from app.core.security import decode_access_token
-
-    auth_header = request.headers.get("authorization", "")
-    if auth_header.lower().startswith("bearer "):
-        user_id = decode_access_token(auth_header[7:].strip())
-        if user_id:
-            repo = AuthRepository(db)
-            user = repo.get_user_by_id(user_id)
-            if user is not None:
-                return user, None
-    raw_token = request.cookies.get(settings.SESSION_COOKIE_NAME)
-    if not raw_token:
+    redis: Annotated[Redis | None, Depends(get_redis)],
+) -> tuple[User, RedisSession]:
+    if redis is None:
         raise AuthException(
-            code="AUTHENTICATION_REQUIRED",
-            message="Authentication required. Please log in again.",
-            status_code=401,
+            code="SESSION_UNAVAILABLE",
+            message="Authentication is temporarily unavailable.",
+            status_code=503,
         )
 
-    if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
-        validate_origin(request)
+    store = SessionStore(redis)
+    authorization = request.headers.get("authorization", "")
+    if authorization.lower().startswith("bearer "):
+        claims = decode_access_token(authorization[7:].strip())
+        if claims:
+            user_id, session_id = claims
+            session = await store.authenticate(user_id, session_id)
+            user = AuthRepository(db).get_user_by_id(UUID(user_id))
+            if user is not None and user.is_active:
+                return user, session
 
-    token_hash = hash_token(raw_token)
-    repo = AuthRepository(db)
-    result = repo.get_active_session_by_token_hash(token_hash)
-    if result is None:
-        raise AuthException(
-            code="AUTHENTICATION_REQUIRED",
-            message="Invalid or expired session",
-            status_code=401,
-        )
+    refresh_token = request.cookies.get(settings.SESSION_COOKIE_NAME)
+    if refresh_token:
+        if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+            validate_origin(request)
+        session_id_text, separator, _ = refresh_token.partition(".")
+        if separator:
+            try:
+                session = await store.get(UUID(session_id_text))
+            except ValueError:
+                session = None
+            if session is not None and session.refresh_hash == hash_token(refresh_token):
+                user = AuthRepository(db).get_user_by_id(session.user_id)
+                if user is not None and user.is_active:
+                    return user, session
 
-    session, user = result
-    return user, session
+    raise AuthException(
+        code="AUTHENTICATION_REQUIRED",
+        message="Authentication required. Please log in again.",
+        status_code=401,
+    )
 
 
-def current_user(
-    session_data: Annotated[tuple[User, UserSession], Depends(get_current_session)],
+async def current_user(
+    session_data: Annotated[tuple[User, RedisSession], Depends(get_current_session)],
 ) -> User:
     return session_data[0]
 

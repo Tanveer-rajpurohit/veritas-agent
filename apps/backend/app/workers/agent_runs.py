@@ -90,7 +90,10 @@ def process_agent_run(run_id: UUID) -> None:
                     db,
                     run_id,
                     "tool.started",
-                    {"tool": "fact_review", "summary": "Checking factual claims against Matter evidence"},
+                    {
+                        "tool": "fact_review",
+                        "summary": "Checking factual claims against Matter evidence",
+                    },
                 )
                 fact_review = fact_review_service.run(
                     db=db,
@@ -399,9 +402,16 @@ def process_agent_run(run_id: UUID) -> None:
                 }
             else:
                 agent = create_main_agent()
-                history = db.scalars(select(Message).where(Message.thread_id == run.thread_id).order_by(Message.created_at.desc()).limit(11)).all()
+                history = db.scalars(
+                    select(Message)
+                    .where(Message.thread_id == run.thread_id)
+                    .order_by(Message.created_at.desc())
+                    .limit(11)
+                ).all()
                 history = list(reversed(history))
-                convo = [f"{m.role}: {m.content[:2000]}" for m in history if m.id != message.id][-10:]
+                convo = [f"{m.role}: {m.content[:2000]}" for m in history if m.id != message.id][
+                    -10:
+                ]
                 prompt = ""
                 if convo:
                     prompt += "Conversation so far:\n" + "\n".join(convo) + "\n\n"

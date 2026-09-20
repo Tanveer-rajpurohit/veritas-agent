@@ -79,7 +79,9 @@ class ExtractorService:
             pass
         return None, "ocr_unavailable"
 
-    def _process_fitz_doc(self, doc, method: str, filename: str = "document.pdf") -> ExtractedDocument:
+    def _process_fitz_doc(
+        self, doc, method: str, filename: str = "document.pdf"
+    ) -> ExtractedDocument:
         pages: list[ExtractedPage] = []
         total_chars = 0
         total_pages = len(doc)
@@ -100,17 +102,14 @@ class ExtractorService:
 
             images = page.get_images()
             confidence = 1.0
-            method_used = method
             if len(raw_text) < 30 and len(images) > 0:
-                ocr_candidate, ocr_method = self._try_ocr_page(page)
+                ocr_candidate, _ = self._try_ocr_page(page)
                 if ocr_candidate:
                     raw_text = ocr_candidate
                     confidence = 0.85
-                    method_used = ocr_method
                 else:
                     confidence = 0.4
                     has_scanned_pages = True
-                    method_used = "needs_review_ocr_unavailable"
 
             if not raw_text:
                 has_scanned_pages = True

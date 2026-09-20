@@ -1,5 +1,5 @@
 from app.models.agent_runs import AgentEvent, AgentRun
-from app.models.auth import ActionToken, User, UserSession
+from app.models.auth import ActionToken, User
 from app.models.conversations import Message, Thread
 from app.models.drafts import DocumentCommand, DocumentVersion, Draft, DraftExport
 from app.models.matters import Matter, MatterMember
@@ -28,5 +28,4 @@ __all__ = [
     "SourceVersion",
     "Thread",
     "User",
-    "UserSession",
 ]

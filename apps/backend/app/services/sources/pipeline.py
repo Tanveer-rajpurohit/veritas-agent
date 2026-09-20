@@ -85,7 +85,10 @@ class IngestionPipeline:
         if not raw_chunks:
             if extracted_doc.pages:
                 first_page = extracted_doc.pages[0]
-                text_content = (first_page.text.strip() or f"[{filename}: Source evidence document ({len(content)} bytes)]").strip()
+                text_content = (
+                    first_page.text.strip()
+                    or f"[{filename}: Source evidence document ({len(content)} bytes)]"
+                ).strip()
                 raw_chunks = [
                     ChunkItem(
                         chunk_index=0,

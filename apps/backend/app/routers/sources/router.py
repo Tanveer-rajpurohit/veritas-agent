@@ -69,17 +69,27 @@ async def upload_source(
     filename = file.filename or ""
     extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     if extension not in {"pdf", "txt", "md", "png", "jpg", "jpeg"}:
-        raise HTTPException(status_code=415, detail="OCR_UNAVAILABLE: Only PDF, TXT, MD, PNG, JPG are supported. Convert the scan and retry.")
+        raise HTTPException(
+            status_code=415,
+            detail="OCR_UNAVAILABLE: Only PDF, TXT, MD, PNG, JPG are supported. Convert the scan and retry.",
+        )
     content = await file.read(MAX_UPLOAD_BYTES + 1)
     if not content or len(content) > MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=413, detail="UPLOAD_TOO_LARGE: File is empty or exceeds 10 MB")
+        raise HTTPException(
+            status_code=413, detail="UPLOAD_TOO_LARGE: File is empty or exceeds 10 MB"
+        )
     if extension == "pdf" and not content.startswith(b"%PDF-"):
-        raise HTTPException(status_code=415, detail="INVALID_PDF: File header is not a valid PDF. Re-export and retry.")
+        raise HTTPException(
+            status_code=415,
+            detail="INVALID_PDF: File header is not a valid PDF. Re-export and retry.",
+        )
     if extension in {"txt", "md"}:
         try:
             content.decode("utf-8")
         except UnicodeDecodeError:
-            raise HTTPException(status_code=415, detail="INVALID_TEXT: Text files must be UTF-8") from None
+            raise HTTPException(
+                status_code=415, detail="INVALID_TEXT: Text files must be UTF-8"
+            ) from None
     try:
         source, version, _ = ingestion_pipeline.ingest_file(
             db=db,
@@ -92,7 +102,10 @@ async def upload_source(
         msg = str(exc)
         if "empty" in msg.lower():
             raise HTTPException(status_code=422, detail=f"EMPTY_SOURCE: {msg}") from None
-        raise HTTPException(status_code=422, detail=f"EXTRACTION_FAILED: {msg} The file was stored; mark needs_review and retry.") from None
+        raise HTTPException(
+            status_code=422,
+            detail=f"EXTRACTION_FAILED: {msg} The file was stored; mark needs_review and retry.",
+        ) from None
     return _response(source, version)
 
 

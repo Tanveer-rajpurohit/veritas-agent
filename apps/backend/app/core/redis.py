@@ -49,7 +49,26 @@ async def close_redis_pool() -> None:
 
 
 async def get_redis() -> AsyncGenerator[Redis | None, None]:
-    global redis_client
-    if redis_client is None:
-        await init_redis_pool()
-    yield redis_client
+    kwargs: dict[str, object] = {
+        "encoding": "utf-8",
+        "decode_responses": True,
+        "max_connections": 10,
+        "socket_connect_timeout": 2.0,
+        "socket_timeout": 2.0,
+    }
+    if settings.REDIS_URL.startswith("rediss://"):
+        kwargs["ssl_cert_reqs"] = "none"
+    try:
+        client = from_url(settings.REDIS_URL, **kwargs)
+        await client.ping()
+    except Exception as exc:
+        logger.warning("Redis request unavailable (%s)", type(exc).__name__)
+        yield None
+        return
+    try:
+        yield client
+    finally:
+        try:
+            await client.aclose()
+        except Exception as exc:
+            logger.warning("Redis request cleanup failed (%s)", type(exc).__name__)

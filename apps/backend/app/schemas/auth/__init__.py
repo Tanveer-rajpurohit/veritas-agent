@@ -4,15 +4,15 @@ from app.schemas.auth.auth import (
     ForgotPasswordRequest,
     LoginRequest,
     MessageResponse,
+    RefreshRequest,
     RegisterRequest,
     ResendVerificationRequest,
     ResetPasswordRequest,
     SessionResponse,
+    TokenPair,
     UpdateProfileRequest,
     UserResponse,
     VerifyEmailRequest,
-    TokenPair,
-    RefreshRequest,
 )
 
 __all__ = [

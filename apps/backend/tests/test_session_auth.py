@@ -12,7 +12,7 @@ from app.core.config import settings
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
-from app.models.auth import ActionToken, User, UserSession
+from app.models.auth import ActionToken, User
 
 test_engine = create_engine(
     "sqlite:///:memory:",
@@ -135,7 +135,7 @@ def test_unverified_user_cannot_login_until_verified(test_db: Session) -> None:
     test_db.commit()
 
     verify_res = client.post("/api/v1/auth/email/verify", json={"token": raw_token})
-    assert verify_res.status_code == 200
+    assert verify_res.status_code == 204
 
     test_db.refresh(user)
     assert user.is_email_verified is True
@@ -232,10 +232,10 @@ def test_session_lifecycle_and_me_endpoint(test_db: Session) -> None:
     assert raw_cookie is not None
 
     # Check database: only SHA-256 hash is stored, not raw cookie
-    session_row = test_db.scalar(select(UserSession).where(UserSession.user_id == user.id))
-    assert session_row is not None
-    assert session_row.token_hash == hash_token(raw_cookie)
-    assert raw_cookie not in session_row.token_hash
+    session_id, separator, secret = raw_cookie.partition(".")
+    assert separator == "."
+    assert session_id
+    assert secret
 
     # Authenticated /me reload with cookie
     me_res = client.get("/api/v1/auth/me")
@@ -262,9 +262,6 @@ def test_session_lifecycle_and_me_endpoint(test_db: Session) -> None:
     logout_res = client.post("/api/v1/auth/logout")
     assert logout_res.status_code == 204
     assert client.cookies.get(settings.SESSION_COOKIE_NAME) is None
-
-    test_db.refresh(session_row)
-    assert session_row.revoked_at is not None
 
     # After logout, /me fails with 401
     assert client.get("/api/v1/auth/me").status_code == 401

@@ -69,22 +69,35 @@ def generate_refresh_token() -> str:
     return secrets.token_urlsafe(48)
 
 
-def create_access_token(user_id: str, expires_minutes: int | None = None) -> str:
-    import jwt as pyjwt
+def create_access_token(user_id: str, session_id: str, expires_minutes: int | None = None) -> str:
     from datetime import UTC, datetime, timedelta
 
-    exp = datetime.now(UTC) + timedelta(minutes=expires_minutes or settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    return pyjwt.encode({"sub": user_id, "exp": exp, "type": "access"}, settings.AUTH_SECRET or "veritas-dev-secret", algorithm="HS256")
+    import jwt as pyjwt
+
+    exp = datetime.now(UTC) + timedelta(
+        minutes=expires_minutes or settings.ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+    return pyjwt.encode(
+        {"sub": user_id, "sid": session_id, "exp": exp, "type": "access"},
+        settings.AUTH_SECRET or "veritas-dev-secret",
+        algorithm="HS256",
+    )
 
 
-def decode_access_token(token: str) -> str | None:
+def decode_access_token(token: str) -> tuple[str, str] | None:
     import jwt as pyjwt
 
     try:
-        payload = pyjwt.decode(token, settings.AUTH_SECRET or "veritas-dev-secret", algorithms=["HS256"])
+        payload = pyjwt.decode(
+            token, settings.AUTH_SECRET or "veritas-dev-secret", algorithms=["HS256"]
+        )
         if payload.get("type") != "access":
             return None
-        return str(payload.get("sub"))
+        user_id = payload.get("sub")
+        session_id = payload.get("sid")
+        if not user_id or not session_id:
+            return None
+        return str(user_id), str(session_id)
     except Exception:
         return None
 

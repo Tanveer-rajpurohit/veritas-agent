@@ -1,4 +1,3 @@
-import contextlib
 from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
@@ -17,7 +16,7 @@ from app.core.config import settings
 from app.core.rate_limiter import check_is_locked_out, check_rate_limit, redis_dependency
 from app.core.security import AuthException, normalize_email, validate_origin
 from app.db.session import get_db
-from app.models.auth import User, UserSession
+from app.models.auth import User
 from app.schemas.auth import (
     ForgotPasswordRequest,
     LoginRequest,
@@ -33,6 +32,7 @@ from app.schemas.auth import (
     VerifyEmailRequest,
 )
 from app.services.auth import AuthService
+from app.services.auth.session_store import RedisSession, SessionStore
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
 
@@ -106,12 +106,7 @@ async def login(
 
     service = AuthService(db)
     try:
-        logged_user, raw_session_token, _ = service.login(
-            email=payload.email,
-            password=payload.password,
-            ip=request.client.host if request.client else None,
-            user_agent=request.headers.get("user-agent"),
-        )
+        logged_user = service.login(email=payload.email, password=payload.password)
     except AuthException as exc:
         if exc.code == "INVALID_CREDENTIALS":
             try:
@@ -130,43 +125,59 @@ async def login(
                 ) from None
         raise
 
-    if redis is not None:
-        with contextlib.suppress(Exception):
-            await redis.delete(failed_key)
+    if redis is None:
+        raise AuthException(
+            code="SESSION_UNAVAILABLE",
+            message="Authentication is temporarily unavailable.",
+            status_code=503,
+        )
+    await redis.delete(failed_key)
 
-    from app.core.security import create_access_token, generate_refresh_token
+    from app.core.security import create_access_token
 
-    set_session_cookie(response, raw_session_token)
-    access_token = create_access_token(str(logged_user.id))
-    refresh_token = generate_refresh_token()
-    if redis is not None:
-        with contextlib.suppress(Exception):
-            await redis.set(f"refresh_token:{refresh_token}", str(logged_user.id), ex=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400)
-    return TokenPair(access_token=access_token, refresh_token=refresh_token, expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60)
+    session, refresh_token = await SessionStore(redis).create(
+        user_id=logged_user.id,
+        ip=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+    )
+    set_session_cookie(response, refresh_token)
+    return TokenPair(
+        access_token=create_access_token(str(logged_user.id), str(session.id)),
+        refresh_token=refresh_token,
+        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
 
 
 @router.post("/refresh", response_model=TokenPair)
 async def refresh(
     payload: RefreshRequest,
+    response: Response,
     db: Annotated[Session, Depends(get_db)],
     redis: Annotated[Redis | None, redis_dependency] = None,
 ) -> TokenPair:
-    from app.core.security import create_access_token, generate_refresh_token
+    from app.core.security import create_access_token
     from app.repositories.auth.auth_repository import AuthRepository
 
     if redis is None:
-        raise AuthException(code="SESSION_UNAVAILABLE", message="Session storage unavailable. Please log in again.", status_code=503)
-    user_id = await redis.get(f"refresh_token:{payload.refresh_token}")
-    if not user_id:
-        raise AuthException(code="AUTHENTICATION_REQUIRED", message="Invalid or expired refresh token.", status_code=401)
-    user_id_str = user_id.decode() if isinstance(user_id, bytes) else str(user_id)
-    await redis.delete(f"refresh_token:{payload.refresh_token}")
-    user = AuthRepository(db).get_user_by_id(user_id_str)
+        raise AuthException(
+            code="SESSION_UNAVAILABLE",
+            message="Session storage unavailable. Please log in again.",
+            status_code=503,
+        )
+    session, new_refresh = await SessionStore(redis).rotate(payload.refresh_token)
+    user = AuthRepository(db).get_user_by_id(session.user_id)
     if user is None or not user.is_active:
-        raise AuthException(code="AUTHENTICATION_REQUIRED", message="Account unavailable. Please log in again.", status_code=401)
-    new_refresh = generate_refresh_token()
-    await redis.set(f"refresh_token:{new_refresh}", user_id_str, ex=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400)
-    return TokenPair(access_token=create_access_token(user_id_str), refresh_token=new_refresh, expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60)
+        raise AuthException(
+            code="AUTHENTICATION_REQUIRED",
+            message="Account unavailable. Please log in again.",
+            status_code=401,
+        )
+    set_session_cookie(response, new_refresh)
+    return TokenPair(
+        access_token=create_access_token(str(user.id), str(session.id)),
+        refresh_token=new_refresh,
+        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
 
 
 @router.get("/me", response_model=UserResponse)
@@ -196,39 +207,65 @@ def update_current_user_profile(
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-def logout(
+async def logout(
     request: Request,
     response: Response,
-    db: Annotated[Session, Depends(get_db)],
+    redis: Annotated[Redis | None, redis_dependency] = None,
 ) -> None:
-    raw_token = request.cookies.get(settings.SESSION_COOKIE_NAME)
-    if raw_token:
-        validate_origin(request)
-        service = AuthService(db)
-        service.logout(raw_token)
+    if redis is not None:
+        session_id: str | None = None
+        authorization = request.headers.get("authorization", "")
+        if authorization.lower().startswith("bearer "):
+            from app.core.security import decode_access_token
+
+            claims = decode_access_token(authorization[7:].strip())
+            session_id = claims[1] if claims else None
+            user_id = claims[0] if claims else None
+        else:
+            refresh_token = request.cookies.get(settings.SESSION_COOKIE_NAME, "")
+            if refresh_token:
+                validate_origin(request)
+            session_id, _, _ = refresh_token.partition(".")
+            session = await SessionStore(redis).get(session_id) if session_id else None
+            user_id = str(session.user_id) if session else None
+        if session_id and user_id:
+            await SessionStore(redis).revoke(user_id, session_id)
     clear_session_cookie(response)
 
 
 @router.get("/sessions", response_model=list[SessionResponse])
-def list_sessions(
-    session_data: Annotated[tuple[User, UserSession], Depends(get_current_session)],
-    db: Annotated[Session, Depends(get_db)],
+async def list_sessions(
+    session_data: Annotated[tuple[User, RedisSession], Depends(get_current_session)],
+    redis: Annotated[Redis | None, redis_dependency] = None,
 ) -> list[SessionResponse]:
     user, session = session_data
-    service = AuthService(db)
-    return service.list_sessions(user.id, session.id)
+    if redis is None:
+        raise AuthException("SESSION_UNAVAILABLE", "Authentication is unavailable", 503)
+    sessions = await SessionStore(redis).list_for_user(user.id)
+    return [
+        SessionResponse(
+            id=item.id,
+            created_at=item.created_at,
+            expires_at=item.expires_at,
+            last_seen_at=item.last_seen_at,
+            is_current=item.id == session.id,
+        )
+        for item in sessions
+    ]
 
 
 @router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
-def revoke_session(
+async def revoke_session(
     session_id: UUID,
     response: Response,
-    session_data: Annotated[tuple[User, UserSession], Depends(get_current_session)],
-    db: Annotated[Session, Depends(get_db)],
+    session_data: Annotated[tuple[User, RedisSession], Depends(get_current_session)],
+    redis: Annotated[Redis | None, redis_dependency] = None,
 ) -> None:
     user, current_session = session_data
-    service = AuthService(db)
-    service.revoke_session(user.id, session_id)
+    if redis is None:
+        raise AuthException("SESSION_UNAVAILABLE", "Authentication is unavailable", 503)
+    if not await SessionStore(redis).revoke(user.id, session_id):
+        raise AuthException("NOT_FOUND", "Session not found", 404)
     if session_id == current_session.id:
         clear_session_cookie(response)
 
@@ -253,9 +290,12 @@ async def forgot_password(
 async def reset_password(
     payload: ResetPasswordRequest,
     db: Annotated[Session, Depends(get_db)],
+    redis: Annotated[Redis | None, redis_dependency] = None,
 ) -> MessageResponse:
     service = AuthService(db)
-    await service.reset_password(payload.token, payload.new_password)
+    user_id = await service.reset_password(payload.token, payload.new_password)
+    if redis is not None:
+        await SessionStore(redis).revoke_all(user_id)
     return MessageResponse(
         message="Password reset successfully. You can now log in with your new password."
     )
