@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Image from "next/image";
+import { VeritasOrb } from "../../components/brand/veritas-orb";
 
 export const metadata: Metadata = { title: "Test documents | Veritas" };
 
@@ -21,7 +21,7 @@ export default function TestDocsPage() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-14">
       <div className="flex items-center gap-3">
-        <Image src="https://blobatar.dev/?name=veritas" alt="Veritas" width={36} height={36} className="rounded-full" unoptimized />
+        <VeritasOrb size={36} />
         <h1 className="text-2xl font-semibold">Test documents</h1>
       </div>
       <p className="mt-2 text-sm text-stone-500">Download any file, upload it into a Matter, then ask the agent to draft, fact-check, or review citations.</p>
