@@ -23,13 +23,17 @@ Branch: `feature/workspace-platform`. Read `instruction.md` first.
 - 2026-11-27: This machine has a system-wide GEMINI_API_KEY env var. Node `--env-file` never overrides existing vars, so that value wins over `.env`. Tell the user; testing env validation needs `env -u GEMINI_API_KEY`.
 - 2026-11-27: Local AUTH_SECRET and CONNECTOR_KEK generated randomly into `.env` (never committed).
 
-- 2026-11-27: Visual direction set by the user: Space Grotesk (UI) + PT Mono (numbers/code), both OFL; Cloud Dancer #F0EEE9 canvas; black primary buttons (near-white in dark mode); teal brand for focus/links/active; orb is a teal 3D sphere lit from the side. Note: global slop rule 11 bans Space Grotesk + Instrument Serif, not Space Grotesk alone; this was an explicit user request anyway.
+- 2026-11-27: Visual direction set by the user: Space Grotesk (UI) + PT Mono (numbers/code), both OFL; (revised same day) white light theme and true-black dark theme with cool neutral greys; black primary buttons (white in dark); teal brand for focus/links/active. Orb is a painterly sphere of blurred colour fields with contained grain (ElevenLabs-style reference from the user), one tone per agent mode: lagoon/General, ember/Legal, moss/Analyst, coral/Presenter, glacier/Researcher, pearl/neutral. Grain is contained to the orb, a deliberate exception to slop rule 20. Note: global slop rule 11 bans Space Grotesk + Instrument Serif, not Space Grotesk alone; this was an explicit user request anyway.
 - 2026-11-27: E2E uses Playwright with the installed Chrome (`channel: chrome`), so there is no browser download; axe-core checks WCAG 2.2 AA. `/_design` is served from `app/%5Fdesign` (Next private-folder escape) and returns 404 in production.
 
 ## Blocked
 - F007, F047, F048, F049: need OAuth client IDs/secrets in `.env` (user will add).
 
 ## Log
+### 2026-11-27: F011 design revision (still passing)
+- User feedback: drop the cream, use white/black backgrounds, orb like the ElevenLabs reference. Rebuilt Orb (4 drifting blurred blobs, edge shade, grain at >=40px, 6 mode tones; faster drift while thinking) and the neutral themes.
+- Verified: F011 e2e 6/6 (added: white/black canvas check, tone check, thinking is faster than idle), types and lint 7/7, checked by eye in light and dark.
+
 ### 2026-11-27: F011 design tokens, themes and orb (passing)
 - packages/ui: two-layer tokens (Tailwind palettes, then semantic `--vt-*` vars exposed as utilities), light/dark via `[data-theme]` set before paint, the Orb component (idle/thinking), theme switch backed by useSyncExternalStore.
 - Verified: e2e `e2e/f011-design-system.spec.ts` 5/5 in Chrome (no console errors; zero serious axe violations in light and dark; theme persists across reload; orb at 16/32/128; reduced motion stops the sweep). Checked by eye at 1280px and 375px, no horizontal scroll, slop checklist clean.

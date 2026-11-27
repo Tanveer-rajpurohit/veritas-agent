@@ -49,32 +49,31 @@
   --color-warning-soft: var(--vt-warning-soft);
   --color-info: var(--vt-info);
   --color-info-soft: var(--vt-info-soft);
-  --color-orb-core: var(--vt-orb-core);
-  --color-orb-mid: var(--vt-orb-mid);
-  --color-orb-edge: var(--vt-orb-edge);
+  --color-surface-muted: var(--vt-surface-muted);
 
-  --shadow-raised: 0 1px 2px rgb(28 25 23 / 0.05), 0 4px 12px rgb(28 25 23 / 0.08);
-  --shadow-overlay: 0 2px 4px rgb(28 25 23 / 0.06), 0 12px 32px rgb(28 25 23 / 0.14);
+  --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 12px rgb(0 0 0 / 0.06);
+  --shadow-overlay: 0 2px 4px rgb(0 0 0 / 0.05), 0 16px 40px rgb(0 0 0 / 0.12);
 }
 
 :root,
 [data-theme="light"] {
   color-scheme: light;
-  /* Pantone 11-4201 Cloud Dancer, Colour of the Year 2026 */
-  --vt-canvas: #f0eee9;
+  --vt-canvas: var(--color-white);
   --vt-surface: var(--color-white);
   --vt-surface-raised: var(--color-white);
-  --vt-surface-hover: #f6f5f1;
-  --vt-surface-selected: var(--color-stone-200);
-  --vt-surface-inverted: var(--color-stone-900);
-  --vt-ink: var(--color-stone-900);
-  --vt-ink-muted: var(--color-stone-600);
-  --vt-ink-subtle: var(--color-stone-500);
-  --vt-ink-inverted: var(--color-stone-50);
-  --vt-line: #e3e0d8;
-  --vt-line-strong: #cfcbc1;
-  --vt-accent: var(--color-stone-950);
-  --vt-accent-hover: var(--color-stone-800);
+  --vt-surface-hover: var(--color-neutral-100);
+  --vt-surface-selected: var(--color-neutral-200);
+  --vt-surface-muted: var(--color-neutral-50);
+  --vt-surface-inverted: var(--color-neutral-950);
+  --vt-ink: var(--color-neutral-950);
+  --vt-ink-muted: var(--color-neutral-600);
+  --vt-ink-subtle: var(--color-neutral-500);
+  --vt-ink-inverted: var(--color-white);
+  --vt-line: var(--color-neutral-200);
+  --vt-line-strong: var(--color-neutral-300);
+  /* Primary actions: black. Teal is the brand for focus, links, active states. */
+  --vt-accent: var(--color-neutral-950);
+  --vt-accent-hover: var(--color-neutral-800);
   --vt-accent-ink: var(--color-white);
   --vt-accent-soft: var(--color-teal-50);
   --vt-accent-text: var(--color-teal-800);
@@ -87,46 +86,37 @@
   --vt-warning-soft: var(--color-amber-50);
   --vt-info: var(--color-sky-800);
   --vt-info-soft: var(--color-sky-50);
-  --vt-orb-core: var(--color-teal-100);
-  --vt-orb-mid: var(--color-teal-400);
-  --vt-orb-edge: var(--color-teal-800);
-  --vt-orb-shadow: oklch(0.2 0.04 200);
-  --vt-orb-rim: var(--color-cyan-200);
 }
 
 [data-theme="dark"] {
   color-scheme: dark;
-  --vt-canvas: var(--color-stone-950);
-  --vt-surface: var(--color-stone-900);
-  --vt-surface-raised: oklch(0.255 0.007 49);
-  --vt-surface-hover: var(--color-stone-800);
-  --vt-surface-selected: var(--color-stone-700);
-  --vt-surface-inverted: var(--color-stone-100);
-  --vt-ink: var(--color-stone-100);
-  --vt-ink-muted: var(--color-stone-400);
-  --vt-ink-subtle: var(--color-stone-400);
-  --vt-ink-inverted: var(--color-stone-900);
-  --vt-line: var(--color-stone-800);
-  --vt-line-strong: var(--color-stone-700);
-  --vt-accent: var(--color-stone-100);
-  --vt-accent-hover: var(--color-white);
-  --vt-accent-ink: var(--color-stone-950);
-  --vt-accent-soft: oklch(0.3 0.05 185);
+  --vt-canvas: var(--color-black);
+  --vt-surface: oklch(0.17 0 0);
+  --vt-surface-raised: oklch(0.21 0 0);
+  --vt-surface-hover: oklch(0.24 0 0);
+  --vt-surface-selected: oklch(0.3 0 0);
+  --vt-surface-muted: oklch(0.13 0 0);
+  --vt-surface-inverted: var(--color-white);
+  --vt-ink: var(--color-neutral-50);
+  --vt-ink-muted: var(--color-neutral-400);
+  --vt-ink-subtle: var(--color-neutral-400);
+  --vt-ink-inverted: var(--color-neutral-950);
+  --vt-line: oklch(0.27 0 0);
+  --vt-line-strong: oklch(0.35 0 0);
+  --vt-accent: var(--color-white);
+  --vt-accent-hover: var(--color-neutral-200);
+  --vt-accent-ink: var(--color-neutral-950);
+  --vt-accent-soft: oklch(0.28 0.05 185);
   --vt-accent-text: var(--color-teal-300);
   --vt-focus: var(--color-teal-400);
   --vt-danger: var(--color-red-400);
-  --vt-danger-soft: oklch(0.29 0.07 25);
+  --vt-danger-soft: oklch(0.27 0.07 25);
   --vt-success: var(--color-green-400);
-  --vt-success-soft: oklch(0.29 0.06 150);
+  --vt-success-soft: oklch(0.27 0.06 150);
   --vt-warning: var(--color-amber-300);
-  --vt-warning-soft: oklch(0.3 0.06 75);
+  --vt-warning-soft: oklch(0.28 0.06 75);
   --vt-info: var(--color-sky-300);
-  --vt-info-soft: oklch(0.29 0.05 235);
-  --vt-orb-core: var(--color-teal-100);
-  --vt-orb-mid: var(--color-teal-400);
-  --vt-orb-edge: var(--color-teal-800);
-  --vt-orb-shadow: oklch(0.18 0.035 200);
-  --vt-orb-rim: var(--color-cyan-300);
+  --vt-info-soft: oklch(0.27 0.05 235);
 }
 
 @layer base {
@@ -153,22 +143,24 @@
   }
 }
 
-/* Orb "thinking" state: a slow light sweep. Stops under reduced motion. */
-@keyframes vt-orb-sweep {
+/* Orb: colour fields drift around the centre. Speed is set per blob inline. */
+@keyframes vt-orb-drift {
   to {
     transform: rotate(360deg);
   }
 }
 
-.vt-orb-sweep {
-  transform-origin: 50% 50%;
-  transform-box: fill-box;
-  animation: vt-orb-sweep 2.4s linear infinite;
+.vt-orb-blob {
+  transform-box: view-box;
+  transform-origin: 50px 50px;
+  animation-name: vt-orb-drift;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  transition: animation-duration 600ms var(--ease-out-soft);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vt-orb-sweep {
+  .vt-orb-blob {
     animation: none;
-    opacity: 0.6;
   }
 }

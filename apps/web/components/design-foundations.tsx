@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Orb, type OrbState } from "@veritas/ui";
+import { Orb, type OrbState, type OrbTone } from "@veritas/ui";
 import { ThemeSwitch } from "./theme-switch";
 
 const SURFACES = [
   ["canvas", "bg-canvas"],
   ["surface", "bg-surface"],
   ["surface-raised", "bg-surface-raised"],
+  ["surface-muted", "bg-surface-muted"],
   ["surface-hover", "bg-surface-hover"],
   ["surface-selected", "bg-surface-selected"],
   ["accent-soft", "bg-accent-soft"],
@@ -38,6 +39,14 @@ const TYPE = [
 
 const SPACING = [4, 8, 12, 16, 24, 32, 48, 64] as const;
 const ORB_SIZES = [16, 32, 128] as const;
+const ORB_TONES: { tone: OrbTone; mode: string }[] = [
+  { tone: "lagoon", mode: "General" },
+  { tone: "ember", mode: "Legal" },
+  { tone: "moss", mode: "Analyst" },
+  { tone: "coral", mode: "Presenter" },
+  { tone: "glacier", mode: "Researcher" },
+  { tone: "pearl", mode: "Neutral" },
+];
 
 export function DesignFoundations() {
   const [orbState, setOrbState] = useState<OrbState>("idle");
@@ -75,6 +84,14 @@ export function DesignFoundations() {
             {orbState === "thinking" ? "Show idle state" : "Show thinking state"}
           </button>
         </div>
+        <ul className="grid grid-cols-2 gap-6 rounded-xl border border-line bg-surface p-6 sm:grid-cols-3 lg:grid-cols-6">
+          {ORB_TONES.map(({ tone, mode }) => (
+            <li key={tone} className="flex flex-col items-center gap-3" data-testid={`tone-${tone}`}>
+              <Orb size={96} tone={tone} state={orbState} />
+              <span className="text-sm text-ink-muted">{mode}</span>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section aria-labelledby="color-heading" className="flex flex-col gap-4">
