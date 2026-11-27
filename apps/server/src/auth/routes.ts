@@ -1,5 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { fromNodeHeaders } from "better-auth/node";
+import { authProviders, type AuthProviders } from "@veritas/shared";
+import type { Env } from "../env";
 import type { Auth } from "./auth";
 
 function toFetchRequest(request: FastifyRequest): Request {
@@ -17,7 +19,12 @@ function toFetchRequest(request: FastifyRequest): Request {
 }
 
 /** Mounts Better Auth's fetch handler under /api/auth/*. */
-export async function authRoutes(app: FastifyInstance, auth: Auth) {
+export async function authRoutes(app: FastifyInstance, auth: Auth, env: Env) {
+  // Public: the sign-in page only offers providers that are actually configured.
+  app.get("/api/v1/auth/providers", async (): Promise<AuthProviders> =>
+    authProviders.parse({ google: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) }),
+  );
+
   app.route({
     method: ["GET", "POST"],
     url: "/api/auth/*",

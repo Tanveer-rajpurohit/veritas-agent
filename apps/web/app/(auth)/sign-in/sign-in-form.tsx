@@ -7,10 +7,13 @@ import { Button, TextField } from "@veritas/ui";
 import { authClient } from "@/lib/auth-client";
 import { authErrorMessage, retryAfterCapture } from "@/lib/auth-errors";
 import { CheckInbox } from "../check-inbox";
+import { GoogleButton, OrDivider } from "../google-button";
 
 type FieldErrors = Partial<Record<"email" | "password", string>>;
 
-export function SignInForm() {
+type Props = { isGoogleEnabled: boolean; hasOAuthError: boolean };
+
+export function SignInForm({ isGoogleEnabled, hasOAuthError }: Props) {
   const router = useRouter();
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState("");
@@ -62,6 +65,19 @@ export function SignInForm() {
         <h1 className="text-3xl font-semibold tracking-tight">Welcome back</h1>
         <p className="text-base text-ink-muted">Sign in to pick up where you left off.</p>
       </div>
+
+      {hasOAuthError ? (
+        <p role="alert" className="rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger">
+          Google sign-in didn&apos;t finish. Try again, or sign in with your email.
+        </p>
+      ) : null}
+
+      {isGoogleEnabled ? (
+        <>
+          <GoogleButton />
+          <OrDivider />
+        </>
+      ) : null}
 
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
         <TextField label="Email" name="email" type="email" autoComplete="email" inputMode="email" error={fieldErrors.email} />

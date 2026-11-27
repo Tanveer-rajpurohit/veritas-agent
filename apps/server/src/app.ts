@@ -48,7 +48,7 @@ export async function buildApp(env: Env, deps: Deps) {
 
   const auth = createAuth(env, deps, createMailer(env));
   await app.register(healthRoutes(deps));
-  await authRoutes(app, auth);
+  await authRoutes(app, auth, env);
   await app.register(workspaceRoutes(deps, auth));
   app.decorate("auth", auth);
   return app;

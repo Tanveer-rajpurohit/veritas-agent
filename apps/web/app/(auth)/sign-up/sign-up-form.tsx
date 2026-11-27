@@ -6,6 +6,7 @@ import { Button, TextField } from "@veritas/ui";
 import { authClient } from "@/lib/auth-client";
 import { authErrorMessage, retryAfterCapture } from "@/lib/auth-errors";
 import { CheckInbox } from "../check-inbox";
+import { GoogleButton, OrDivider } from "../google-button";
 
 const MIN_PASSWORD = 10;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -20,7 +21,7 @@ function validate(name: string, email: string, password: string): FieldErrors {
   return errors;
 }
 
-export function SignUpForm() {
+export function SignUpForm({ isGoogleEnabled }: { isGoogleEnabled: boolean }) {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -63,6 +64,13 @@ export function SignUpForm() {
         <h1 className="text-3xl font-semibold tracking-tight">Create your account</h1>
         <p className="text-base text-ink-muted">Start with an empty workspace. You can bring in files whenever you&apos;re ready.</p>
       </div>
+
+      {isGoogleEnabled ? (
+        <>
+          <GoogleButton />
+          <OrDivider />
+        </>
+      ) : null}
 
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
         <TextField label="Full name" name="name" autoComplete="name" error={fieldErrors.name} />

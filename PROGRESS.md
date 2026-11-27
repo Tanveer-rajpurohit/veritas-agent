@@ -42,10 +42,14 @@ Branch: `feature/workspace-platform`. Read `instruction.md` first.
 - 2026-11-27: E2E users each get a unique RFC 5737 client IP (`isolatedIp`) so rate limits apply per simulated user, not to the whole suite.
 
 ## Blocked
-- F007: Google client ID/secret are in `.env`; the Google Cloud console needs redirect URI `http://localhost:3000/api/auth/callback/google` added (the user registered `http://localhost:8000/api/auth/google/callback`, which does not match).
+- F007: built and hand-off verified (authorize URL, state, PKCE, redirect URI accepted by Google). Waiting on one real Google consent run by the user in the browser pane; not marked passing until then.
 - F048, F049: Microsoft OAuth (user will do Azure at the end).
 
 ## Log
+### 2026-11-27: F007 Google sign-in (built, awaiting real consent run)
+- Public `GET /api/v1/auth/providers` tells the web which providers are configured; sign-in and sign-up show Continue with Google (Google's mark, per its branding rules) only when enabled, and `/sign-in?error=google` explains a failed round trip. Account linking for the same verified email was already on (trusted provider).
+- Verified: e2e f007 4/4 with Google stubbed (redirect_uri `http://localhost:3000/api/auth/callback/google`, scopes email/profile/openid, state + S256 PKCE; forged callback creates no session). In the browser, Google's own sign-in page opened for the client with no redirect mismatch.
+
 ### 2026-11-27: F008 auth error states and rate limits (passing)
 - Rate-limited auth calls show `Too many attempts. Try again in N seconds.` from the server's X-Retry-After (sign-in, sign-up, reset request). Generic wrong-password copy, non-enumerating sign-up, inline 10-character rule.
 - Verified: e2e f008 3/3 (10 wrong passwords then 429 with seconds shown; existing email gets Check your inbox; short password blocked client-side with aria-invalid and no request). Probed the proxy: 11th attempt from one IP is 429, another IP unaffected. Full suite 20/20.
