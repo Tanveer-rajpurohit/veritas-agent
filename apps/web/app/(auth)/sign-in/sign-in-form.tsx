@@ -11,9 +11,16 @@ import { GoogleButton, OrDivider } from "../google-button";
 
 type FieldErrors = Partial<Record<"email" | "password", string>>;
 
-type Props = { isGoogleEnabled: boolean; hasOAuthError: boolean };
+type Props = { isGoogleEnabled: boolean; oauthError: "unconfirmed-account" | "failed" | null };
 
-export function SignInForm({ isGoogleEnabled, hasOAuthError }: Props) {
+const OAUTH_ERRORS = {
+  // Linking Google to an unconfirmed password account would let whoever created it share yours.
+  "unconfirmed-account":
+    "There's already an account with this email that hasn't been confirmed. Open the confirmation email we sent you, then continue with Google again.",
+  failed: "Google sign-in didn't finish. Try again, or sign in with your email.",
+} as const;
+
+export function SignInForm({ isGoogleEnabled, oauthError }: Props) {
   const router = useRouter();
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState("");
@@ -66,9 +73,9 @@ export function SignInForm({ isGoogleEnabled, hasOAuthError }: Props) {
         <p className="text-base text-ink-muted">Sign in to pick up where you left off.</p>
       </div>
 
-      {hasOAuthError ? (
+      {oauthError ? (
         <p role="alert" className="rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger">
-          Google sign-in didn&apos;t finish. Try again, or sign in with your email.
+          {OAUTH_ERRORS[oauthError]}
         </p>
       ) : null}
 

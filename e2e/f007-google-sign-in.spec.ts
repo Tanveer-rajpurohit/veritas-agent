@@ -35,6 +35,11 @@ test.describe("F007 Google sign-in", () => {
     await expect(page.locator("main, body").getByText("Google sign-in didn't finish. Try again, or sign in with your email.")).toBeVisible();
   });
 
+  test("an unconfirmed account with the same email explains how to link", async ({ page }) => {
+    await page.goto("/sign-in?error=google&error=account_not_linked");
+    await expect(page.getByText("There's already an account with this email that hasn't been confirmed.", { exact: false })).toBeVisible();
+  });
+
   test("a forged callback without valid state is rejected", async ({ page }) => {
     const res = await page.request.get("/api/auth/callback/google?code=fake&state=forged", { maxRedirects: 0 });
     expect([302, 400, 401, 403]).toContain(res.status());
