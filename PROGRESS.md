@@ -51,6 +51,14 @@ Branch: `feature/workspace-platform`. Read `instruction.md` first.
 
 ## Log
 
+### 2026-11-27: merged Gmail backend, agent backend, Mail UI; dock and wallpaper polish
+- Merged `worktree-agent-aa33dd7cd2a22ac03` (token vault, Google connector OAuth, Gmail routes; migration renumbered to 0004 with identical SQL), `feature/agent-backend` (model registry, agent loop on AI SDK v7, SSE runs, stop, ask_user) and `feature/mail-ui` (Mail app, Settings connected accounts). Full e2e 30/30, unit tests green.
+- Not passing yet: F049, F050, F063 need one real Google consent run (the user adds `http://localhost:3000/api/v1/connectors/google/callback` to the OAuth client, then connects in Settings). F028 to F030 and F059 need a live streamed reply; Gemini returned 503 during the agent smoke test.
+- Known gaps from the Mail agent: `apiFetch` drops `connect` / `needsScope` from 409 bodies (UI infers from scopes instead); the mail iframe is fixed height and links don't open (sandbox=""); no attachment download; reading a thread doesn't mark it read (needs gmail.modify); callback errors with a bad state land on `/`.
+- Known flake: `agent.integration.test.ts` "pauses on ask_user" failed once under the full server suite; the agent panel task is fixing it.
+- Dock: hides while windows are open, revealed by the bottom edge or focus, cosine magnification. Built on CSS transitions driven by one `--mag` variable per item, not GSAP, to avoid a new dependency for one effect. Slot width animates on purpose so neighbours make room.
+- Wallpaper: drawn SVG dunes (light and dark) in `apps/web/public/wallpapers`. Account menu moved to the sidebar foot.
+
 ### 2026-11-27: F061 desktops, F062 windows with tabs, F013 split view (passing)
 - Desktop shell replaces the single-app shell: desktops sidebar, windows with tab strips and 200 ms open / 180 ms close motion (opacity only under reduced motion), split divider with a 320 px minimum per window, layout saved per user and workspace in the `desktops` table (migration 0003).
 - Tests: e2e `f013-split-view`, `f061-desktops`, `f062-windows`; reducer unit tests (8).
