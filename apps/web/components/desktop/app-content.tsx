@@ -1,4 +1,6 @@
 import type { AppId } from "@veritas/shared";
+import { MailApp } from "@/components/apps/mail/mail-app";
+import { SettingsApp } from "@/components/apps/settings/settings-app";
 import { getApp } from "@/lib/apps";
 import { useDesktop } from "./desktop-provider";
 
@@ -32,5 +34,14 @@ function PlaceholderContent({ app }: { app: AppId }) {
 }
 
 export function AppContent({ app }: { app: AppId }) {
-  return app === "home" ? <HomeContent /> : <PlaceholderContent app={app} />;
+  switch (app) {
+    case "home":
+      return <HomeContent />;
+    case "mail":
+      return <MailApp />;
+    case "settings":
+      return <SettingsApp />;
+    default:
+      return <PlaceholderContent app={app} />;
+  }
 }
