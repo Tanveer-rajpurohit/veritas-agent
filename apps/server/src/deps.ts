@@ -4,6 +4,9 @@ import { Redis } from "ioredis";
 import { Client as BlobClient } from "minio";
 import type { Env } from "./env";
 
+/** Minimum S3 part size; caps per-upload memory while 10,000 parts still allow 50 GB objects. */
+const BLOB_PART_BYTES = 5 * 1024 * 1024;
+
 export type Deps = {
   db: Db;
   sql: ReturnType<typeof createDb>["sql"];
@@ -26,6 +29,8 @@ export function createDeps(env: Env): Deps {
     accessKey: env.BLOB_ACCESS_KEY,
     secretKey: env.BLOB_SECRET_KEY,
     pathStyle: true,
+    // The client buffers one part per upload in memory; the 64 MB default is too much for streamed uploads.
+    partSize: BLOB_PART_BYTES,
   });
 
   return {

@@ -1,4 +1,5 @@
 import type { AppId } from "@veritas/shared";
+import { FilesApp } from "@/components/apps/files/files-app";
 import { MailApp } from "@/components/apps/mail/mail-app";
 import { SettingsApp } from "@/components/apps/settings/settings-app";
 import { AgentPanel } from "@/components/agent/agent-panel";
@@ -51,6 +52,8 @@ export function AppContent({ app }: { app: AppId }) {
       return <HomeContent />;
     case "mail":
       return <MailApp />;
+    case "files":
+      return <FilesApp />;
     case "settings":
       return <SettingsApp />;
     case "agent":

@@ -17,6 +17,7 @@ import { mailRoutes } from "./mail/routes";
 import { healthRoutes } from "./routes/health";
 import { workspaceRoutes } from "./workspaces/routes";
 import { desktopRoutes } from "./desktops/routes";
+import { fileRoutes } from "./files/routes";
 
 export async function buildApp(env: Env, deps: Deps) {
   const app = Fastify({
@@ -68,6 +69,7 @@ export async function buildApp(env: Env, deps: Deps) {
   await authRoutes(app, auth, env);
   await app.register(workspaceRoutes(deps, auth));
   await app.register(desktopRoutes(deps, auth));
+  await app.register(fileRoutes(deps, auth));
   const connectorDeps: ConnectorDeps = {
     store: createConnectorStore(deps.db),
     kv: redisKv(deps.redis),
