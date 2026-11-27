@@ -55,11 +55,18 @@ export async function countEmails(to: string): Promise<number> {
   return ((await search.json()) as { messages_count: number }).messages_count;
 }
 
+/**
+ * Each simulated user gets its own client IP (RFC 5737 documentation range) so
+ * auth rate limits apply per user, as in real use, instead of to the whole suite.
+ */
+export const isolatedIp = () => `203.0.113.${1 + Math.floor(Math.random() * 250)}`;
+
 export const TEST_PASSWORD = "correct-horse-battery-9";
 
 /** Creates a verified account through the real UI and email flow; leaves the page on /onboarding. */
 export async function signUpAndVerify(page: Page, name = "Asha Verma"): Promise<{ email: string }> {
   const email = uniqueEmail("user");
+  await page.setExtraHTTPHeaders({ "x-forwarded-for": isolatedIp() });
   await page.goto("/sign-up");
   await page.getByLabel("Full name").fill(name);
   await page.getByLabel("Work email").fill(email);

@@ -5,9 +5,13 @@ import type { Auth } from "./auth";
 function toFetchRequest(request: FastifyRequest): Request {
   const url = new URL(request.url, `http://${request.headers.host ?? "localhost"}`);
   const hasBody = request.method !== "GET" && request.method !== "HEAD" && request.body !== undefined;
+  const headers = fromNodeHeaders(request.headers);
+  // Better Auth keys rate limits on X-Forwarded-For; give it the address Fastify
+  // resolved through trusted proxies only, never the raw client-supplied header.
+  headers.set("x-forwarded-for", request.ip);
   return new Request(url, {
     method: request.method,
-    headers: fromNodeHeaders(request.headers),
+    headers,
     body: hasBody ? JSON.stringify(request.body) : undefined,
   });
 }

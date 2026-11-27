@@ -15,8 +15,9 @@ export async function buildApp(env: Env, deps: Deps) {
         ? false
         : { level: env.LOG_LEVEL, redact: ["req.headers.cookie", "req.headers.authorization", 'res.headers["set-cookie"]'] },
     genReqId: () => crypto.randomUUID(),
-    // Behind the Next proxy locally; trust it for client IPs used by rate limiting.
-    trustProxy: true,
+    // Only the local Next proxy is trusted to report the client IP. Trusting every
+    // hop would let a client forge X-Forwarded-For and dodge auth rate limits.
+    trustProxy: "loopback",
   }).withTypeProvider<ZodTypeProvider>();
 
   app.setValidatorCompiler(validatorCompiler);

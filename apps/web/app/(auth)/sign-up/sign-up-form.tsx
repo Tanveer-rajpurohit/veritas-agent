@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { Button, TextField } from "@veritas/ui";
 import { authClient } from "@/lib/auth-client";
-import { authErrorMessage } from "@/lib/auth-errors";
+import { authErrorMessage, retryAfterCapture } from "@/lib/auth-errors";
 import { CheckInbox } from "../check-inbox";
 
 const MIN_PASSWORD = 10;
@@ -39,13 +39,17 @@ export function SignUpForm() {
     if (Object.keys(errors).length > 0) return;
 
     setIsSubmitting(true);
-    const { error } = await authClient.signUp.email({ name: name.trim(), email, password, callbackURL: "/onboarding" });
+    const retry = retryAfterCapture();
+    const { error } = await authClient.signUp.email(
+      { name: name.trim(), email, password, callbackURL: "/onboarding" },
+      retry.fetchOptions,
+    );
     setIsSubmitting(false);
 
     // An existing address gets the same "check your inbox" screen, so the
     // form never reveals who already has an account.
     if (error && error.code !== "USER_ALREADY_EXISTS" && error.code !== "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL") {
-      setFormError(authErrorMessage(error));
+      setFormError(authErrorMessage(error, retry.seconds()));
       return;
     }
     setSentTo(email);

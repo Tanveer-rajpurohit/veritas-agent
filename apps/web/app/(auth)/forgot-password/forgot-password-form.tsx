@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { Button, TextField } from "@veritas/ui";
 import { authClient } from "@/lib/auth-client";
-import { authErrorMessage } from "@/lib/auth-errors";
+import { authErrorMessage, retryAfterCapture } from "@/lib/auth-errors";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -24,10 +24,11 @@ export function ForgotPasswordForm() {
     }
     setError("");
     setIsSubmitting(true);
-    const { error: err } = await authClient.requestPasswordReset({ email, redirectTo: "/reset-password" });
+    const retry = retryAfterCapture();
+    const { error: err } = await authClient.requestPasswordReset({ email, redirectTo: "/reset-password" }, retry.fetchOptions);
     setIsSubmitting(false);
     if (err) {
-      setFormError(authErrorMessage(err));
+      setFormError(authErrorMessage(err, retry.seconds()));
       return;
     }
     setSentTo(email);

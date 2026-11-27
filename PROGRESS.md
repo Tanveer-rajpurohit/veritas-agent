@@ -3,8 +3,8 @@
 Branch: `feature/workspace-platform`. Read `instruction.md` first.
 
 ## Status
-- Features passing: 8 / 60 (F001, F003, F004, F005, F006, F009, F011, F012).
-- Next up: F008, F014 (Home), F002, F013 (split view); F007 once the Google redirect URI is added
+- Features passing: 9 / 60 (F001, F003, F004, F005, F006, F008, F009, F011, F012).
+- Next up: F014 (Home), F013 (split view), F002; F007 once the Google redirect URI is added
 
 ## Decisions log
 - 2026-11-27: Node 22 is the dev baseline (machine has 22.14, no version manager; upgrading is a system change). Engine set to `>=22`. tsup needs 22.18+, so the server bundles with esbuild.
@@ -38,12 +38,18 @@ Branch: `feature/workspace-platform`. Read `instruction.md` first.
 - 2026-11-27: Playwright runs 1 worker locally (8 GB RAM machine crashed with 2 workers + dev servers + Docker); CI uses 2. Long multi-navigation flows use `test.slow()`; no assertions relaxed.
 - 2026-11-27: `apps/web/next-env.d.ts` is untracked/gitignored: `next dev` and `next typegen` rewrite it differently, which dirtied git status.
 - 2026-11-27: App placeholder windows live in one dynamic route `w/[id]/[app]`; each real editor route (e.g. `w/[id]/docs`) takes precedence when it lands. Dock icons are hand-drawn 24px SVGs in `@veritas/ui` (no icon dependency); the Agent dock mark is the orb.
+- 2026-11-27: Security fix: Fastify `trustProxy` is `loopback` (was `true`) and the auth bridge overwrites `x-forwarded-for` with Fastify's resolved `request.ip`. Before, any client could forge X-Forwarded-For and reset its auth rate-limit bucket. Production behind a load balancer must widen the trusted list deliberately.
+- 2026-11-27: E2E users each get a unique RFC 5737 client IP (`isolatedIp`) so rate limits apply per simulated user, not to the whole suite.
 
 ## Blocked
 - F007: Google client ID/secret are in `.env`; the Google Cloud console needs redirect URI `http://localhost:3000/api/auth/callback/google` added (the user registered `http://localhost:8000/api/auth/google/callback`, which does not match).
 - F048, F049: Microsoft OAuth (user will do Azure at the end).
 
 ## Log
+### 2026-11-27: F008 auth error states and rate limits (passing)
+- Rate-limited auth calls show `Too many attempts. Try again in N seconds.` from the server's X-Retry-After (sign-in, sign-up, reset request). Generic wrong-password copy, non-enumerating sign-up, inline 10-character rule.
+- Verified: e2e f008 3/3 (10 wrong passwords then 429 with seconds shown; existing email gets Check your inbox; short password blocked client-side with aria-invalid and no request). Probed the proxy: 11th attempt from one IP is 429, another IP unaffected. Full suite 20/20.
+
 ### 2026-11-27: F006 sign-in, sign-out and password reset (passing)
 - /forgot-password (same confirmation for any address) and /reset-password (token from the Better Auth redirect, referrer policy no-referrer, expired/used link screen, confirm field). Sign-out lives in the account menu (F012). Reset revokes all sessions.
 - Verified: e2e f006 3/3 (sign out, protected route redirects, sign back in to Home; reset via Mailpit link, mismatch error, link single-use, old password rejected, new one works; unknown email same screen). Checked both pages in the browser, no console errors.

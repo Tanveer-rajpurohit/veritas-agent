@@ -1,7 +1,14 @@
 /** Maps auth API errors to calm, specific copy. Never reveals whether an email is registered. */
-export function authErrorMessage(error: { status?: number; code?: string; message?: string } | null | undefined): string {
+export function authErrorMessage(
+  error: { status?: number; code?: string; message?: string } | null | undefined,
+  retryAfterSeconds?: number,
+): string {
   if (!error) return "Something went wrong. Please try again.";
-  if (error.status === 429) return "Too many attempts. Wait a minute, then try again.";
+  if (error.status === 429) {
+    return retryAfterSeconds
+      ? `Too many attempts. Try again in ${retryAfterSeconds} seconds.`
+      : "Too many attempts. Wait a minute, then try again.";
+  }
   switch (error.code) {
     case "INVALID_EMAIL_OR_PASSWORD":
       return "Email or password is incorrect.";
@@ -19,4 +26,21 @@ export function authErrorMessage(error: { status?: number; code?: string; messag
     default:
       return "Something went wrong on our side. Please try again.";
   }
+}
+
+/**
+ * Captures the server's X-Retry-After on a rate-limited auth call. Pass
+ * `fetchOptions` as the auth call's second argument, then read `seconds()`.
+ */
+export function retryAfterCapture() {
+  let seconds: number | undefined;
+  return {
+    fetchOptions: {
+      onError: (context: { response: Response }) => {
+        const value = Number(context.response.headers.get("x-retry-after"));
+        seconds = Number.isFinite(value) && value > 0 ? Math.ceil(value) : undefined;
+      },
+    },
+    seconds: () => seconds,
+  };
 }

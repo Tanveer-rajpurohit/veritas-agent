@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Button, TextField } from "@veritas/ui";
 import { authClient } from "@/lib/auth-client";
-import { authErrorMessage } from "@/lib/auth-errors";
+import { authErrorMessage, retryAfterCapture } from "@/lib/auth-errors";
 import { CheckInbox } from "../check-inbox";
 
 type FieldErrors = Partial<Record<"email" | "password", string>>;
@@ -31,7 +31,8 @@ export function SignInForm() {
     if (Object.keys(errors).length > 0) return;
 
     setIsSubmitting(true);
-    const { error } = await authClient.signIn.email({ email, password });
+    const retry = retryAfterCapture();
+    const { error } = await authClient.signIn.email({ email, password }, retry.fetchOptions);
     setIsSubmitting(false);
 
     if (error?.code === "EMAIL_NOT_VERIFIED") {
@@ -39,7 +40,7 @@ export function SignInForm() {
       return;
     }
     if (error) {
-      setFormError(authErrorMessage(error));
+      setFormError(authErrorMessage(error, retry.seconds()));
       return;
     }
     router.replace("/");
