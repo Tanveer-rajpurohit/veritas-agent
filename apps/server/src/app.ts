@@ -10,6 +10,7 @@ import { createConnectorStore, redisKv } from "./connectors/store";
 import { createVault } from "./connectors/vault";
 import type { Deps } from "./deps";
 import type { Env } from "./env";
+import { mailRoutes } from "./mail/routes";
 import { healthRoutes } from "./routes/health";
 import { workspaceRoutes } from "./workspaces/routes";
 
@@ -76,6 +77,7 @@ export async function buildApp(env: Env, deps: Deps) {
     now: Date.now,
   };
   await app.register(connectorRoutes(connectorDeps));
+  await app.register(mailRoutes(connectorDeps));
   app.decorate("auth", auth);
   return app;
 }

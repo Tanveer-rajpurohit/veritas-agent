@@ -3,6 +3,7 @@ import Fastify from "fastify";
 import { serializerCompiler, validatorCompiler, type ZodTypeProvider } from "fastify-type-provider-zod";
 import type { MemberRole } from "@veritas/shared";
 import type { SessionUser } from "../auth/guard";
+import { mailRoutes } from "../mail/routes";
 import type { ConnectorDeps } from "./context";
 import { sealTokens } from "./google/tokens";
 import { connectorRoutes } from "./routes";
@@ -138,6 +139,7 @@ export function setup(opts: { fetch?: typeof fetch; members?: Record<string, Rec
     app.setValidatorCompiler(validatorCompiler);
     app.setSerializerCompiler(serializerCompiler);
     await app.register(connectorRoutes(deps));
+    await app.register(mailRoutes(deps));
     return app;
   }
 
