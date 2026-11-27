@@ -43,7 +43,6 @@ export function SignInForm() {
       return;
     }
     router.replace("/");
-    router.refresh();
   };
 
   if (unverifiedEmail) {

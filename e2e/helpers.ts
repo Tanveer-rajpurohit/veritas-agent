@@ -54,3 +54,29 @@ export async function countEmails(to: string): Promise<number> {
   const search = await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:"${to}"`)}`);
   return ((await search.json()) as { messages_count: number }).messages_count;
 }
+
+export const TEST_PASSWORD = "correct-horse-battery-9";
+
+/** Creates a verified account through the real UI and email flow; leaves the page on /onboarding. */
+export async function signUpAndVerify(page: Page, name = "Asha Verma"): Promise<{ email: string }> {
+  const email = uniqueEmail("user");
+  await page.goto("/sign-up");
+  await page.getByLabel("Full name").fill(name);
+  await page.getByLabel("Work email").fill(email);
+  await page.getByLabel("Password").fill(TEST_PASSWORD);
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(page.getByRole("heading", { name: "Check your inbox" })).toBeVisible();
+  await page.goto(await waitForEmailLink(email, "/api/auth/verify-email"));
+  await expect(page).toHaveURL(/\/onboarding$/);
+  return { email };
+}
+
+/** Signs up, verifies and creates a workspace; leaves the page on the workspace Home. */
+export async function signUpWithWorkspace(page: Page, workspaceName = "Verma & Co"): Promise<{ email: string; workspaceId: string }> {
+  const { email } = await signUpAndVerify(page);
+  await page.getByLabel("Workspace name").fill(workspaceName);
+  await page.getByRole("button", { name: "Create workspace" }).click();
+  await expect(page).toHaveURL(/\/w\/[0-9a-f-]{36}$/);
+  const workspaceId = page.url().split("/w/")[1]!;
+  return { email, workspaceId };
+}

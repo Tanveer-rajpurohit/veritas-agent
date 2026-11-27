@@ -3,8 +3,8 @@
 Branch: `feature/workspace-platform`. Read `instruction.md` first.
 
 ## Status
-- Features passing: 5 / 60 (F001, F003, F004, F005, F011).
-- Next up: F006 (sign-in/out, reset), F008 (auth errors, rate limits), F009 (onboarding workspace), then F002
+- Features passing: 6 / 60 (F001, F003, F004, F005, F009, F011).
+- Next up: F012 (shell + dock, with the account menu), then F006, F008, F014, F002
 
 ## Decisions log
 - 2026-11-27: Node 22 is the dev baseline (machine has 22.14, no version manager; upgrading is a system change). Engine set to `>=22`. tsup needs 22.18+, so the server bundles with esbuild.
@@ -30,10 +30,19 @@ Branch: `feature/workspace-platform`. Read `instruction.md` first.
 - 2026-11-27: Sign-up with an existing email shows the same "check your inbox" screen (no account enumeration). Signed-up email addresses never go in URLs (held in component state).
 - 2026-11-27: Tokens use Tailwind `@theme inline` so a nested `data-theme="dark"` section (the auth side panel) works on a light page.
 
+- 2026-11-27: `@veritas/db` re-exports drizzle query helpers (eq, and, desc, ...) so every package shares one drizzle-orm instance; the server has no direct drizzle-orm dependency.
+- 2026-11-27: API errors: validation gives 400 `{ error, fields }`; non-members get 404 (not 403) so workspace IDs cannot be probed. Server-side web fetches redirect to /sign-in on 401.
+- 2026-11-27: E2E stability: global setup warms every route (Next dev compiles on first request; cold compiles took >15 s here), expect timeout 15 s, test timeout 60 s for full flows. No assertions were relaxed. Never call `router.refresh()` right after `router.replace()` (the refresh can cancel the navigation).
+
 ## Blocked
 - F007, F047, F048, F049: need OAuth client IDs/secrets in `.env` (user will add).
 
 ## Log
+### 2026-11-27: F009 onboarding creates the first workspace (passing)
+- Shared zod contracts (workspaces, apiError). Server: `requireSession` guard (verified email required), `memberRoleFor` access helper, GET/POST /api/v1/workspaces (transaction creates workspace + owner membership + audit row).
+- Web: onboarding form with inline validation, root routes to the first workspace or onboarding, /w/[id] layout returns 404 for non-members, placeholder Home heading (full Home is F014).
+- Verified: e2e f009 3/3 (empty name shows Name is required; trimmed name created; lands on /w/:id; root then routes to it; anonymous POST 401; server rejects a blank name with fields.name). Full suite 12/12 twice; types/lint/unit 7/7.
+
 ### 2026-11-27: F005 email sign-up with verification (passing)
 - Server: Better Auth (Drizzle adapter, plural tables), Nodemailer to Mailpit with plain HTML+text emails, Fastify mount that keeps multiple Set-Cookie headers, request-id header, generic 5xx copy, cookie/auth headers redacted from logs.
 - Web: two-panel auth layout (black panel with orb, white form), sign-up, sign-in, check-inbox/verify-email states with resend, onboarding page (requires a session), root redirect. UI primitives Button and TextField in packages/ui.

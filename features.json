@@ -103,8 +103,7 @@
         "Submit a workspace name and land on Home inside it",
         "Submit an empty name and see 'Name is required'"
       ],
-      "status": "failing"
-    },
+      "status": "passing"    },
     {
       "id": "F010", "priority": "P0", "area": "security",
       "title": "Workspace authorization boundary",

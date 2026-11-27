@@ -15,7 +15,6 @@
     "@veritas/db": "workspace:*",
     "@veritas/shared": "workspace:*",
     "better-auth": "1.7.28",
-    "drizzle-orm": "0.45.4",
     "fastify": "5.12.8",
     "fastify-type-provider-zod": "7.0.0",
     "ioredis": "6.1.0",
