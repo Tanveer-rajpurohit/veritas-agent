@@ -41,6 +41,7 @@
   "globalEnv": [
     "NODE_ENV",
     "API_ORIGIN",
-    "VERITAS_WEB_ORIGIN"
+    "VERITAS_WEB_ORIGIN",
+    "DATABASE_URL"
   ]
 }

@@ -47,7 +47,7 @@
         "Inspect that files, file_versions, agent_events have indexes on (workspace_id) / (run_id, seq)",
         "Confirm file_versions rejects UPDATE via a trigger or app guard test"
       ],
-      "status": "failing"
+      "status": "passing"
     },
     {
       "id": "F005", "priority": "P0", "area": "auth",

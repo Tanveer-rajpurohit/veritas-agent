@@ -3,19 +3,31 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "lint": "eslint . --max-warnings 0",
     "check-types": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "generate": "drizzle-kit generate",
+    "migrate": "tsx --env-file=../../.env src/migrate.ts",
+    "generate:custom": "drizzle-kit generate --custom",
+    "test:integration": "node --env-file=../../.env ./node_modules/vitest/vitest.mjs run"
   },
-  "dependencies": { "@veritas/shared": "workspace:*", "drizzle-orm": "0.45.4", "postgres": "4.1.1" },
+  "dependencies": {
+    "@veritas/shared": "workspace:*",
+    "drizzle-orm": "0.45.4",
+    "postgres": "4.1.1"
+  },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "eslint": "10.8.1",
     "typescript": "6.0.3",
     "vitest": "5.1.2",
-    "drizzle-kit": "0.31.11"
+    "drizzle-kit": "0.31.11",
+    "tsx": "4.23.15",
+    "@types/node": "22.20.7"
   }
 }

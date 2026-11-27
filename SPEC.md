@@ -54,7 +54,7 @@ Office round-trips are best-effort. Every import shows a "fidelity notes" banner
 
 ### 3.4 Storage
 - **Desktop:** the user picks one or more **workspace folders** on disk in Settings. Files stay there as real `.docx/.xlsx/.pptx/.pdf`, with a hidden `.veritas/` sidecar holding canonical JSON, versions and annotations. The server stores metadata only (path hash, name, kind, version IDs). File bytes never leave the machine unless the user uploads them.
-- **Web:** files live in MinIO (S3 API) behind a `BlobStore` interface. Replacing MinIO later is a config change.
+- **Web:** files live in the S3-compatible blob store (RustFS locally) behind a `BlobStore` interface. Replacing it later is a config change.
 - **Agent sandbox:** the agent reads from workspace folders and attachments. **Attachments are read-only.** It writes only to `<workspace>/Veritas Output/` (desktop) or the `output/` prefix (web), unless the user approves a gated write.
 
 ### 3.5 Connectors (v1 picks are free tiers with OAuth)
@@ -79,7 +79,7 @@ Connector OAuth tokens are encrypted at rest. Each connector asks for the narrow
 | Auth | Better Auth (email/password, verification, Google OAuth, sessions) with Drizzle adapter | self-hosted, no vendor lock-in |
 | DB | PostgreSQL 18 + pgvector (existing compose), Drizzle ORM + drizzle-kit migrations | typed SQL, migrations in repo |
 | Cache / jobs / fan-out | Redis (existing compose): BullMQ jobs (import, export, embedding), pub/sub to send agent events to SSE clients, rate limiting | Redis ~100K ops/s handles event fan-out without touching Postgres |
-| Blobs | MinIO (existing compose) behind `BlobStore` | swappable later |
+| Blobs | RustFS (S3-compatible) behind `BlobStore` | swappable later |
 | Email | Nodemailer + Mailpit locally | verification and reset emails without a vendor |
 | AI | Vercel AI SDK + `@ai-sdk/google`; provider registry for others | streamed reasoning and tools, multiple providers |
 | PDF render | Electron `printToPDF` (desktop); Playwright Chromium in a worker (web) | same HTML gives the same PDF |
@@ -143,7 +143,7 @@ All IDs are UUIDv7. All tenant tables carry `workspace_id`, and every query is f
 - **Agent sandbox:** paths resolved with `realpath` must sit under an allowed root; symlink escape is denied; `.veritas/` is internal; writes go only to the output folder unless approved; gated tools need an explicit click in the UI. Approvals never come from model output or file content.
 - **Prompt injection:** file, web and connector content is wrapped as untrusted data in tool results. Modes can't widen their tool set at runtime.
 - **Electron:** `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false`, a typed preload bridge whose IPC inputs are validated with zod, strict CSP, no `remote` module, navigation locked to the app origin, `shell.openExternal` only for an https allowlist.
-- **Uploads:** 100 MB cap, MIME sniffing (not trusting the extension), zip-bomb guard for OOXML, presigned MinIO URLs with a 5-minute TTL.
+- **Uploads:** 100 MB cap, MIME sniffing (not trusting the extension), zip-bomb guard for OOXML, presigned blob URLs with a 5-minute TTL.
 - **Audit:** every agent write, approval and connector send goes to `audit_log`.
 
 ## 7. Agent event contract (shared)

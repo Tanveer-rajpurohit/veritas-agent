@@ -32,21 +32,22 @@ services:
       timeout: 3s
       retries: 5
 
-  minio:
-    image: quay.io/minio/minio:latest
-    container_name: veritas-minio
+  blob:
+    # S3-compatible store (RustFS, Apache-2.0). MinIO stopped publishing community images.
+    image: rustfs/rustfs:1.0.5
+    container_name: veritas-blob
     restart: unless-stopped
-    command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: veritas
-      MINIO_ROOT_PASSWORD: replace-with-minio-password
+      RUSTFS_ACCESS_KEY: veritas
+      RUSTFS_SECRET_KEY: veritas_blob_secret
+      RUSTFS_CONSOLE_ENABLE: "true"
     ports:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - veritas_minio_data:/data
+      - veritas_blob_data:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/health"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -58,8 +59,13 @@ services:
     ports:
       - "1025:1025"
       - "8025:8025"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8025/livez"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
 volumes:
   veritas_pgdata:
   veritas_redis_data:
-  veritas_minio_data:
+  veritas_blob_data:

@@ -37,8 +37,8 @@ pnpm test:e2e                  # playwright (needs ./init.sh services)
 pnpm db:generate               # drizzle-kit generate migration
 pnpm db:migrate                # apply migrations
 pnpm --filter @veritas/desktop dist   # build installers
-docker compose up -d           # postgres, redis, minio, mailpit only
+docker compose up -d           # postgres, redis, blob (RustFS), mailpit only
 ```
 
 ## Local URLs
-Web http://localhost:3000 · API http://localhost:4000 · MinIO console http://localhost:9001 · Mailpit http://localhost:8025 · Postgres localhost:5433
+Web http://localhost:3000 · API http://localhost:4000 · Blob store (RustFS) http://localhost:9000 · Mailpit http://localhost:8025 · Postgres localhost:5433

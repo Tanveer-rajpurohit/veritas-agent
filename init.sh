@@ -16,7 +16,7 @@ has node   || fail "Node.js 22+ is required (https://nodejs.org)"
 NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
 (( NODE_MAJOR >= 22 )) || fail "Node.js 22+ is required, found $(node -v)"
 has pnpm   || fail "pnpm is required: corepack enable && corepack prepare pnpm@latest --activate"
-has docker || fail "Docker is required for Postgres, Redis, MinIO and Mailpit"
+has docker || fail "Docker is required for Postgres, Redis, the blob store and Mailpit"
 docker info >/dev/null 2>&1 || fail "Docker is installed but not running"
 
 if [[ ! -f .env ]]; then
@@ -25,7 +25,7 @@ if [[ ! -f .env ]]; then
 fi
 
 echo "init: starting docker services"
-docker compose up -d --wait postgres redis minio mailpit
+docker compose up -d --wait postgres redis blob mailpit
 
 echo "init: installing dependencies"
 pnpm install

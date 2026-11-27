@@ -3,8 +3,8 @@
 Branch: `feature/workspace-platform`. Read `instruction.md` first.
 
 ## Status
-- Features passing: 1 / 60 (F001). Count with `grep -c '"passing"' features.json`.
-- Next up: F002 (init.sh full stack + real health checks), F003, F004
+- Features passing: 2 / 60 (F001, F004).
+- Next up: F003 (env validation) + real /health checks, then F005-F006 (auth), then F002 (needs the sign-in page)
 
 ## Decisions log
 - 2026-11-27: Node 22 is the dev baseline (machine has 22.14, no version manager; upgrading is a system change). Engine set to `>=22`. tsup needs 22.18+, so the server bundles with esbuild.
@@ -16,10 +16,19 @@ Branch: `feature/workspace-platform`. Read `instruction.md` first.
 - 2026-11-27: User approved using the shared Gemini key; it lives only in the gitignored root `.env`.
 - 2026-11-27: Google/Microsoft OAuth client IDs will be added by the user later. F007 and F047-F049 stay blocked until then.
 
+- 2026-11-27: MinIO replaced by RustFS 1.0.5 (Apache-2.0, S3 API). quay.io and Docker Hub MinIO images are no longer published (401 / not found). Compose service is now `blob`. features.json steps that say "MinIO" are read as "the blob store" (text left unchanged per the status-only rule).
+- 2026-11-27: Docker Desktop 4.47 crashed on a stale `%LOCALAPPDATA%DockerundockerInference` socket. User approved a fix; the file couldn't be deleted, but a restart worked. If Docker fails again, restart Docker Desktop.
+- 2026-11-27: Integration tests (`pnpm --filter @veritas/db test:integration`) need DATABASE_URL; plain `pnpm test` skips them. CI (F057) will run them with services.
+
 ## Blocked
 - F007, F047, F048, F049: need OAuth client IDs/secrets in `.env` (user will add).
 
 ## Log
+### 2026-11-27: F004 schema and migrations (passing)
+- Drizzle schema for the Better Auth tables (plural) and every SPEC section 5 table, plus `agent_questions` (F059) and `model_id` provenance columns (F060). UUIDv7 via Postgres 18 `uuidv7()`.
+- Migrations: 0000 vector extension, 0001 core tables (22), 0002 trigger that makes file_versions immutable.
+- Verified: migrate on an empty DB, rerun is a no-op (3 recorded), indexes on files(workspace_id), agent_events PK(run_id, seq); integration tests: UPDATE on file_versions rejected, uuidv7 format. Lint and types 7/7.
+
 ### 2026-11-27: F001 monorepo scaffolding (passing)
 - New: apps/server (Fastify), apps/web (fresh Next 16), apps/desktop (electron-vite), packages shared/db/ui/agent-core, `typescript-config/library.json`.
 - Verified: `pnpm install`, `pnpm check-types` 7/7, `pnpm lint` 7/7, `pnpm test` (shared 2 tests), `pnpm build` (server, web, desktop).
