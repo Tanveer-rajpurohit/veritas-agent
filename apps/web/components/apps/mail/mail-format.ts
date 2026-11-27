@@ -102,16 +102,47 @@ export function validateCompose(
 
 /**
  * Wraps server-sanitized mail HTML for a sandboxed iframe's srcdoc. The CSP is
- * a second fence behind the sanitizer: nothing may load from the network, so a
- * missed tracking pixel or CSS url() still can't call home.
+ * a second fence behind the sanitizer: images may load only from our own
+ * origin (the server's image proxy and inline-part routes) or data: URIs, so a
+ * missed tracking pixel or CSS url() still can't call the sender.
+ * `<base target="_blank">` sends every link to a new tab instead of the frame.
  */
 export function mailDocument(html: string): string {
   return [
-    '<!doctype html><html><head><meta charset="utf-8">',
-    `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: cid:; style-src 'unsafe-inline'; font-src data:">`,
-    "<style>html{color-scheme:light}body{margin:0;padding:16px;font:14px/1.5 system-ui,sans-serif;color:#0a0a0a;background:#fff;overflow-wrap:anywhere}img{max-width:100%;height:auto}table{max-width:100%}</style>",
+    '<!doctype html><html><head><meta charset="utf-8"><meta name="referrer" content="no-referrer"><base target="_blank">',
+    `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; font-src data:">`,
+    // Emails are designed for white paper, so the frame stays light in dark mode.
+    // Wide fixed-width templates scroll sideways inside the frame; height is sized by the parent.
+    "<style>html{color-scheme:light;overflow-x:auto;overflow-y:hidden}body{margin:0;padding:16px;font:14px/1.5 system-ui,sans-serif;color:#0a0a0a;background:#fff;overflow-wrap:anywhere}img{max-width:100%;height:auto}table{max-width:100%}</style>",
     "</head><body>",
     html,
     "</body></html>",
   ].join("");
+}
+
+/** Up to two letters for an avatar: first and last word of the name, else the mailbox. */
+export function senderInitials({ name, email }: MailAddress): string {
+  const words = name.replace(/[^\p{L}\p{N}\s]/gu, " ").trim().split(/\s+/).filter(Boolean);
+  if (words.length >= 2) return (firstChar(words[0]!) + firstChar(words.at(-1)!)).toUpperCase();
+  if (words.length === 1) return firstChar(words[0]!).toUpperCase();
+  const local = email.split("@")[0]?.replace(/[^\p{L}\p{N}]/gu, "") ?? "";
+  return local ? firstChar(local).toUpperCase() : "?";
+}
+
+const firstChar = (word: string) => Array.from(word)[0] ?? "";
+
+/**
+ * Opaque tile colours, each at least 4.5:1 against white initials, so they
+ * read the same on light and dark surfaces.
+ */
+export const AVATAR_COLORS = ["#1d4ed8", "#047857", "#b91c1c", "#a16207", "#0f766e", "#be185d", "#c2410c", "#4338ca", "#374151"] as const;
+
+/** Stable colour per address (FNV-1a over the lowercased email). */
+export function avatarColor(email: string): (typeof AVATAR_COLORS)[number] {
+  let hash = 0x811c9dc5;
+  for (const ch of email.trim().toLowerCase()) {
+    hash ^= ch.codePointAt(0)!;
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return AVATAR_COLORS[(hash >>> 0) % AVATAR_COLORS.length]!;
 }

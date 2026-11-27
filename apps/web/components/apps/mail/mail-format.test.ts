@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { formatAddress, formatRelativeTime, mailDocument, parseAddressList, replySubject, validateCompose } from "./mail-format";
+import {
+  AVATAR_COLORS,
+  avatarColor,
+  formatAddress,
+  formatRelativeTime,
+  mailDocument,
+  parseAddressList,
+  replySubject,
+  senderInitials,
+  validateCompose,
+} from "./mail-format";
 
 describe("formatRelativeTime", () => {
   const now = new Date(2026, 10, 27, 15, 0, 0);
@@ -85,7 +95,46 @@ describe("small formatters", () => {
 
   it("locks the mail document down to inline content", () => {
     const doc = mailDocument("<p>Hi</p>");
-    expect(doc).toContain("default-src 'none'");
+    expect(doc).toContain("default-src 'none'; img-src 'self' data:;");
+    expect(doc).toContain('<base target="_blank">');
     expect(doc).toContain("<p>Hi</p>");
+  });
+});
+
+describe("senderInitials", () => {
+  it.each([
+    [{ name: "Jane Doe", email: "jane@x.test" }, "JD"],
+    [{ name: "Mary Ann van der Berg", email: "m@x.test" }, "MB"],
+    [{ name: "OpenAI", email: "noreply@openai.com" }, "O"],
+    [{ name: '"Doe, John"', email: "j@x.test" }, "DJ"],
+    [{ name: "", email: "billing@stripe.com" }, "B"],
+    [{ name: "", email: "_@x.test" }, "?"],
+    [{ name: "élodie durand", email: "e@x.test" }, "ÉD"],
+  ])("%o -> %s", (address, expected) => {
+    expect(senderInitials(address)).toBe(expected);
+  });
+});
+
+describe("avatarColor", () => {
+  const luminance = (hex: string) => {
+    const [r, g, b] = [1, 3, 5].map((i) => {
+      const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+  };
+
+  it("is stable per address, ignoring case and spaces", () => {
+    expect(avatarColor("Jane@X.test ")).toBe(avatarColor("jane@x.test"));
+    expect(AVATAR_COLORS).toContain(avatarColor("jane@x.test"));
+  });
+
+  it("spreads addresses across the palette", () => {
+    const used = new Set(Array.from({ length: 200 }, (_, i) => avatarColor(`user${i}@x.test`)));
+    expect(used.size).toBe(AVATAR_COLORS.length);
+  });
+
+  it("keeps white initials at 4.5:1 or better on every tile", () => {
+    for (const color of AVATAR_COLORS) expect((1.05 / (luminance(color) + 0.05))).toBeGreaterThanOrEqual(4.5);
   });
 });

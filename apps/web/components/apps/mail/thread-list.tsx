@@ -6,6 +6,7 @@ import { cx } from "@veritas/ui";
 import { apiFetch, type ApiResult } from "@/lib/api-client";
 import { InlineError } from "../inline-error";
 import { formatFullDate, formatRelativeTime, senderLabel } from "./mail-format";
+import { SenderAvatar } from "./sender-avatar";
 
 type Props = {
   workspaceId: string;
@@ -163,27 +164,29 @@ function ThreadRow({
       aria-current={isSelected ? "true" : undefined}
       onClick={() => onSelect(thread.id)}
       className={cx(
-        "flex w-full flex-col gap-1 px-4 py-3 text-left transition-colors duration-150",
-        isSelected ? "bg-surface-selected" : "hover:bg-surface-hover",
+        "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors duration-150",        isSelected ? "bg-surface-selected" : "hover:bg-surface-hover",
       )}
     >
-      <span className="flex items-baseline gap-2">
-        <span aria-hidden className={cx("size-2 shrink-0 self-center rounded-full", thread.isUnread ? "bg-focus" : "bg-transparent")} />
-        {thread.isUnread ? <span className="sr-only">Unread.</span> : null}
-        <span className={cx("min-w-0 flex-1 truncate text-sm", thread.isUnread ? "font-semibold text-ink" : "text-ink-muted")}>
-          {senderLabel(thread.from)}
-          {thread.messageCount > 1 ? <span className="ml-1 font-normal text-ink-subtle tabular-nums">{thread.messageCount}</span> : null}
+      <SenderAvatar address={thread.from} />
+      <span className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="flex items-baseline gap-2">
+          <span aria-hidden className={cx("size-2 shrink-0 self-center rounded-full", thread.isUnread ? "bg-focus" : "bg-transparent")} />
+          {thread.isUnread ? <span className="sr-only">Unread.</span> : null}
+          <span className={cx("min-w-0 flex-1 truncate text-sm", thread.isUnread ? "font-semibold text-ink" : "text-ink-muted")}>
+            {senderLabel(thread.from)}
+            {thread.messageCount > 1 ? <span className="ml-1 font-normal text-ink-subtle tabular-nums">{thread.messageCount}</span> : null}
+          </span>
+          <time dateTime={thread.lastMessageAt} title={formatFullDate(thread.lastMessageAt)} className="shrink-0 text-xs text-ink-subtle tabular-nums">
+            {formatRelativeTime(thread.lastMessageAt)}
+          </time>
         </span>
-        <time dateTime={thread.lastMessageAt} title={formatFullDate(thread.lastMessageAt)} className="shrink-0 text-xs text-ink-subtle tabular-nums">
-          {formatRelativeTime(thread.lastMessageAt)}
-        </time>
-      </span>
-      <span className={cx("truncate pl-4 text-sm", thread.isUnread ? "font-semibold text-ink" : "text-ink")}>
-        {thread.subject || "(no subject)"}
-      </span>
-      <span className="flex items-baseline gap-2 pl-4">
-        <span className="min-w-0 flex-1 truncate text-sm text-ink-muted">{thread.snippet}</span>
-        {thread.hasAttachments ? <span className="shrink-0 text-xs text-ink-subtle">Attachment</span> : null}
+        <span className={cx("truncate pl-4 text-sm", thread.isUnread ? "font-semibold text-ink" : "text-ink")}>
+          {thread.subject || "(no subject)"}
+        </span>
+        <span className="flex items-baseline gap-2 pl-4">
+          <span className="min-w-0 flex-1 truncate text-sm text-ink-muted">{thread.snippet}</span>
+          {thread.hasAttachments ? <span className="shrink-0 text-xs text-ink-subtle">Attachment</span> : null}
+        </span>
       </span>
     </button>
   );

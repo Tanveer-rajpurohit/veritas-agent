@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { MailMessage, MailThread } from "@veritas/shared";
 import { Button, cx } from "@veritas/ui";
 import { apiFetch } from "@/lib/api-client";
 import { ComposeForm } from "./compose-form";
 import { InlineError } from "../inline-error";
 import { formatAddress, formatFullDate, mailDocument, replySubject, senderLabel } from "./mail-format";
+import { SenderAvatar } from "./sender-avatar";
 
 type Props = {
   workspaceId: string;
@@ -116,17 +117,20 @@ function MessageCard({ message, isInitiallyOpen, onReply }: { message: MailMessa
         aria-expanded={isOpen}
         onClick={() => setIsOpen((open) => !open)}
         className={cx(
-          "flex w-full flex-col gap-1 px-4 py-3 text-left transition-colors duration-150 hover:bg-surface-hover",
+          "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors duration-150 hover:bg-surface-hover",
           isOpen ? "rounded-t-xl" : "rounded-xl",
         )}
       >
-        <span className="flex items-baseline gap-2">
-          <span className="min-w-0 flex-1 truncate text-sm font-semibold">{senderLabel(message.from)}</span>
-          <time dateTime={message.sentAt} className="shrink-0 text-xs text-ink-subtle tabular-nums">
-            {formatFullDate(message.sentAt)}
-          </time>
+        <SenderAvatar address={message.from} />
+        <span className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="flex items-baseline gap-2">
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold">{senderLabel(message.from)}</span>
+            <time dateTime={message.sentAt} className="shrink-0 text-xs text-ink-subtle tabular-nums">
+              {formatFullDate(message.sentAt)}
+            </time>
+          </span>
+          {isOpen ? null : <span className="truncate text-sm text-ink-muted">{message.text?.slice(0, 200) ?? ""}</span>}
         </span>
-        {isOpen ? null : <span className="truncate text-sm text-ink-muted">{message.text?.slice(0, 200) ?? ""}</span>}
       </button>
 
       {isOpen ? (
@@ -149,7 +153,7 @@ function MessageCard({ message, isInitiallyOpen, onReply }: { message: MailMessa
           </dl>
 
           {message.hasBlockedImages ? (
-            <p className="text-xs text-ink-muted">Images from the web were hidden to protect your privacy.</p>
+            <p className="text-xs text-ink-muted">Some images in this message couldn&apos;t be loaded safely, so they&apos;re hidden.</p>
           ) : null}
 
           <MessageBody message={message} />
@@ -180,21 +184,63 @@ function MessageCard({ message, isInitiallyOpen, onReply }: { message: MailMessa
 }
 
 function MessageBody({ message }: { message: MailMessage }) {
-  if (message.html) {
-    // sandbox="" grants nothing: no scripts, no same-origin, no forms, no popups, no top navigation.
-    // Without same-origin the page can't measure the document, so the frame has a fixed height and scrolls.
-    return (
-      <iframe
-        title={`Message from ${senderLabel(message.from)}`}
-        sandbox=""
-        srcDoc={mailDocument(message.html)}
-        referrerPolicy="no-referrer"
-        className="h-112 w-full rounded-lg border border-line bg-white"
-      />
-    );
-  }
+  if (message.html) return <MailFrame title={`Message from ${senderLabel(message.from)}`} html={message.html} />;
   if (message.text) return <p className="text-sm break-words whitespace-pre-wrap">{message.text}</p>;
   return <p className="text-sm text-ink-muted">This message has no text to show.</p>;
+}
+
+/** Height before the document is measured: enough for a short message without a jump. */
+const FRAME_INITIAL_HEIGHT = 160;
+
+/**
+ * Renders mail HTML in a frame sized to its content, so the reading pane is
+ * the only vertical scroller. The sandbox has no allow-scripts: same-origin
+ * lets us measure the document and load images from our own proxy, popups let
+ * links open in a new tab, and nothing in the email can run code. Never add
+ * allow-scripts next to allow-same-origin; together they let the frame remove
+ * its own sandbox.
+ */
+function MailFrame({ title, html }: { title: string; html: string }) {
+  const frameRef = useRef<HTMLIFrameElement>(null);
+  const [height, setHeight] = useState(FRAME_INITIAL_HEIGHT);
+  const cleanupRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => () => cleanupRef.current?.(), []);
+
+  const onLoad = () => {
+    cleanupRef.current?.();
+    const doc = frameRef.current?.contentDocument;
+    const win = frameRef.current?.contentWindow;
+    if (!doc?.body || !win) return;
+
+    const measure = () => {
+      // Add the horizontal scrollbar's height (zero when the email fits) so it never clips the last line.
+      const scrollbar = win.innerHeight - doc.documentElement.clientHeight;
+      setHeight(Math.ceil(doc.body.scrollHeight + Math.max(0, scrollbar)));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(doc.body);
+    const images = Array.from(doc.images);
+    for (const image of images) image.addEventListener("load", measure);
+    cleanupRef.current = () => {
+      observer.disconnect();
+      for (const image of images) image.removeEventListener("load", measure);
+    };
+  };
+
+  return (
+    <iframe
+      ref={frameRef}
+      title={title}
+      sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+      srcDoc={mailDocument(html)}
+      referrerPolicy="no-referrer"
+      onLoad={onLoad}
+      style={{ height }}
+      className="block w-full max-w-full rounded-lg border border-line bg-white"
+    />
+  );
 }
 
 function formatSize(bytes: number): string {
