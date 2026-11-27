@@ -3,7 +3,7 @@
  * longer than a test's timeout, so compile every route once before tests run.
  */
 const WEB_URL = process.env.E2E_WEB_URL ?? "http://localhost:3000";
-const ROUTES = ["/", "/sign-in", "/sign-up", "/onboarding", "/_design", "/w/00000000-0000-7000-8000-000000000000", "/w/00000000-0000-7000-8000-000000000000/docs"];
+const ROUTES = ["/", "/sign-in", "/sign-up", "/onboarding", "/forgot-password", "/reset-password", "/_design", "/w/00000000-0000-7000-8000-000000000000", "/w/00000000-0000-7000-8000-000000000000/docs"];
 const WARM_TIMEOUT_MS = 120_000;
 
 export default async function globalSetup() {

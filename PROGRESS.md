@@ -3,8 +3,8 @@
 Branch: `feature/workspace-platform`. Read `instruction.md` first.
 
 ## Status
-- Features passing: 7 / 60 (F001, F003, F004, F005, F009, F011, F012).
-- Next up: F006 (sign-in/out/reset), then F007 (Google sign-in), F008, F014, F002
+- Features passing: 8 / 60 (F001, F003, F004, F005, F006, F009, F011, F012).
+- Next up: F008, F014 (Home), F002, F013 (split view); F007 once the Google redirect URI is added
 
 ## Decisions log
 - 2026-11-27: Node 22 is the dev baseline (machine has 22.14, no version manager; upgrading is a system change). Engine set to `>=22`. tsup needs 22.18+, so the server bundles with esbuild.
@@ -44,6 +44,10 @@ Branch: `feature/workspace-platform`. Read `instruction.md` first.
 - F048, F049: Microsoft OAuth (user will do Azure at the end).
 
 ## Log
+### 2026-11-27: F006 sign-in, sign-out and password reset (passing)
+- /forgot-password (same confirmation for any address) and /reset-password (token from the Better Auth redirect, referrer policy no-referrer, expired/used link screen, confirm field). Sign-out lives in the account menu (F012). Reset revokes all sessions.
+- Verified: e2e f006 3/3 (sign out, protected route redirects, sign back in to Home; reset via Mailpit link, mismatch error, link single-use, old password rejected, new one works; unknown email same screen). Checked both pages in the browser, no console errors.
+
 ### 2026-11-27: F012 shell with bottom dock (passing)
 - Workspace layout: header (orb + workspace name to Home, account menu with name/email, theme, Settings, Sign out via native popover), the active window as a bordered card, and the dock centred at the bottom.
 - Dock: Docs, Sheets, Slides, PDF, Files | Agent, Settings as links with aria-current, a dot indicator, and tooltips on hover (300 ms delay) and keyboard focus. Unknown app slug is a 404.
