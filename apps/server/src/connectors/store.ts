@@ -136,8 +136,9 @@ export function createConnectorStore(db: Db): ConnectorStore {
   };
 }
 
-/** The few Redis operations the OAuth state and refresh lock use. */
+/** The few Redis operations the OAuth state, refresh lock and avatar cache use. */
 export type Kv = {
+  get(key: string): Promise<string | null>;
   set(key: string, value: string, ttlSeconds: number): Promise<void>;
   /** Atomic read-and-delete: the value can be used once. */
   take(key: string): Promise<string | null>;
@@ -150,6 +151,7 @@ const RELEASE_IF_OWNER = `if redis.call("GET", KEYS[1]) == ARGV[1] then return r
 
 export function redisKv(redis: Redis): Kv {
   return {
+    get: (key) => redis.get(key),
     async set(key, value, ttlSeconds) {
       await redis.set(key, value, "EX", ttlSeconds);
     },

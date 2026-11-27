@@ -18,6 +18,54 @@ export type MailThreadsQuery = z.infer<typeof mailThreadsQuery>;
 
 export const mailThreadParams = z.object({ workspaceId: z.uuid(), threadId: gmailToken });
 
+/** Longest encoded Content-ID that fits a URL path segment (Fastify's default param limit is 100). */
+export const MAIL_CONTENT_ID_MAX = 100;
+
+export const mailInlineParams = z.object({
+  workspaceId: z.uuid(),
+  messageId: gmailToken,
+  contentId: z.string().min(1).max(MAIL_CONTENT_ID_MAX),
+});
+
+/** `u` is a signed token from the server's image rewrite, never a raw URL. */
+export const mailImageQuery = z.object({ u: z.string().min(1).max(4096) });
+
+const HOSTNAME = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
+
+export const mailAvatarQuery = z.object({ domain: z.string().trim().toLowerCase().regex(HOSTNAME, "Invalid domain") });
+
+/** Second-level labels under a two-letter country code that are not registrable on their own (example.co.uk). */
+const SHORT_SLDS = new Set(["ac", "co", "com", "edu", "go", "gob", "gov", "mil", "ne", "net", "nic", "or", "org"]);
+
+/**
+ * Registrable part of a hostname by heuristic, not the public suffix list:
+ * tm1.openai.com -> openai.com, mail.example.co.uk -> example.co.uk.
+ */
+export function registrableDomain(host: string): string {
+  const labels = host.split(".");
+  if (labels.length < 3) return host;
+  const tld = labels.at(-1)!;
+  const sld = labels.at(-2)!;
+  const keep = tld.length === 2 && SHORT_SLDS.has(sld) ? 3 : 2;
+  return labels.slice(-keep).join(".");
+}
+
+/** Personal mailbox providers: their logo says nothing about the sender, so these get initials. */
+const PERSONAL_MAIL_DOMAINS = new Set([
+  "aol.com", "gmail.com", "googlemail.com", "hotmail.com", "icloud.com", "live.com", "mac.com", "me.com", "msn.com",
+  "outlook.com", "proton.me", "protonmail.com", "yahoo.com", "ymail.com",
+]);
+
+/** Domain whose logo stands for this sender, or null when initials fit better. */
+export function avatarDomain(email: string): string | null {
+  const at = email.lastIndexOf("@");
+  if (at < 0) return null;
+  const host = email.slice(at + 1).trim().toLowerCase();
+  if (!HOSTNAME.test(host)) return null;
+  const domain = registrableDomain(host);
+  return PERSONAL_MAIL_DOMAINS.has(domain) ? null : domain;
+}
+
 export const mailAddress = z.object({ name: z.string(), email: z.string() });
 export type MailAddress = z.infer<typeof mailAddress>;
 
@@ -59,9 +107,9 @@ export const mailMessage = z.object({
   /** RFC 5322 Message-ID, used for replies. */
   messageIdHeader: z.string().nullable(),
   text: z.string().nullable(),
-  /** Sanitized on the server: no scripts, handlers or remote images. */
+  /** Sanitized on the server: no scripts or handlers; images point at the server's image proxy. */
   html: z.string().nullable(),
-  /** True when remote images were removed from `html`. */
+  /** True when some images could not be proxied and were removed from `html`. */
   hasBlockedImages: z.boolean(),
   attachments: z.array(mailAttachment),
 });

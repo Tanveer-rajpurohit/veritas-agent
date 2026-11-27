@@ -19,6 +19,9 @@ export function memoryKv(): Kv & { data: Map<string, string> } {
   const data = new Map<string, string>();
   return {
     data,
+    async get(key) {
+      return data.get(key) ?? null;
+    },
     async set(key, value) {
       data.set(key, value);
     },
@@ -114,7 +117,14 @@ export function idToken(claims: Record<string, unknown>) {
   return `${enc({ alg: "RS256" })}.${enc(claims)}.signature`;
 }
 
-export function setup(opts: { fetch?: typeof fetch; members?: Record<string, Record<string, MemberRole>>; now?: () => number } = {}) {
+export function setup(
+  opts: {
+    fetch?: typeof fetch;
+    fetchImage?: ConnectorDeps["fetchImage"];
+    members?: Record<string, Record<string, MemberRole>>;
+    now?: () => number;
+  } = {},
+) {
   const users = new Map<string, SessionUser>();
   const mem = memoryStore(opts.members ?? {});
   const kv = memoryKv();
@@ -131,6 +141,12 @@ export function setup(opts: { fetch?: typeof fetch; members?: Record<string, Rec
     webOrigin: WEB,
     google: GOOGLE,
     now: opts.now ?? Date.now,
+    imageLinkKey: randomBytes(32),
+    fetchImage:
+      opts.fetchImage ??
+      (async (url) => {
+        throw new Error(`unexpected image fetch ${url.href}`);
+      }),
   };
   const addUser = (id: string) => users.set(id, { id, name: id, email: `${id}@example.test`, emailVerified: true });
 

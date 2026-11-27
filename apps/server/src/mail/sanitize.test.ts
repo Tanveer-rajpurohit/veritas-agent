@@ -35,6 +35,42 @@ describe("sanitizeEmailHtml", () => {
     expect(result.hasBlockedImages).toBe(false);
   });
 
+  describe("with image rewrites", () => {
+    const images = {
+      proxy: (url: string) => `/proxy?u=${encodeURIComponent(url)}`,
+      inline: (cid: string) => (cid === "logo@x" ? `/inline/${encodeURIComponent(cid)}` : null),
+    };
+
+    it("rewrites remote images to the proxy and keeps their size", () => {
+      const result = sanitizeEmailHtml('<img src=" https://cdn.example/a.png " width="120" alt="Logo">', images);
+      expect(result.html).toBe(`<img width="120" alt="Logo" src="/proxy?u=${encodeURIComponent("https://cdn.example/a.png")}" />`);
+      expect(result.hasBlockedImages).toBe(false);
+    });
+
+    it("rewrites cid: images to the inline route, decoding the Content-ID", () => {
+      expect(sanitizeEmailHtml('<img src="cid:logo%40x">', images).html).toBe('<img src="/inline/logo%40x" />');
+      expect(sanitizeEmailHtml('<img src="CID:logo@x">', images).html).toBe('<img src="/inline/logo%40x" />');
+    });
+
+    it("drops and reports images that can't be rewritten", () => {
+      for (const src of ["cid:unknown@x", "cid:%E0%A4%A", "file:///etc/passwd", "//cdn.example/a.png", "javascript:alert(1)", "data:image/svg+xml;base64,PHN2Zz4="]) {
+        const result = sanitizeEmailHtml(`<p>x</p><img src="${src}">`, images);
+        expect(result.html).toBe("<p>x</p>");
+        expect(result.hasBlockedImages).toBe(true);
+      }
+    });
+
+    it("drops images the proxy refuses", () => {
+      const result = sanitizeEmailHtml('<img src="https://cdn.example/a.png">', { proxy: () => null, inline: () => null });
+      expect(result).toEqual({ html: "", hasBlockedImages: true });
+    });
+
+    it("never lets srcset or background images bypass the proxy", () => {
+      const html = '<img src="https://cdn.example/a.png" srcset="https://t.example/b.png 2x"><td background="https://t.example/c.png">x</td><svg><image href="https://t.example/d.png"/></svg>';
+      expect(sanitizeEmailHtml(html, images).html).not.toContain("t.example");
+    });
+  });
+
   it("drops iframes, forms, objects and svg", () => {
     const html = clean('<iframe src="https://x"></iframe><form action="https://x"><input name="p"></form><object data="x"></object><svg onload="x()"></svg>ok');
     expect(html).toBe("ok");

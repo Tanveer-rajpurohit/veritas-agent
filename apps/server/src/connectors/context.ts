@@ -1,5 +1,6 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { SessionReader } from "../auth/guard";
+import type { FetchedImage } from "../mail/remote-image";
 import type { ConnectorStore, Kv } from "./store";
 import type { Vault } from "./vault";
 
@@ -16,6 +17,10 @@ export type ConnectorDeps = {
   /** Null when the deployment has no Google OAuth client configured. */
   google: GoogleCredentials | null;
   now: () => number;
+  /** HMAC key for signed mail image proxy links. */
+  imageLinkKey: Buffer;
+  /** SSRF-guarded fetch of a remote raster image for the mail image proxy. */
+  fetchImage: (url: URL) => Promise<FetchedImage>;
 };
 
 export type ConnectorErrorKind = "not_configured" | "not_connected" | "needs_reconnect" | "needs_scope" | "unavailable" | "not_found";

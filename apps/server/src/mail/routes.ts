@@ -1,12 +1,16 @@
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
-import type { FastifyRequest } from "fastify";
+import type { FastifyReply, FastifyRequest } from "fastify";
 import {
   apiError,
   connectorRequired,
+  mailAvatarQuery,
+  mailImageQuery,
+  mailInlineParams,
   mailThread,
   mailThreadList,
   mailThreadParams,
   mailThreadsQuery,
+  registrableDomain,
   sendMailInput,
   sendMailResult,
   type MailThreadSummary,
@@ -17,11 +21,26 @@ import { ConnectorError, handleConnectorErrors, requireMember, type ConnectorDep
 import { createGmailClient, mapWithConcurrency, THREAD_FETCH_CONCURRENCY } from "../connectors/google/gmail";
 import { GMAIL_READONLY, GMAIL_SEND, shortScope } from "../connectors/google/oauth";
 import { getAccessToken } from "../connectors/google/tokens";
+import { loadAvatar } from "./avatar";
+import { createImageLinks, verifyImageToken } from "./image-links";
 import { buildMimeMessage, MimeError, toGmailRaw } from "./mime";
-import { headerOf, summarizeThread, toMailThread } from "./parse";
+import { findInlinePart, headerOf, summarizeThread, toMailThread } from "./parse";
+import { IMAGE_MAX_BYTES, rasterImageType, RemoteImageError } from "./remote-image";
 
 const workspaceParams = z.object({ workspaceId: z.uuid() });
 const errors = { 404: apiError, 409: connectorRequired, 503: apiError };
+const IMAGE_CACHE_CONTROL = "private, max-age=86400";
+
+/** Image bytes with headers that stop them being sniffed, framed into a document, or cached by shared proxies. */
+function sendImage(reply: FastifyReply, contentType: string, body: Buffer) {
+  return reply
+    .header("content-type", contentType)
+    .header("cache-control", IMAGE_CACHE_CONTROL)
+    .header("x-content-type-options", "nosniff")
+    .header("content-security-policy", "default-src 'none'")
+    .header("cross-origin-resource-policy", "same-origin")
+    .send(body);
+}
 
 export function mailRoutes(deps: ConnectorDeps): FastifyPluginAsyncZod {
   return async (app) => {
@@ -65,9 +84,67 @@ export function mailRoutes(deps: ConnectorDeps): FastifyPluginAsyncZod {
       { preHandler: guard, schema: { params: mailThreadParams, response: { 200: mailThread, ...errors } } },
       (request, reply) =>
         handleConnectorErrors(reply, async () => {
-          const { gmail } = await gmailFor(request, request.params.workspaceId, GMAIL_READONLY);
-          return toMailThread(await gmail.getThread(request.params.threadId));
+          const { workspaceId, threadId } = request.params;
+          const { gmail } = await gmailFor(request, workspaceId, GMAIL_READONLY);
+          return toMailThread(await gmail.getThread(threadId), createImageLinks(deps.imageLinkKey, workspaceId, deps.now()));
         }),
+    );
+
+    // Not an open proxy: `u` is an HMAC token the thread route issued for this workspace, and it expires.
+    app.get(
+      "/api/v1/workspaces/:workspaceId/mail/image",
+      { preHandler: guard, schema: { params: workspaceParams, querystring: mailImageQuery, response: { 404: apiError, 502: apiError } } },
+      async (request, reply) => {
+        const url = verifyImageToken(deps.imageLinkKey, request.query.u, { workspaceId: request.params.workspaceId, now: deps.now() });
+        if (!url) return reply.code(404).send({ error: "Image not found.", requestId: request.id });
+        try {
+          const image = await deps.fetchImage(url);
+          return sendImage(reply, image.contentType, image.body);
+        } catch (err) {
+          if (!(err instanceof RemoteImageError)) throw err;
+          request.log.info({ reason: err.message }, "mail image not proxied");
+          return err.kind === "blocked"
+            ? reply.code(404).send({ error: "Image not found.", requestId: request.id })
+            : reply.code(502).send({ error: "That image couldn't be loaded.", requestId: request.id });
+        }
+      },
+    );
+
+    app.get(
+      "/api/v1/workspaces/:workspaceId/mail/messages/:messageId/inline/:contentId",
+      { preHandler: guard, schema: { params: mailInlineParams, response: errors } },
+      (request, reply) =>
+        handleConnectorErrors(reply, async () => {
+          const { workspaceId, messageId, contentId } = request.params;
+          const { gmail } = await gmailFor(request, workspaceId, GMAIL_READONLY);
+          const notFound = () => reply.code(404).send({ error: "Image not found.", requestId: request.id });
+
+          const part = findInlinePart(await gmail.getMessage(messageId), contentId);
+          const contentType = rasterImageType(part?.mimeType);
+          if (!part || !contentType || (part.body?.size ?? 0) > IMAGE_MAX_BYTES) return notFound();
+          // Small parts arrive inline in the message; larger ones need a separate attachments.get.
+          const data = part.body?.data ?? (part.body?.attachmentId ? (await gmail.getAttachment(messageId, part.body.attachmentId)).data : null);
+          if (!data) return notFound();
+          const bytes = Buffer.from(data, "base64url");
+          if (bytes.length === 0 || bytes.length > IMAGE_MAX_BYTES) return notFound();
+          return sendImage(reply, contentType, bytes);
+        }),
+    );
+
+    // Favicons are public data keyed by domain, so this needs a session but no workspace.
+    app.get(
+      "/api/v1/mail/avatar",
+      { preHandler: requireSessionFrom(deps.readSession), schema: { querystring: mailAvatarQuery, response: { 404: apiError } } },
+      async (request, reply) => {
+        const avatar = await loadAvatar(deps, registrableDomain(request.query.domain));
+        if (!avatar) {
+          return reply
+            .code(404)
+            .header("cache-control", IMAGE_CACHE_CONTROL)
+            .send({ error: "No logo for that domain.", requestId: request.id });
+        }
+        return sendImage(reply, avatar.contentType, avatar.body);
+      },
     );
 
     app.post(

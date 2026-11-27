@@ -4,12 +4,38 @@ const CELL_ATTRS = ["colspan", "rowspan", "align", "valign", "width", "height", 
 const COLOR = [/^#[0-9a-f]{3,8}$/i, /^rgba?\([\d\s.,%]+\)$/i, /^[a-z]+$/i];
 const LENGTH = [/^-?\d+(\.\d+)?(px|em|rem|%|pt)?(\s+-?\d+(\.\d+)?(px|em|rem|%|pt)?){0,3}$/];
 
+/** Maps image sources to same-origin server routes; null drops the image. */
+export type ImageRewrites = {
+  /** An http(s) URL to the image proxy route. */
+  proxy(url: string): string | null;
+  /** A Content-ID (from a cid: URL) to the inline-part route. */
+  inline(contentId: string): string | null;
+};
+
+const BLOCK_ALL: ImageRewrites = { proxy: () => null, inline: () => null };
+const DATA_IMAGE = /^data:image\/(png|gif|jpe?g|webp);base64,/i;
+
+function rewriteImageSource(src: string, images: ImageRewrites): string | null {
+  if (DATA_IMAGE.test(src)) return src;
+  const cid = /^cid:(.+)$/i.exec(src)?.[1];
+  if (cid) {
+    try {
+      return images.inline(decodeURIComponent(cid).trim());
+    } catch {
+      // Malformed percent-encoding: no Content-ID can match it.
+      return null;
+    }
+  }
+  return /^https?:\/\//i.test(src) ? images.proxy(src) : null;
+}
+
 /**
  * Allowlist for email HTML. Inline styles are kept only for plain values
- * (no url(), so no remote loads); images are kept only as data: URIs, since
- * remote images are tracking pixels until we proxy them.
+ * (no url(), so no remote loads). Images survive only as data: URIs or as
+ * links to our own proxy and inline-part routes, so the sender never sees the
+ * reader's IP or cookies.
  */
-function options(onBlockedImage: () => void): sanitizeHtml.IOptions {
+function options(images: ImageRewrites, onBlockedImage: () => void): sanitizeHtml.IOptions {
   return {
     allowedTags: [
       "a", "b", "blockquote", "br", "caption", "center", "code", "col", "colgroup", "dd", "div", "dl", "dt", "em",
@@ -47,7 +73,8 @@ function options(onBlockedImage: () => void): sanitizeHtml.IOptions {
       a: (tagName, attribs) => ({ tagName, attribs: { ...attribs, rel: "noopener noreferrer", target: "_blank" } }),
       img: (tagName, attribs) => {
         const { src, ...rest } = attribs;
-        if (src && /^data:image\/(png|gif|jpe?g|webp);base64,/i.test(src)) return { tagName, attribs: { ...rest, src } };
+        const rewritten = src ? rewriteImageSource(src.trim(), images) : null;
+        if (rewritten) return { tagName, attribs: { ...rest, src: rewritten } };
         if (src) onBlockedImage();
         return { tagName, attribs: rest };
       },
@@ -57,11 +84,11 @@ function options(onBlockedImage: () => void): sanitizeHtml.IOptions {
   };
 }
 
-export function sanitizeEmailHtml(html: string): { html: string; hasBlockedImages: boolean } {
+export function sanitizeEmailHtml(html: string, images: ImageRewrites = BLOCK_ALL): { html: string; hasBlockedImages: boolean } {
   let hasBlockedImages = false;
   const clean = sanitizeHtml(
     html,
-    options(() => {
+    options(images, () => {
       hasBlockedImages = true;
     }),
   );

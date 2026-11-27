@@ -47,6 +47,7 @@ const threadList = z.object({
   nextPageToken: z.string().optional(),
 });
 const sendResponse = z.object({ id: z.string(), threadId: z.string() });
+const attachment = z.object({ size: z.number().optional(), data: z.string() });
 
 /** Short scope a call needs, so a 403 can tell the user which permission is missing. */
 type NeededScope = "gmail.readonly" | "gmail.send";
@@ -125,6 +126,16 @@ export function createGmailClient(fetchImpl: typeof fetch, tokens: TokenSource) 
 
     async getThread(id: string) {
       return expectShape(thread, await call(`/threads/${encodeURIComponent(id)}?format=full`, "gmail.readonly"));
+    },
+
+    async getMessage(id: string) {
+      return expectShape(message, await call(`/messages/${encodeURIComponent(id)}?format=full`, "gmail.readonly"));
+    },
+
+    /** Body bytes of a part Gmail stored separately, base64url-encoded. */
+    async getAttachment(messageId: string, attachmentId: string) {
+      const path = `/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`;
+      return expectShape(attachment, await call(path, "gmail.readonly"));
     },
 
     async getMessageHeaders(id: string) {

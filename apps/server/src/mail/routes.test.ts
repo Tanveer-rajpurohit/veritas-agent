@@ -267,8 +267,12 @@ describe("GET /mail/threads/:threadId", () => {
       { name: "", email: "me@gmail.example" },
     ]);
     expect(m.text).toBe("Hello link");
-    expect(m.html).toBe('<p>Hello <a href="https://example.test" rel="noopener noreferrer" target="_blank">link</a></p>');
-    expect(m.hasBlockedImages).toBe(true);
+    expect(m.html).toMatch(
+      new RegExp(
+        `^<p>Hello <a href="https://example.test" rel="noopener noreferrer" target="_blank">link</a></p><img src="/api/v1/workspaces/${WS}/mail/image\\?u=[\\w-]+\\.[\\w-]+" />$`,
+      ),
+    );
+    expect(m.hasBlockedImages).toBe(false);
     expect(m.messageIdHeader).toBe("<abc@mail.example>");
     expect(m.isUnread).toBe(true);
     expect(m.attachments).toEqual([{ id: "att-1", filename: "nda.pdf", mimeType: "application/pdf", size: 2048 }]);

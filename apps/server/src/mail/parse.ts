@@ -1,5 +1,6 @@
 import type { MailAddress, MailAttachment, MailMessage, MailThread, MailThreadSummary } from "@veritas/shared";
 import type { GmailHeader, GmailMessage, GmailPart, GmailThread } from "../connectors/google/gmail";
+import type { ImageLinks } from "./image-links";
 import { sanitizeEmailHtml } from "./sanitize";
 
 export function headerOf(headers: GmailHeader[] | undefined, name: string): string | undefined {
@@ -92,19 +93,38 @@ export function summarizeThread(thread: GmailThread): MailThreadSummary | null {
   };
 }
 
-export function toMailMessage(message: GmailMessage): MailMessage {
+/** `<ii_abc@x>` -> `ii_abc@x`. */
+function contentIdOf(part: GmailPart): string | undefined {
+  return headerOf(part.headers, "Content-ID")?.trim().replace(/^<(.*)>$/, "$1") || undefined;
+}
+
+const isInlineImage = (part: GmailPart) =>
+  Boolean(part.mimeType?.toLowerCase().startsWith("image/")) && Boolean(part.body?.data || part.body?.attachmentId);
+
+/** The image part an HTML body refers to as cid:<contentId>. */
+export function findInlinePart(message: GmailMessage, contentId: string): GmailPart | undefined {
+  return [...walk(message.payload)].find((part) => isInlineImage(part) && contentIdOf(part) === contentId);
+}
+
+export function toMailMessage(message: GmailMessage, links?: ImageLinks): MailMessage {
   const headers = message.payload?.headers;
   let text: string | null = null;
   let rawHtml: string | null = null;
-  const attachments: MailAttachment[] = [];
+  const attachments: { meta: MailAttachment; contentId?: string }[] = [];
+  const inlineIds = new Set<string>();
 
   for (const part of walk(message.payload)) {
+    const contentId = contentIdOf(part);
+    if (contentId && isInlineImage(part)) inlineIds.add(contentId);
     if (isAttachment(part)) {
       attachments.push({
-        id: part.body?.attachmentId ?? part.partId ?? "",
-        filename: part.filename!,
-        mimeType: part.mimeType ?? "application/octet-stream",
-        size: part.body?.size ?? 0,
+        meta: {
+          id: part.body?.attachmentId ?? part.partId ?? "",
+          filename: part.filename!,
+          mimeType: part.mimeType ?? "application/octet-stream",
+          size: part.body?.size ?? 0,
+        },
+        contentId,
       });
     } else if (part.body?.data && part.mimeType === "text/plain" && text === null) {
       text = decodeBody(part);
@@ -113,7 +133,22 @@ export function toMailMessage(message: GmailMessage): MailMessage {
     }
   }
 
-  const sanitized = rawHtml === null ? null : sanitizeEmailHtml(rawHtml);
+  const shownInline = new Set<string>();
+  const sanitized =
+    rawHtml === null
+      ? null
+      : sanitizeEmailHtml(
+          rawHtml,
+          links && {
+            proxy: links.proxy,
+            inline: (contentId) => {
+              if (!inlineIds.has(contentId)) return null;
+              const url = links.inline(message.id, contentId);
+              if (url) shownInline.add(contentId);
+              return url;
+            },
+          },
+        );
   return {
     id: message.id,
     from: parseAddress(headerOf(headers, "From") ?? ""),
@@ -126,11 +161,12 @@ export function toMailMessage(message: GmailMessage): MailMessage {
     text,
     html: sanitized?.html ?? null,
     hasBlockedImages: sanitized?.hasBlockedImages ?? false,
-    attachments,
+    // Images already shown in the body are not files the reader needs to see twice.
+    attachments: attachments.filter((a) => !a.contentId || !shownInline.has(a.contentId)).map((a) => a.meta),
   };
 }
 
-export function toMailThread(thread: GmailThread): MailThread {
-  const messages = thread.messages.map(toMailMessage);
+export function toMailThread(thread: GmailThread, links?: ImageLinks): MailThread {
+  const messages = thread.messages.map((message) => toMailMessage(message, links));
   return { id: thread.id, subject: messages[0]?.subject ?? "", messages };
 }

@@ -13,6 +13,8 @@ import { createConnectorStore, redisKv } from "./connectors/store";
 import { createVault } from "./connectors/vault";
 import type { Deps } from "./deps";
 import type { Env } from "./env";
+import { deriveImageLinkKey } from "./mail/image-links";
+import { fetchRemoteImage } from "./mail/remote-image";
 import { mailRoutes } from "./mail/routes";
 import { healthRoutes } from "./routes/health";
 import { workspaceRoutes } from "./workspaces/routes";
@@ -80,6 +82,8 @@ export async function buildApp(env: Env, deps: Deps) {
         ? { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET }
         : null,
     now: Date.now,
+    imageLinkKey: deriveImageLinkKey(env.CONNECTOR_KEK),
+    fetchImage: (url) => fetchRemoteImage(url),
   };
   await app.register(connectorRoutes(connectorDeps));
   await app.register(mailRoutes(connectorDeps));
