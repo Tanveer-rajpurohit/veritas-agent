@@ -1,9 +1,10 @@
 import Fastify from "fastify";
 import { serializerCompiler, validatorCompiler, type ZodTypeProvider } from "fastify-type-provider-zod";
+import type { Deps } from "./deps";
 import type { Env } from "./env";
 import { healthRoutes } from "./routes/health";
 
-export async function buildApp(env: Env) {
+export async function buildApp(env: Env, deps: Deps) {
   const app = Fastify({
     logger: env.NODE_ENV === "test" ? false : { level: env.LOG_LEVEL },
     genReqId: () => crypto.randomUUID(),
@@ -12,6 +13,6 @@ export async function buildApp(env: Env) {
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
-  await app.register(healthRoutes);
+  await app.register(healthRoutes(deps));
   return app;
 }

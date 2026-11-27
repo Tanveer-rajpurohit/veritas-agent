@@ -35,8 +35,7 @@
         "Confirm the process exits non-zero naming GEMINI_API_KEY without printing any secret values",
         "Restore it and confirm boot succeeds"
       ],
-      "status": "failing"
-    },
+      "status": "passing"    },
     {
       "id": "F004", "priority": "P0", "area": "data",
       "title": "Drizzle schema and migrations for core tables",

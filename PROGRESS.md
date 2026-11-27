@@ -3,8 +3,8 @@
 Branch: `feature/workspace-platform`. Read `instruction.md` first.
 
 ## Status
-- Features passing: 2 / 60 (F001, F004).
-- Next up: F003 (env validation) + real /health checks, then F005-F006 (auth), then F002 (needs the sign-in page)
+- Features passing: 3 / 60 (F001, F003, F004).
+- Next up: F005 (email sign-up), F006, F008, F009, then F002
 
 ## Decisions log
 - 2026-11-27: Node 22 is the dev baseline (machine has 22.14, no version manager; upgrading is a system change). Engine set to `>=22`. tsup needs 22.18+, so the server bundles with esbuild.
@@ -17,13 +17,21 @@ Branch: `feature/workspace-platform`. Read `instruction.md` first.
 - 2026-11-27: Google/Microsoft OAuth client IDs will be added by the user later. F007 and F047-F049 stay blocked until then.
 
 - 2026-11-27: MinIO replaced by RustFS 1.0.5 (Apache-2.0, S3 API). quay.io and Docker Hub MinIO images are no longer published (401 / not found). Compose service is now `blob`. features.json steps that say "MinIO" are read as "the blob store" (text left unchanged per the status-only rule).
-- 2026-11-27: Docker Desktop 4.47 crashed on a stale `%LOCALAPPDATA%DockerundockerInference` socket. User approved a fix; the file couldn't be deleted, but a restart worked. If Docker fails again, restart Docker Desktop.
+- 2026-11-27: Docker Desktop 4.47 crashed on a stale `%LOCALAPPDATA%\Docker\run\dockerInference` socket. User approved a fix; the file couldn't be deleted, but a restart worked. If Docker fails again, restart Docker Desktop.
 - 2026-11-27: Integration tests (`pnpm --filter @veritas/db test:integration`) need DATABASE_URL; plain `pnpm test` skips them. CI (F057) will run them with services.
+
+- 2026-11-27: This machine has a system-wide GEMINI_API_KEY env var. Node `--env-file` never overrides existing vars, so that value wins over `.env`. Tell the user; testing env validation needs `env -u GEMINI_API_KEY`.
+- 2026-11-27: Local AUTH_SECRET and CONNECTOR_KEK generated randomly into `.env` (never committed).
 
 ## Blocked
 - F007, F047, F048, F049: need OAuth client IDs/secrets in `.env` (user will add).
 
 ## Log
+### 2026-11-27: F003 env validation (passing) + real /health
+- `loadEnv` validates every server var with zod; errors name the variable and rule, never the value (unit test checks secrets are not echoed).
+- `/health` probes Postgres (`select 1`), Redis (`PING`) and the blob bucket, each with a 2 s timeout; 503 + `degraded` when any is down. Bucket is created on boot.
+- Verified by hand: without GEMINI_API_KEY the server exits 1 with `GEMINI_API_KEY is missing`; normal boot gives 200 ok; stopping Redis gives 503 redis:down; restart recovers to 200.
+
 ### 2026-11-27: F004 schema and migrations (passing)
 - Drizzle schema for the Better Auth tables (plural) and every SPEC section 5 table, plus `agent_questions` (F059) and `model_id` provenance columns (F060). UUIDv7 via Postgres 18 `uuidv7()`.
 - Migrations: 0000 vector extension, 0001 core tables (22), 0002 trigger that makes file_versions immutable.
