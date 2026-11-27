@@ -1,4 +1,5 @@
 import type { AppId } from "@veritas/shared";
+import { AgentPanel } from "@/components/agent/agent-panel";
 import { getApp } from "@/lib/apps";
 import { useDesktop } from "./desktop-provider";
 
@@ -31,6 +32,18 @@ function PlaceholderContent({ app }: { app: AppId }) {
   );
 }
 
+function AgentContent() {
+  const { workspaceId } = useDesktop();
+  return <AgentPanel workspaceId={workspaceId} />;
+}
+
 export function AppContent({ app }: { app: AppId }) {
-  return app === "home" ? <HomeContent /> : <PlaceholderContent app={app} />;
+  switch (app) {
+    case "home":
+      return <HomeContent />;
+    case "agent":
+      return <AgentContent />;
+    default:
+      return <PlaceholderContent app={app} />;
+  }
 }
