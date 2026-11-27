@@ -136,8 +136,7 @@
         "Click each dock icon and confirm the matching app opens in the main window",
         "Hover an icon and see its label tooltip; the active app shows an indicator"
       ],
-      "status": "failing"
-    },
+      "status": "passing"    },
     {
       "id": "F013", "priority": "P0", "area": "shell",
       "title": "Split view with two apps",

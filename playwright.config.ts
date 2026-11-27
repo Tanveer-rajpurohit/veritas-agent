@@ -3,6 +3,8 @@ import { defineConfig, devices } from "@playwright/test";
 const WEB_URL = process.env.E2E_WEB_URL ?? "http://localhost:3000";
 
 export default defineConfig({
+  // One worker: the dev machine has 8 GB RAM and two Chrome instances plus Next dev exhaust it.
+  workers: process.env.CI ? 2 : 1,
   testDir: "./e2e",
   globalSetup: "./e2e/global-setup.ts",
   fullyParallel: false,

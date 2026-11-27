@@ -23,7 +23,14 @@ const envSchema = z.object({
 
   SMTP_HOST: required,
   SMTP_PORT: z.coerce.number().int().positive(),
+  SMTP_USER: optional,
+  SMTP_PASS: optional,
   MAIL_FROM: required,
+  /** Local catcher (Mailpit) for reserved test domains such as example.test. */
+  MAIL_CATCHER_HOST: optional,
+  MAIL_CATCHER_PORT: z.coerce.number().int().positive().optional(),
+
+  GOOGLE_API_KEY: optional,
 
   GEMINI_API_KEY: required,
   MODEL_PREFERENCE: z.string().default("pro,flash"),

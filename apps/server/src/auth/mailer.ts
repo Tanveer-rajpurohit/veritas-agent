@@ -5,14 +5,32 @@ export type Mailer = {
   send: (message: { to: string; subject: string; text: string; html: string }) => Promise<void>;
 };
 
+/** RFC 2606 / 6761 names that can never receive real mail. */
+const RESERVED_DOMAIN = /\.(test|example|invalid|localhost)$/i;
+
+export function isReservedRecipient(address: string): boolean {
+  const domain = address.split("@").at(-1) ?? "";
+  return RESERVED_DOMAIN.test(domain);
+}
+
 export function createMailer(env: Env): Mailer {
-  const transport = nodemailer.createTransport({
+  const relay = nodemailer.createTransport({
     host: env.SMTP_HOST,
     port: env.SMTP_PORT,
     secure: env.SMTP_PORT === 465,
+    // Gmail shows app passwords in groups of four; the spaces are not part of it.
+    auth: env.SMTP_USER && env.SMTP_PASS ? { user: env.SMTP_USER, pass: env.SMTP_PASS.replace(/\s+/g, "") } : undefined,
   });
+  // Reserved addresses (used by automated tests) never reach a real relay,
+  // where they would only bounce and hurt the sender's reputation.
+  const catcher = env.MAIL_CATCHER_HOST
+    ? nodemailer.createTransport({ host: env.MAIL_CATCHER_HOST, port: env.MAIL_CATCHER_PORT ?? 1025, secure: false })
+    : null;
+
   return {
     send: async (message) => {
+      const transport = isReservedRecipient(message.to) ? catcher : relay;
+      if (!transport) return;
       await transport.sendMail({ from: env.MAIL_FROM, ...message });
     },
   };

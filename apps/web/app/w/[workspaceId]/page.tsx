@@ -10,9 +10,9 @@ export default async function WorkspaceHomePage({ params }: { params: Promise<{ 
   const workspace = workspaces.find((w) => w.id === workspaceId);
 
   return (
-    <main id="main" className="mx-auto flex min-h-dvh max-w-5xl flex-col gap-2 px-4 py-12">
-      <p className="text-sm text-ink-muted">Home</p>
+    <div className="flex flex-col gap-2 px-6 py-8 sm:px-8">
+      <p className="font-mono text-xs tracking-wide text-ink-muted uppercase">Home</p>
       <h1 className="text-3xl font-semibold tracking-tight">{workspace?.name}</h1>
-    </main>
+    </div>
   );
 }

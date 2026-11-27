@@ -3,8 +3,8 @@
 Branch: `feature/workspace-platform`. Read `instruction.md` first.
 
 ## Status
-- Features passing: 6 / 60 (F001, F003, F004, F005, F009, F011).
-- Next up: F012 (shell + dock, with the account menu), then F006, F008, F014, F002
+- Features passing: 7 / 60 (F001, F003, F004, F005, F009, F011, F012).
+- Next up: F006 (sign-in/out/reset), then F007 (Google sign-in), F008, F014, F002
 
 ## Decisions log
 - 2026-11-27: Node 22 is the dev baseline (machine has 22.14, no version manager; upgrading is a system change). Engine set to `>=22`. tsup needs 22.18+, so the server bundles with esbuild.
@@ -34,10 +34,21 @@ Branch: `feature/workspace-platform`. Read `instruction.md` first.
 - 2026-11-27: API errors: validation gives 400 `{ error, fields }`; non-members get 404 (not 403) so workspace IDs cannot be probed. Server-side web fetches redirect to /sign-in on 401.
 - 2026-11-27: E2E stability: global setup warms every route (Next dev compiles on first request; cold compiles took >15 s here), expect timeout 15 s, test timeout 60 s for full flows. No assertions were relaxed. Never call `router.refresh()` right after `router.replace()` (the refresh can cancel the navigation).
 
+- 2026-11-27: Real email goes through Gmail SMTP (app password, in `.env` only). Recipients on reserved TLDs (.test/.example/.invalid/.localhost) are routed to Mailpit (`MAIL_CATCHER_*`) and never reach the relay, so e2e keeps reading Mailpit and no test mail bounces from the real sender.
+- 2026-11-27: Playwright runs 1 worker locally (8 GB RAM machine crashed with 2 workers + dev servers + Docker); CI uses 2. Long multi-navigation flows use `test.slow()`; no assertions relaxed.
+- 2026-11-27: `apps/web/next-env.d.ts` is untracked/gitignored: `next dev` and `next typegen` rewrite it differently, which dirtied git status.
+- 2026-11-27: App placeholder windows live in one dynamic route `w/[id]/[app]`; each real editor route (e.g. `w/[id]/docs`) takes precedence when it lands. Dock icons are hand-drawn 24px SVGs in `@veritas/ui` (no icon dependency); the Agent dock mark is the orb.
+
 ## Blocked
-- F007, F047, F048, F049: need OAuth client IDs/secrets in `.env` (user will add).
+- F007: Google client ID/secret are in `.env`; the Google Cloud console needs redirect URI `http://localhost:3000/api/auth/callback/google` added (the user registered `http://localhost:8000/api/auth/google/callback`, which does not match).
+- F048, F049: Microsoft OAuth (user will do Azure at the end).
 
 ## Log
+### 2026-11-27: F012 shell with bottom dock (passing)
+- Workspace layout: header (orb + workspace name to Home, account menu with name/email, theme, Settings, Sign out via native popover), the active window as a bordered card, and the dock centred at the bottom.
+- Dock: Docs, Sheets, Slides, PDF, Files | Agent, Settings as links with aria-current, a dot indicator, and tooltips on hover (300 ms delay) and keyboard focus. Unknown app slug is a 404.
+- Verified: e2e f012 2/2 (centred near bottom, each app opens with its heading, single active link, tooltip on hover and focus, Home clears active); full suite 14/14 on 1 worker; checked in the browser in light and dark at 800px and 375px (no overflow, no console errors).
+
 ### 2026-11-27: F009 onboarding creates the first workspace (passing)
 - Shared zod contracts (workspaces, apiError). Server: `requireSession` guard (verified email required), `memberRoleFor` access helper, GET/POST /api/v1/workspaces (transaction creates workspace + owner membership + audit row).
 - Web: onboarding form with inline validation, root routes to the first workspace or onboarding, /w/[id] layout returns 404 for non-members, placeholder Home heading (full Home is F014).
