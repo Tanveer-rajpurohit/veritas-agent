@@ -422,6 +422,8 @@ export const findings = pgTable(
 
 /* ---------------- Connectors, settings, audit ---------------- */
 
+export const connectorStatus = pgEnum("connector_status", ["active", "needs_reconnect"]);
+
 export const connectors = pgTable(
   "connectors",
   {
@@ -434,10 +436,16 @@ export const connectors = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     provider: text("provider").notNull(),
     scopes: text("scopes").array().notNull(),
+    /** Provider account the tokens belong to; may differ from the sign-in email. */
+    accountEmail: text("account_email"),
+    status: connectorStatus("status").notNull().default("active"),
+    /** Vault envelope (key version + AES-256-GCM ciphertext + tag) of the token JSON. */
     tokenCiphertext: text("token_ciphertext").notNull(),
     tokenIv: text("token_iv").notNull(),
+    /** Access-token expiry. */
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [uniqueIndex("connectors_unique").on(t.workspaceId, t.userId, t.provider)],
 );

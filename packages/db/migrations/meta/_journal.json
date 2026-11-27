@@ -29,6 +29,13 @@
       "when": 1795793199177,
       "tag": "0003_desktops",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795795224325,
+      "tag": "0004_connector_account_status",
+      "breakpoints": true
     }
   ]
 }

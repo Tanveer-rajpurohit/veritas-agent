@@ -21,6 +21,7 @@
     "minio": "8.0.7",
     "nodemailer": "10.6.1",
     "postgres": "4.1.1",
+    "sanitize-html": "2.18.2",
     "zod": "4.6.7"
   },
   "devDependencies": {
@@ -28,6 +29,7 @@
     "@repo/typescript-config": "workspace:*",
     "@types/node": "22.20.7",
     "@types/nodemailer": "^8.0.2",
+    "@types/sanitize-html": "2.16.2",
     "esbuild": "0.28.2",
     "eslint": "10.8.1",
     "globals": "17.11.0",
