@@ -1,7 +1,7 @@
-export default function HomePage() {
-  return (
-    <main>
-      <h1>Veritas</h1>
-    </main>
-  );
+import { redirect } from "next/navigation";
+import { getSessionUser } from "@/lib/session";
+
+export default async function RootPage() {
+  const user = await getSessionUser();
+  redirect(user ? "/onboarding" : "/sign-in");
 }

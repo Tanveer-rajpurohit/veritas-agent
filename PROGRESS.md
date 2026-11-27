@@ -3,8 +3,8 @@
 Branch: `feature/workspace-platform`. Read `instruction.md` first.
 
 ## Status
-- Features passing: 4 / 60 (F001, F003, F004, F011).
-- Next up: F005 (email sign-up with verification), F006, F008, F009, then F002
+- Features passing: 5 / 60 (F001, F003, F004, F005, F011).
+- Next up: F006 (sign-in/out, reset), F008 (auth errors, rate limits), F009 (onboarding workspace), then F002
 
 ## Decisions log
 - 2026-11-27: Node 22 is the dev baseline (machine has 22.14, no version manager; upgrading is a system change). Engine set to `>=22`. tsup needs 22.18+, so the server bundles with esbuild.
@@ -26,10 +26,19 @@ Branch: `feature/workspace-platform`. Read `instruction.md` first.
 - 2026-11-27: Visual direction set by the user: Space Grotesk (UI) + PT Mono (numbers/code), both OFL; (revised same day) white light theme and true-black dark theme with cool neutral greys; black primary buttons (white in dark); teal brand for focus/links/active. Orb is a painterly sphere of blurred colour fields with contained grain (ElevenLabs-style reference from the user), one tone per agent mode: lagoon/General, ember/Legal, moss/Analyst, coral/Presenter, glacier/Researcher, pearl/neutral. Grain is contained to the orb, a deliberate exception to slop rule 20. Note: global slop rule 11 bans Space Grotesk + Instrument Serif, not Space Grotesk alone; this was an explicit user request anyway.
 - 2026-11-27: E2E uses Playwright with the installed Chrome (`channel: chrome`), so there is no browser download; axe-core checks WCAG 2.2 AA. `/_design` is served from `app/%5Fdesign` (Next private-folder escape) and returns 404 in production.
 
+- 2026-11-27: Better Auth runs inside Fastify at /api/auth/*; baseURL is the web origin so email links and OAuth callbacks go through the Next proxy. Sessions are stored in Postgres; rate-limit counters live in Redis with atomic INCR+EXPIRE (Lua). Password minimum is 10 characters.
+- 2026-11-27: Sign-up with an existing email shows the same "check your inbox" screen (no account enumeration). Signed-up email addresses never go in URLs (held in component state).
+- 2026-11-27: Tokens use Tailwind `@theme inline` so a nested `data-theme="dark"` section (the auth side panel) works on a light page.
+
 ## Blocked
 - F007, F047, F048, F049: need OAuth client IDs/secrets in `.env` (user will add).
 
 ## Log
+### 2026-11-27: F005 email sign-up with verification (passing)
+- Server: Better Auth (Drizzle adapter, plural tables), Nodemailer to Mailpit with plain HTML+text emails, Fastify mount that keeps multiple Set-Cookie headers, request-id header, generic 5xx copy, cookie/auth headers redacted from logs.
+- Web: two-panel auth layout (black panel with orb, white form), sign-up, sign-in, check-inbox/verify-email states with resend, onboarding page (requires a session), root redirect. UI primitives Button and TextField in packages/ui.
+- Verified: e2e f005 3/3 in Chrome (real Mailpit email, link confirms, lands on /onboarding, session cookie httpOnly + SameSite=Lax, unverified sign-in shows Verify your email, resend sends a 2nd email, inline validation). Full e2e 9/9, types/lint/unit 7/7.
+
 ### 2026-11-27: F011 design revision (still passing)
 - User feedback: drop the cream, use white/black backgrounds, orb like the ElevenLabs reference. Rebuilt Orb (4 drifting blurred blobs, edge shade, grain at >=40px, 6 mode tones; faster drift while thinking) and the neutral themes.
 - Verified: F011 e2e 6/6 (added: white/black canvas check, tone check, thinking is faster than idle), types and lint 7/7, checked by eye in light and dark.

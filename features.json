@@ -58,8 +58,7 @@
         "Confirm redirect to onboarding with an authenticated session cookie (httpOnly, SameSite=Lax)",
         "Try to sign in before verifying with a second account and see 'Verify your email' with a resend button"
       ],
-      "status": "failing"
-    },
+      "status": "passing"    },
     {
       "id": "F006", "priority": "P0", "area": "auth",
       "title": "Sign-in, sign-out and password reset",
