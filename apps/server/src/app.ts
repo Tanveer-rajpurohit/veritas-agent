@@ -1,5 +1,8 @@
 import Fastify from "fastify";
 import { serializerCompiler, validatorCompiler, type ZodTypeProvider } from "fastify-type-provider-zod";
+import { agentRoutes } from "./agent/routes";
+import { createEventHub } from "./agent/events";
+import { createAgentRuntime } from "./agent/runtime";
 import { createAuth } from "./auth/auth";
 import { createMailer } from "./auth/mailer";
 import { sessionReader } from "./auth/guard";
@@ -80,6 +83,14 @@ export async function buildApp(env: Env, deps: Deps) {
   };
   await app.register(connectorRoutes(connectorDeps));
   await app.register(mailRoutes(connectorDeps));
+
+  const runtime = createAgentRuntime(deps, app.log);
+  const hub = createEventHub(deps.redis);
+  await app.register(agentRoutes(deps, auth, runtime, hub));
+  app.addHook("onClose", async () => {
+    await runtime.close();
+    hub.close();
+  });
   app.decorate("auth", auth);
   return app;
 }
