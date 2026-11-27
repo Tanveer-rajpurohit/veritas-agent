@@ -2,7 +2,12 @@ import Fastify from "fastify";
 import { serializerCompiler, validatorCompiler, type ZodTypeProvider } from "fastify-type-provider-zod";
 import { createAuth } from "./auth/auth";
 import { createMailer } from "./auth/mailer";
+import { sessionReader } from "./auth/guard";
 import { authRoutes } from "./auth/routes";
+import type { ConnectorDeps } from "./connectors/context";
+import { connectorRoutes } from "./connectors/routes";
+import { createConnectorStore, redisKv } from "./connectors/store";
+import { createVault } from "./connectors/vault";
 import type { Deps } from "./deps";
 import type { Env } from "./env";
 import { healthRoutes } from "./routes/health";
@@ -13,7 +18,14 @@ export async function buildApp(env: Env, deps: Deps) {
     logger:
       env.NODE_ENV === "test"
         ? false
-        : { level: env.LOG_LEVEL, redact: ["req.headers.cookie", "req.headers.authorization", 'res.headers["set-cookie"]'] },
+        : {
+            level: env.LOG_LEVEL,
+            redact: ["req.headers.cookie", "req.headers.authorization", 'res.headers["set-cookie"]'],
+            serializers: {
+              // Query strings carry OAuth codes and private mail searches; log the path only.
+              req: (req) => ({ method: req.method, url: req.url.split("?")[0], host: req.host, remoteAddress: req.ip }),
+            },
+          },
     genReqId: () => crypto.randomUUID(),
     // Only the local Next proxy is trusted to report the client IP. Trusting every
     // hop would let a client forge X-Forwarded-For and dodge auth rate limits.
@@ -50,6 +62,20 @@ export async function buildApp(env: Env, deps: Deps) {
   await app.register(healthRoutes(deps));
   await authRoutes(app, auth, env);
   await app.register(workspaceRoutes(deps, auth));
+  const connectorDeps: ConnectorDeps = {
+    store: createConnectorStore(deps.db),
+    kv: redisKv(deps.redis),
+    vault: createVault([{ version: 1, kek: env.CONNECTOR_KEK }]),
+    fetch: globalThis.fetch,
+    readSession: sessionReader(auth),
+    webOrigin: env.WEB_ORIGIN,
+    google:
+      env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
+        ? { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET }
+        : null,
+    now: Date.now,
+  };
+  await app.register(connectorRoutes(connectorDeps));
   app.decorate("auth", auth);
   return app;
 }
