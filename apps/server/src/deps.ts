@@ -1,3 +1,4 @@
+import { createGeminiProvider, type ModelProvider } from "@veritas/agent-core";
 import { createDb, type Db } from "@veritas/db";
 import { Redis } from "ioredis";
 import { Client as BlobClient } from "minio";
@@ -9,6 +10,8 @@ export type Deps = {
   redis: Redis;
   blob: BlobClient;
   bucket: string;
+  /** Model registry and language models; tests swap in a mock provider. */
+  agent: ModelProvider;
   close: () => Promise<void>;
 };
 
@@ -31,6 +34,7 @@ export function createDeps(env: Env): Deps {
     redis,
     blob,
     bucket: env.BLOB_BUCKET,
+    agent: createGeminiProvider({ apiKey: env.GEMINI_API_KEY, preference: env.MODEL_PREFERENCE }),
     close: async () => {
       redis.disconnect();
       await sql.end({ timeout: 5 });
