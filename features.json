@@ -145,7 +145,7 @@
         "Reload and confirm the same split layout returns",
         "Close one pane and confirm the other fills the window"
       ],
-      "status": "failing"
+      "status": "passing"
     },
     {
       "id": "F014", "priority": "P0", "area": "shell",
@@ -690,7 +690,7 @@
         "Open Docs on 'Data room', switch to Home and back, and confirm the Docs window is still there after a reload",
         "Collapse the sidebar and confirm the windows widen; reopen it"
       ],
-      "status": "failing"
+      "status": "passing"
     },
     {
       "id": "F062", "priority": "P0", "area": "shell",
@@ -702,7 +702,7 @@
         "Close the window and see it animate out; the dock dot for that app disappears",
         "With prefers-reduced-motion set, confirm open and close use opacity only"
       ],
-      "status": "failing"
+      "status": "passing"
     },
     {
       "id": "F063", "priority": "P1", "area": "mail",

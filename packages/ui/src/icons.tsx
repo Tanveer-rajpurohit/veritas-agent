@@ -85,3 +85,75 @@ export function SignOutIcon(props: IconProps) {
     </Icon>
   );
 }
+
+/** A speech bubble with a small spark: the agent you talk to. */
+export function AgentIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M20 12.5a7.5 7.5 0 0 1-11.2 6.5L4 20l1.1-4.3A7.5 7.5 0 1 1 20 12.5z" />
+      <path d="M12.5 8.5v4M10.5 10.5h4" />
+    </Icon>
+  );
+}
+
+export function MailIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m4 7 8 6 8-6" />
+    </Icon>
+  );
+}
+
+export function CalendarIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="4" y="5" width="16" height="15" rx="2" />
+      <path d="M4 10h16M9 3v4M15 3v4" />
+    </Icon>
+  );
+}
+
+export function PlusIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 5v14M5 12h14" />
+    </Icon>
+  );
+}
+
+export function CloseIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M6 6l12 12M18 6 6 18" />
+    </Icon>
+  );
+}
+
+export function SidebarIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+      <path d="M9.5 4.5v15" />
+    </Icon>
+  );
+}
+
+/** Two panes side by side: open beside. */
+export function SplitIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+      <path d="M12 4.5v15" />
+    </Icon>
+  );
+}
+
+export function HomeIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 11 12 4l8 7" />
+      <path d="M6 9.5V19a1 1 0 0 0 1 1h3.5v-5h3v5H17a1 1 0 0 0 1-1V9.5" />
+    </Icon>
+  );
+}

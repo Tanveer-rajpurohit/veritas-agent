@@ -126,6 +126,27 @@ export const workspaceMembers = pgTable(
   (t) => [primaryKey({ columns: [t.workspaceId, t.userId] }), index("workspace_members_user_idx").on(t.userId)],
 );
 
+/** A named, per-user arrangement of windows inside a workspace (the desktops sidebar). */
+export const desktops = pgTable(
+  "desktops",
+  {
+    id: id(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    position: integer("position").notNull(),
+    // Validated by the shared desktopLayout schema at the API boundary.
+    layout: jsonb("layout").$type<Record<string, unknown>>().notNull(),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("desktops_owner_idx").on(t.workspaceId, t.userId, t.position)],
+);
+
 export const devices = pgTable("devices", {
   id: id(),
   userId: text("user_id")

@@ -5,13 +5,15 @@ import { apiError, type ApiError } from "@veritas/shared";
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; status: number; error: ApiError };
 
 /** JSON request to the same-origin API. Never throws; returns a typed result. */
-export async function apiFetch<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<ApiResult<T>> {
+export async function apiFetch<T>(path: string, init: { method?: string; body?: unknown; keepalive?: boolean } = {}): Promise<ApiResult<T>> {
   try {
     const res = await fetch(path, {
       method: init.method ?? "GET",
       headers: init.body === undefined ? undefined : { "content-type": "application/json" },
       body: init.body === undefined ? undefined : JSON.stringify(init.body),
       credentials: "same-origin",
+      // keepalive lets a request sent while the page unloads finish (bodies up to 64 KB).
+      keepalive: init.keepalive,
     });
     const json: unknown = res.status === 204 ? null : await res.json().catch(() => null);
     if (res.ok) return { ok: true, data: json as T };

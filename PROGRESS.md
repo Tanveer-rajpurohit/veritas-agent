@@ -3,7 +3,7 @@
 Branch: `feature/workspace-platform`. Read `instruction.md` first.
 
 ## Status
-- Features passing: 9 / 65 (F001, F003, F004, F005, F006, F008, F009, F011, F012).
+- Features passing: 12 / 65 (F001, F003, F004, F005, F006, F008, F009, F011, F012, F013, F061, F062).
 - Next up: shell rebuild (F061 desktops, F062 windows, F013 split, F064 agent panel) in this branch; agent core (F028, F029, F059, F060) and Mail backend (F049, F050) on their own branches
 
 ## Decisions log
@@ -50,6 +50,13 @@ Branch: `feature/workspace-platform`. Read `instruction.md` first.
 - F048, F049: Microsoft OAuth (user will do Azure at the end).
 
 ## Log
+
+### 2026-11-27: F061 desktops, F062 windows with tabs, F013 split view (passing)
+- Desktop shell replaces the single-app shell: desktops sidebar, windows with tab strips and 200 ms open / 180 ms close motion (opacity only under reduced motion), split divider with a 320 px minimum per window, layout saved per user and workspace in the `desktops` table (migration 0003).
+- Tests: e2e `f013-split-view`, `f061-desktops`, `f062-windows`; reducer unit tests (8).
+- Decision: the layout owns the URL. The URL drives the layout only on first load and back/forward; in-app links go through `AppLink`, which dispatches directly. Reacting to every pathname change raced our own `router.replace` calls when two desktop switches landed close together.
+- Decision: the pagehide layout flush uses `fetch` keepalive, because a plain fetch is cancelled on reload and the last change was lost.
+- Not built yet: desktop rename/delete, agent activity dots, sidebar below the lg breakpoint, dock customisation (F065).
 ### 2026-11-27: F007 Google sign-in (built, awaiting real consent run)
 - Public `GET /api/v1/auth/providers` tells the web which providers are configured; sign-in and sign-up show Continue with Google (Google's mark, per its branding rules) only when enabled, and `/sign-in?error=google` explains a failed round trip. Account linking for the same verified email was already on (trusted provider).
 - Verified: e2e f007 4/4 with Google stubbed (redirect_uri `http://localhost:3000/api/auth/callback/google`, scopes email/profile/openid, state + S256 PKCE; forged callback creates no session). In the browser, Google's own sign-in page opened for the client with no redirect mismatch.

@@ -7,6 +7,7 @@ import type { Deps } from "./deps";
 import type { Env } from "./env";
 import { healthRoutes } from "./routes/health";
 import { workspaceRoutes } from "./workspaces/routes";
+import { desktopRoutes } from "./desktops/routes";
 
 export async function buildApp(env: Env, deps: Deps) {
   const app = Fastify({
@@ -50,6 +51,7 @@ export async function buildApp(env: Env, deps: Deps) {
   await app.register(healthRoutes(deps));
   await authRoutes(app, auth, env);
   await app.register(workspaceRoutes(deps, auth));
+  await app.register(desktopRoutes(deps, auth));
   app.decorate("auth", auth);
   return app;
 }

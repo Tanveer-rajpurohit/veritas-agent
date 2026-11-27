@@ -164,3 +164,73 @@
     animation: none;
   }
 }
+
+/*
+ * Desktop wallpaper: two soft fields (lagoon and sand, from the orb palette)
+ * over a near-neutral base. Windows on top stay opaque.
+ */
+:root,
+[data-theme="light"] {
+  --vt-wallpaper:
+    radial-gradient(1100px 680px at 12% -6%, oklch(0.93 0.035 190) 0%, transparent 62%),
+    radial-gradient(900px 620px at 104% 108%, oklch(0.94 0.03 70) 0%, transparent 58%),
+    oklch(0.975 0.004 200);
+}
+
+[data-theme="dark"] {
+  --vt-wallpaper:
+    radial-gradient(1100px 680px at 12% -6%, oklch(0.26 0.045 190) 0%, transparent 62%),
+    radial-gradient(900px 620px at 104% 108%, oklch(0.22 0.03 60) 0%, transparent 58%),
+    oklch(0.11 0 0);
+}
+
+.vt-wallpaper {
+  background: var(--vt-wallpaper);
+}
+
+/* Windows rise in from the dock and sink back when closed. */
+@keyframes vt-window-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+}
+
+@keyframes vt-window-out {
+  to {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+}
+
+@keyframes vt-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes vt-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+.vt-window {
+  transform-origin: 50% 100%;
+  animation: vt-window-in 200ms var(--ease-out-soft) both;
+}
+
+.vt-window[data-closing] {
+  pointer-events: none;
+  animation: vt-window-out 180ms var(--ease-out-soft) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vt-window {
+    animation-name: vt-fade-in;
+  }
+
+  .vt-window[data-closing] {
+    animation-name: vt-fade-out;
+  }
+}

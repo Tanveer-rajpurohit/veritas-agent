@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { SettingsIcon, SignOutIcon } from "@veritas/ui";
 import { authClient } from "@/lib/auth-client";
+import { AppLink } from "../desktop/app-link";
 import { ThemeSwitch } from "../theme-switch";
 
 const MENU_ID = "account-menu";
@@ -15,10 +15,10 @@ function initials(name: string): string {
   return letters.toUpperCase();
 }
 
-type Props = { name: string; email: string; workspaceId: string };
+type Props = { name: string; email: string };
 
 /** Native popover: light dismiss and Escape come from the platform. */
-export function AccountMenu({ name, email, workspaceId }: Props) {
+export function AccountMenu({ name, email }: Props) {
   const router = useRouter();
   const menuRef = useRef<HTMLDivElement>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -67,10 +67,10 @@ export function AccountMenu({ name, email, workspaceId }: Props) {
           <ThemeSwitch />
         </div>
         <div className="flex flex-col gap-0.5 border-t border-line pt-2">
-          <Link href={`/w/${workspaceId}/settings`} onClick={() => menuRef.current?.hidePopover()} className={itemClass}>
+          <AppLink app="settings" onClick={() => menuRef.current?.hidePopover()} className={itemClass}>
             <SettingsIcon className="size-5 text-ink-muted" />
             Settings
-          </Link>
+          </AppLink>
           <button type="button" onClick={signOut} disabled={isSigningOut} className={itemClass}>
             <SignOutIcon className="size-5 text-ink-muted" />
             {isSigningOut ? "Signing out…" : "Sign out"}
