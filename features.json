@@ -679,6 +679,66 @@
         "Export a doc that has AI edits and confirm the export metadata lists the models used"
       ],
       "status": "failing"
+    },
+    {
+      "id": "F061", "priority": "P0", "area": "shell",
+      "title": "Desktops sidebar",
+      "description": "Named desktops per workspace, each a saved window layout, in a collapsible left sidebar with agent activity dots.",
+      "steps": [
+        "Open a workspace and see the sidebar with a Home desktop",
+        "Choose 'New desktop', name it 'Data room', and see it selected with an empty layout",
+        "Open Docs on 'Data room', switch to Home and back, and confirm the Docs window is still there after a reload",
+        "Collapse the sidebar and confirm the windows widen; reopen it"
+      ],
+      "status": "failing"
+    },
+    {
+      "id": "F062", "priority": "P0", "area": "shell",
+      "title": "Windows with tabs and open/close motion",
+      "description": "Each window has a tab strip of open apps and files; windows animate open and closed; reduced motion falls back to opacity.",
+      "steps": [
+        "Open Mail from the dock and see the window scale and fade in",
+        "Use + in the tab strip to open Docs as a second tab, switch between tabs, close one with ×",
+        "Close the window and see it animate out; the dock dot for that app disappears",
+        "With prefers-reduced-motion set, confirm open and close use opacity only"
+      ],
+      "status": "failing"
+    },
+    {
+      "id": "F063", "priority": "P1", "area": "mail",
+      "title": "Mail app over Gmail",
+      "description": "Inbox grouped by day, thread view, compose and reply; sending needs approval when the agent drafts it.",
+      "steps": [
+        "Connect Google with Gmail read access from Settings, Connected accounts",
+        "Open Mail and see the inbox grouped into Today and Yesterday with sender, subject, preview and time",
+        "Open a thread and read it; reply with your own text and see it in Sent",
+        "Ask the agent to draft a reply and confirm sending waits for your approval"
+      ],
+      "status": "failing"
+    },
+    {
+      "id": "F064", "priority": "P0", "area": "agent-ui",
+      "title": "Agent panel beside any app with context chips",
+      "description": "The agent opens as a side window, shows working time and step lines, and accepts @ context chips for emails, files, sheet ranges and slides.",
+      "steps": [
+        "With a sheet open, open the agent beside it and type @ to insert the sheet range Pricing!B4:E9 as a chip",
+        "Send a prompt and see 'Working for Ns' with one line per step, such as 'Reading Term sheet.pdf'",
+        "Expand a step to see its tool input and result",
+        "Close and reopen the panel and see the same thread"
+      ],
+      "status": "failing"
+    },
+    {
+      "id": "F065", "priority": "P1", "area": "shell",
+      "title": "App registry and dock customisation",
+      "description": "Apps register through a manifest; users can hide, reorder and restore dock apps.",
+      "steps": [
+        "Open Settings, Dock, hide Calendar and confirm it leaves the dock",
+        "Drag Mail before Files and confirm the order holds after a reload",
+        "Restore defaults and see the original dock",
+        "Confirm a new app manifest added in code appears in the dock without shell changes (unit test)"
+      ],
+      "status": "failing"
     }
   ]
 }

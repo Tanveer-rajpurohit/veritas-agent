@@ -3,8 +3,8 @@
 Branch: `feature/workspace-platform`. Read `instruction.md` first.
 
 ## Status
-- Features passing: 9 / 60 (F001, F003, F004, F005, F006, F008, F009, F011, F012).
-- Next up: F014 (Home), F013 (split view), F002; F007 once the Google redirect URI is added
+- Features passing: 9 / 65 (F001, F003, F004, F005, F006, F008, F009, F011, F012).
+- Next up: shell rebuild (F061 desktops, F062 windows, F013 split, F064 agent panel) in this branch; agent core (F028, F029, F059, F060) and Mail backend (F049, F050) on their own branches
 
 ## Decisions log
 - 2026-11-27: Node 22 is the dev baseline (machine has 22.14, no version manager; upgrading is a system change). Engine set to `>=22`. tsup needs 22.18+, so the server bundles with esbuild.
@@ -41,8 +41,12 @@ Branch: `feature/workspace-platform`. Read `instruction.md` first.
 - 2026-11-27: Security fix: Fastify `trustProxy` is `loopback` (was `true`) and the auth bridge overwrites `x-forwarded-for` with Fastify's resolved `request.ip`. Before, any client could forge X-Forwarded-For and reset its auth rate-limit bucket. Production behind a load balancer must widen the trusted list deliberately.
 - 2026-11-27: E2E users each get a unique RFC 5737 client IP (`isolatedIp`) so rate limits apply per simulated user, not to the whole suite.
 
+- 2026-11-27: User asked for a desktop-style UI (reference: vesence.com screenshots): desktops sidebar, windows with tabs, agent as a side window with step lines and @ context chips, Mail app, dock with open-app dots, wallpaper, open/close motion. SPEC 3.1 rewritten; F061-F065 added at the user's request (no existing feature changed). We build our own version: no copied branding, art or assets.
+- 2026-11-27: Claude Agent SDK only runs Claude models, so it cannot use Gemini. Kept the own loop on the Vercel AI SDK, borrowing its patterns (tool registry, permission classes, hooks, subagents) and prompt-caching layout (stable prefix first; Gemini implicit + explicit cached contents).
+- 2026-11-27: Parallel work: at most two coding agents in git worktrees plus one testing agent, because the machine has 8 GB RAM. Coding agents run only package-scoped type checks and unit tests; e2e runs serially in one place.
+
 ## Blocked
-- F007: built and hand-off verified (authorize URL, state, PKCE, redirect URI accepted by Google). Waiting on one real Google consent run by the user in the browser pane; not marked passing until then.
+- F007: real Google sign-in verified (an account was created through Google, verified, and got a workspace). Remaining step: the same address signing in with email and a password. Built and hand-off verified (authorize URL, state, PKCE, redirect URI accepted by Google). Waiting on one real Google consent run by the user in the browser pane; not marked passing until then.
 - F048, F049: Microsoft OAuth (user will do Azure at the end).
 
 ## Log

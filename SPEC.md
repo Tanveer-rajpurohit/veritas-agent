@@ -19,11 +19,14 @@ One shell, many apps. You open two apps side by side (for example a contract in 
 
 ## 3. Scope (v1)
 
-### 3.1 Shell
-- **Dock** along the bottom with app icons (Docs, Sheets, Slides, PDF, Files, Agent, Settings), as in the wireframe.
-- **Windows.** One app full-width, or **split view** with two apps side by side and a resizable divider. Layout is saved per workspace.
+### 3.1 Shell (desktop layout, revised 2026-11-27 at the user's request)
+- **Desktops sidebar.** A collapsible list on the left. Each workspace holds named **desktops** (for example "Inbox", "Funds flow", "Data room"), and each desktop is a saved arrangement of windows. A dot shows agent activity on that desktop (teal while a run is working). "New desktop" adds one. Layout is saved per desktop.
+- **Windows.** A desktop shows one window full width, or two side by side with a resizable divider (320 px minimum each). Each window has a tab strip: tabs are open apps or files (the Mail inbox, a contract, a sheet), with + to open another and × to close. Windows open from the dock with a short scale-and-fade (200 ms, ease-out) and close in reverse. Reduced motion uses opacity only.
+- **Agent panel.** The agent opens as a window beside any app, not as a separate page. While it works it shows "Working for Ns" and one line per step ("Reading Term sheet.pdf"), with expandable thinking and tool results. Questions arrive as option cards (radio choices, Skip, Submit). The prompt box ("Ask Veritas") has + to attach, the model picker and the mode. Typing @ inserts context chips: an email, a file, a sheet range such as `Pricing!B4:E9`, or a slide.
+- **Dock.** Bottom centre, monochrome line icons: Home, Agent, Mail, Files, Calendar, Docs, Sheets, Slides, PDF, Settings. A dot marks apps that have an open window. Apps come from a registry (manifest: id, name, icon, window component), so new apps, built in or added later, plug in the same way. Users can hide and reorder dock apps.
+- **Wallpaper.** Windows sit on a calm wallpaper with light and dark variants, changeable per desktop. Window surfaces stay opaque, with a 1 px border and a soft shadow.
 - **Prompt window.** A global command palette (`Ctrl/Cmd+K`) that searches files and commands and can send a prompt to the agent from any app. It attaches the current file and selection as context.
-- **Home.** The active window on the left (wireframe left card), and on the right a context card with recent files, agent runs in progress, and suggestions.
+- **Home.** The default desktop: the active window on the left, and a context card on the right with recent files, agent runs in progress, and suggestions.
 - **Visual direction (user choice, 2026-11-27).** Space Grotesk for UI text, PT Mono for numbers and code (both OFL). Light theme is clean white with cool neutral greys, dark theme is true black; primary buttons are solid black (white in dark mode); teal is the brand colour for focus, links and active states.
 - **Brand mark.** A sphere of soft, blurred colour fields with fine grain and an edge shade for volume, drifting slowly (faster while thinking). Each agent mode has its own tone: General lagoon (teal), Legal ember, Analyst moss, Presenter coral, Researcher glacier, plus a neutral pearl. One SVG mark, used for the app icon, favicon, Electron tray and the agent avatar. Its "thinking" state is a slow light sweep that respects `prefers-reduced-motion`.
 - **Mobile web.** The dock becomes a bottom tab bar, there's one window at a time, split view is turned off, and the agent becomes a full-screen sheet.
@@ -36,6 +39,7 @@ One shell, many apps. You open two apps side by side (for example a contract in 
 | Slides | Custom editor: React + SVG stage, text boxes edited with Tiptap, our slide JSON schema | Veritas Slide JSON | .pptx (our JSZip/XML parser: text, images, shapes, basic layouts) | .pptx (pptxgenjs), .pdf |
 | PDF | PDF.js viewer + pdf-lib | Original PDF blob + annotation JSON layer | .pdf | Flattened .pdf (annotations, form fill, merge, split, reorder) |
 | Files | Our file browser | n/a | any upload (max 100 MB) | download |
+| Mail | Our mail client over the Gmail API (Microsoft Graph later) | provider message IDs, cached headers and bodies | n/a | replies and new mail (sending is a gated action) |
 
 Office round-trips are best-effort. Every import shows a "fidelity notes" banner when unsupported features were dropped. Native Office fidelity is not a v1 goal (see section 9).
 
@@ -51,6 +55,8 @@ Office round-trips are best-effort. Every import shows a "fidelity notes" banner
 - **Tools** are typed (zod), workspace-scoped, and classified as `read`, `write`, or `gated` (needs user approval: delete, overwrite outside the output folder, send through a connector, run a shell command).
 - **Edits are structured operations**, not free text: `docs.applyOps`, `sheets.setRange`, `slides.upsertSlide`, `pdf.annotate`. Each successful batch creates a new immutable file version. The agent sees the diff of what it changed.
 - **Models:** Gemini first. The model picker in the prompt input lists models from the Gemini `models.list` API, filtered to `generateContent` support. The default is the best available model, chosen by a ranked preference list in config (newest Pro, then newest Flash). Model IDs are never hardcoded in feature code. The provider interface allows OpenAI and Anthropic API keys later.
+- **Prompt caching:** every request keeps a stable prefix (system prompt, mode instructions, tool schemas, pinned attachments) ahead of the volatile part (history, new message), so Gemini's implicit caching applies. Large attachments reused across turns go into an explicit Gemini cached context with a TTL. Cached-token counts are shown next to the token counter.
+- **Runtime choice:** the Claude Agent SDK only drives Claude models, so it can't run on Gemini. Veritas keeps its own loop on the Vercel AI SDK and borrows the SDK's patterns: typed custom tools in a registry, permission modes (our read / write / gated classes), hooks before and after each tool call, and subagents for reviewers.
 - **Memory and retrieval:** each file is chunked and embedded (Gemini embeddings, pgvector). The agent's `search_workspace` tool does hybrid search (BM25 `tsvector` + vector).
 
 ### 3.4 Storage
