@@ -9,7 +9,8 @@
     "start": "node --env-file=../../.env dist/index.js",
     "lint": "eslint . --max-warnings 0",
     "check-types": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "test:integration": "node --env-file=../../.env ./node_modules/vitest/vitest.mjs run"
   },
   "dependencies": {
     "@veritas/agent-core": "workspace:*",
