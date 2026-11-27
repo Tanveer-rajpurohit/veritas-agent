@@ -37,3 +37,7 @@ dist/
 
 # root env
 .env
+
+# playwright
+test-results/
+playwright-report/

@@ -1,0 +1,174 @@
+/*
+ * Veritas design tokens.
+ * Layer 1 (core): Tailwind's built-in palettes (stone, teal, red, green, amber, sky).
+ * Layer 2 (semantic): the variables below. Components use semantic tokens only.
+ * Theme: [data-theme="light" | "dark"] on <html>, resolved before first paint.
+ */
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme {
+  --font-sans: var(--font-space-grotesk), ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --font-mono: var(--font-pt-mono), ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  /* Radius scale: 0, 2, 4, 6, 8, 12, 16, 24, full */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 24px;
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Semantic colours exposed as Tailwind utilities (bg-surface, text-ink, ...) */
+  --color-canvas: var(--vt-canvas);
+  --color-surface: var(--vt-surface);
+  --color-surface-raised: var(--vt-surface-raised);
+  --color-surface-hover: var(--vt-surface-hover);
+  --color-surface-selected: var(--vt-surface-selected);
+  --color-surface-inverted: var(--vt-surface-inverted);
+  --color-ink: var(--vt-ink);
+  --color-ink-muted: var(--vt-ink-muted);
+  --color-ink-subtle: var(--vt-ink-subtle);
+  --color-ink-inverted: var(--vt-ink-inverted);
+  --color-line: var(--vt-line);
+  --color-line-strong: var(--vt-line-strong);
+  --color-accent: var(--vt-accent);
+  --color-accent-hover: var(--vt-accent-hover);
+  --color-accent-ink: var(--vt-accent-ink);
+  --color-accent-soft: var(--vt-accent-soft);
+  --color-accent-text: var(--vt-accent-text);
+  --color-focus: var(--vt-focus);
+  --color-danger: var(--vt-danger);
+  --color-danger-soft: var(--vt-danger-soft);
+  --color-success: var(--vt-success);
+  --color-success-soft: var(--vt-success-soft);
+  --color-warning: var(--vt-warning);
+  --color-warning-soft: var(--vt-warning-soft);
+  --color-info: var(--vt-info);
+  --color-info-soft: var(--vt-info-soft);
+  --color-orb-core: var(--vt-orb-core);
+  --color-orb-mid: var(--vt-orb-mid);
+  --color-orb-edge: var(--vt-orb-edge);
+
+  --shadow-raised: 0 1px 2px rgb(28 25 23 / 0.05), 0 4px 12px rgb(28 25 23 / 0.08);
+  --shadow-overlay: 0 2px 4px rgb(28 25 23 / 0.06), 0 12px 32px rgb(28 25 23 / 0.14);
+}
+
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  /* Pantone 11-4201 Cloud Dancer, Colour of the Year 2026 */
+  --vt-canvas: #f0eee9;
+  --vt-surface: var(--color-white);
+  --vt-surface-raised: var(--color-white);
+  --vt-surface-hover: #f6f5f1;
+  --vt-surface-selected: var(--color-stone-200);
+  --vt-surface-inverted: var(--color-stone-900);
+  --vt-ink: var(--color-stone-900);
+  --vt-ink-muted: var(--color-stone-600);
+  --vt-ink-subtle: var(--color-stone-500);
+  --vt-ink-inverted: var(--color-stone-50);
+  --vt-line: #e3e0d8;
+  --vt-line-strong: #cfcbc1;
+  --vt-accent: var(--color-stone-950);
+  --vt-accent-hover: var(--color-stone-800);
+  --vt-accent-ink: var(--color-white);
+  --vt-accent-soft: var(--color-teal-50);
+  --vt-accent-text: var(--color-teal-800);
+  --vt-focus: var(--color-teal-600);
+  --vt-danger: var(--color-red-700);
+  --vt-danger-soft: var(--color-red-50);
+  --vt-success: var(--color-green-700);
+  --vt-success-soft: var(--color-green-50);
+  --vt-warning: var(--color-amber-800);
+  --vt-warning-soft: var(--color-amber-50);
+  --vt-info: var(--color-sky-800);
+  --vt-info-soft: var(--color-sky-50);
+  --vt-orb-core: var(--color-teal-100);
+  --vt-orb-mid: var(--color-teal-400);
+  --vt-orb-edge: var(--color-teal-800);
+  --vt-orb-shadow: oklch(0.2 0.04 200);
+  --vt-orb-rim: var(--color-cyan-200);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --vt-canvas: var(--color-stone-950);
+  --vt-surface: var(--color-stone-900);
+  --vt-surface-raised: oklch(0.255 0.007 49);
+  --vt-surface-hover: var(--color-stone-800);
+  --vt-surface-selected: var(--color-stone-700);
+  --vt-surface-inverted: var(--color-stone-100);
+  --vt-ink: var(--color-stone-100);
+  --vt-ink-muted: var(--color-stone-400);
+  --vt-ink-subtle: var(--color-stone-400);
+  --vt-ink-inverted: var(--color-stone-900);
+  --vt-line: var(--color-stone-800);
+  --vt-line-strong: var(--color-stone-700);
+  --vt-accent: var(--color-stone-100);
+  --vt-accent-hover: var(--color-white);
+  --vt-accent-ink: var(--color-stone-950);
+  --vt-accent-soft: oklch(0.3 0.05 185);
+  --vt-accent-text: var(--color-teal-300);
+  --vt-focus: var(--color-teal-400);
+  --vt-danger: var(--color-red-400);
+  --vt-danger-soft: oklch(0.29 0.07 25);
+  --vt-success: var(--color-green-400);
+  --vt-success-soft: oklch(0.29 0.06 150);
+  --vt-warning: var(--color-amber-300);
+  --vt-warning-soft: oklch(0.3 0.06 75);
+  --vt-info: var(--color-sky-300);
+  --vt-info-soft: oklch(0.29 0.05 235);
+  --vt-orb-core: var(--color-teal-100);
+  --vt-orb-mid: var(--color-teal-400);
+  --vt-orb-edge: var(--color-teal-800);
+  --vt-orb-shadow: oklch(0.18 0.035 200);
+  --vt-orb-rim: var(--color-cyan-300);
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    background: var(--vt-canvas);
+    color: var(--vt-ink);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--vt-focus);
+    outline-offset: 2px;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+}
+
+/* Orb "thinking" state: a slow light sweep. Stops under reduced motion. */
+@keyframes vt-orb-sweep {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.vt-orb-sweep {
+  transform-origin: 50% 50%;
+  transform-box: fill-box;
+  animation: vt-orb-sweep 2.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vt-orb-sweep {
+    animation: none;
+    opacity: 0.6;
+  }
+}

@@ -128,8 +128,7 @@
         "See the orb mark at 16, 32, 128 px; trigger its thinking state; enable reduced motion and confirm the sweep stops",
         "Confirm no slop patterns from instruction.md appear (review checklist)"
       ],
-      "status": "failing"
-    },
+      "status": "passing"    },
     {
       "id": "F012", "priority": "P0", "area": "shell",
       "title": "Shell with bottom dock",

@@ -24,7 +24,8 @@ One shell, many apps. You open two apps side by side (for example a contract in 
 - **Windows.** One app full-width, or **split view** with two apps side by side and a resizable divider. Layout is saved per workspace.
 - **Prompt window.** A global command palette (`Ctrl/Cmd+K`) that searches files and commands and can send a prompt to the agent from any app. It attaches the current file and selection as context.
 - **Home.** The active window on the left (wireframe left card), and on the right a context card with recent files, agent runs in progress, and suggestions.
-- **Brand mark.** A circular orb with a soft inner light. One SVG mark, used for the app icon, favicon, Electron tray and the agent avatar. Its "thinking" state is a slow light sweep that respects `prefers-reduced-motion`.
+- **Visual direction (user choice, 2026-11-27).** Space Grotesk for UI text, PT Mono for numbers and code (both OFL). Light canvas is Pantone Cloud Dancer #F0EEE9 with white surfaces; primary buttons are solid black (near-white in dark mode); teal is the brand colour for focus, links and active states.
+- **Brand mark.** A teal 3D sphere lit from the side, with a reflected rim light. One SVG mark, used for the app icon, favicon, Electron tray and the agent avatar. Its "thinking" state is a slow light sweep that respects `prefers-reduced-motion`.
 - **Mobile web.** The dock becomes a bottom tab bar, there's one window at a time, split view is turned off, and the agent becomes a full-screen sheet.
 
 ### 3.2 Apps (each has its own editor technology)
