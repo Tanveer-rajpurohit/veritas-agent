@@ -19,7 +19,8 @@ test.describe("F006 sign-in, sign-out and password reset", () => {
     const { email, workspaceId } = await signUpWithWorkspace(page);
 
     await page.getByRole("button", { name: "Account" }).click();
-    await expect(page.getByText(email)).toBeVisible();
+    // The open menu is the visible one; the other placement stays mounted but hidden.
+    await expect(page.locator("[popover]:popover-open").getByText(email)).toBeVisible();
     await page.getByRole("button", { name: "Sign out" }).click();
     await expect(page).toHaveURL(/\/sign-in$/);
 

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { signUpWithWorkspace, trackConsoleErrors } from "./helpers";
+import { revealDock, signUpWithWorkspace, trackConsoleErrors } from "./helpers";
 
 const MIN_PANE_PX = 320;
 
@@ -19,8 +19,10 @@ test.describe("F013 split view with two apps", () => {
     await signUpWithWorkspace(page);
     const dock = page.getByRole("navigation", { name: "Apps" });
 
+    await revealDock(page);
     await dock.getByRole("link", { name: "Docs", exact: true }).click();
     await expect(page).toHaveURL(/\/docs$/);
+    await revealDock(page);
     await dock.getByRole("link", { name: "Agent", exact: true }).click({ button: "right" });
     await page.getByRole("button", { name: "Open beside" }).click();
 

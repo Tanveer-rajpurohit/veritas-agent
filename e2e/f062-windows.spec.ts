@@ -14,7 +14,7 @@ const closeAndReadAnimation = (window: Locator) =>
   );
 
 const dockDot = (page: Page, app: string) =>
-  page.getByRole("navigation", { name: "Apps" }).getByRole("link", { name: app, exact: true }).locator("span").first();
+  page.getByRole("navigation", { name: "Apps" }).getByRole("link", { name: app, exact: true }).locator("[data-dock-dot]");
 
 async function openMailOnEmptyDesktop(page: Page): Promise<Locator> {
   await signUpWithWorkspace(page);

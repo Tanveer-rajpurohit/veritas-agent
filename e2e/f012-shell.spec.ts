@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { expectNoSeriousA11yViolations, signUpWithWorkspace, trackConsoleErrors } from "./helpers";
+import { expectNoSeriousA11yViolations, revealDock, signUpWithWorkspace, trackConsoleErrors } from "./helpers";
 
 const APPS = [
   { label: "Docs", path: "docs" },
@@ -19,7 +19,7 @@ test.describe("F012 shell with bottom dock", () => {
     const { workspaceId } = await signUpWithWorkspace(page);
 
     const dock = page.getByRole("navigation", { name: "Apps" });
-    await expect(dock).toBeVisible();
+    await revealDock(page);
     const box = (await dock.locator("ul").boundingBox())!;
     const viewport = page.viewportSize()!;
     expect(Math.abs(box.x + box.width / 2 - viewport.width / 2)).toBeLessThan(2);
@@ -28,6 +28,7 @@ test.describe("F012 shell with bottom dock", () => {
 
     for (const app of APPS) {
       const link = dock.getByRole("link", { name: app.label, exact: true });
+      await revealDock(page);
       await link.click();
       await expect(page).toHaveURL(new RegExp(`/w/${workspaceId}/${app.path}$`));
       await expect(page.getByRole("main").getByRole("heading", { level: 1, name: app.label })).toBeVisible();
@@ -38,7 +39,7 @@ test.describe("F012 shell with bottom dock", () => {
 
     const docs = dock.getByRole("link", { name: "Docs", exact: true });
     const tooltip = docs.locator("[data-dock-tooltip]");
-    await page.mouse.move(0, 0);
+    await revealDock(page);
     await expect(tooltip).toBeHidden();
     await docs.hover();
     await expect(tooltip).toBeVisible();
@@ -49,6 +50,26 @@ test.describe("F012 shell with bottom dock", () => {
     await expect(page).toHaveURL(new RegExp(`/w/${workspaceId}$`));
     await expect(dock.locator('[aria-current="page"]')).toHaveCount(0);
     expect(errors).toEqual([]);
+  });
+
+  test("dock hides over open windows, returns at the bottom edge and magnifies", async ({ page }) => {
+    await signUpWithWorkspace(page);
+    const tray = page.getByRole("navigation", { name: "Apps" }).locator("ul");
+    const { width, height } = page.viewportSize()!;
+
+    // The Home window is open, so the dock is tucked below the edge.
+    await page.mouse.move(width / 2, height / 2);
+    await expect(tray).not.toBeInViewport();
+
+    await revealDock(page);
+    const docsItem = tray.locator("[data-dock-item]").filter({ has: page.getByRole("link", { name: "Docs", exact: true }) });
+    const restWidth = (await docsItem.boundingBox())!.width;
+    await docsItem.hover();
+    await expect.poll(async () => (await docsItem.boundingBox())!.width).toBeGreaterThan(restWidth + 12);
+
+    // Leaving the dock hides it again after a short delay.
+    await page.mouse.move(width / 2, height / 2);
+    await expect(tray).not.toBeInViewport();
   });
 
   test("keyboard focus shows the tooltip and an unknown app is a 404", async ({ page }) => {

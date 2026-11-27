@@ -15,6 +15,13 @@ export async function expectNoSeriousA11yViolations(page: Page) {
   expect(summary, "serious or critical axe violations").toEqual([]);
 }
 
+/** The dock hides while windows are open; moving to the bottom edge brings it up, as a user would. */
+export async function revealDock(page: Page) {
+  const { width, height } = page.viewportSize()!;
+  await page.mouse.move(width / 2, height - 2);
+  await expect(page.getByRole("navigation", { name: "Apps" }).locator("ul")).toBeInViewport({ ratio: 1 });
+}
+
 /** Collects console errors for the whole test so pages can assert none occurred. */
 export function trackConsoleErrors(page: Page): string[] {
   const errors: string[] = [];

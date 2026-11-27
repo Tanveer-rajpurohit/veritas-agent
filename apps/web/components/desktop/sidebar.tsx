@@ -3,10 +3,13 @@
 import { useState, type FormEvent } from "react";
 import { DESKTOP_NAME_MAX } from "@veritas/shared";
 import { cx, Orb, PlusIcon, SidebarIcon } from "@veritas/ui";
+import { AccountMenu } from "../shell/account-menu";
 import { AppLink } from "./app-link";
 import { useDesktop } from "./desktop-provider";
 
-export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
+type Props = { user: { name: string; email: string }; onCollapse: () => void };
+
+export function Sidebar({ user, onCollapse }: Props) {
   const { workspaceName, desktops, currentDesktopId, selectDesktop, createDesktop } = useDesktop();
   const [isAdding, setIsAdding] = useState(false);
   const [error, setError] = useState("");
@@ -107,6 +110,10 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
           </button>
         )}
       </nav>
+
+      <div className="mt-auto">
+        <AccountMenu name={user.name} email={user.email} placement="sidebar" />
+      </div>
     </aside>
   );
 }

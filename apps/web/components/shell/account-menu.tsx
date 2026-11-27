@@ -1,13 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
-import { SettingsIcon, SignOutIcon } from "@veritas/ui";
+import { useId, useRef, useState } from "react";
+import { cx, SettingsIcon, SignOutIcon } from "@veritas/ui";
 import { authClient } from "@/lib/auth-client";
 import { AppLink } from "../desktop/app-link";
 import { ThemeSwitch } from "../theme-switch";
-
-const MENU_ID = "account-menu";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -15,10 +13,17 @@ function initials(name: string): string {
   return letters.toUpperCase();
 }
 
-type Props = { name: string; email: string };
+type Props = {
+  name: string;
+  email: string;
+  /** "sidebar": a full-width row at the foot of the sidebar that opens upward. "header": an avatar in the top bar. */
+  placement?: "header" | "sidebar";
+};
 
 /** Native popover: light dismiss and Escape come from the platform. */
-export function AccountMenu({ name, email }: Props) {
+export function AccountMenu({ name, email, placement = "header" }: Props) {
+  // Both placements can be mounted at once (one hidden by breakpoint), so ids must be unique.
+  const menuId = useId();
   const router = useRouter();
   const menuRef = useRef<HTMLDivElement>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -41,23 +46,43 @@ export function AccountMenu({ name, email }: Props) {
 
   return (
     <>
-      <button
-        type="button"
-        popoverTarget={MENU_ID}
-        aria-label="Account"
-        className="flex size-11 items-center justify-center rounded-full transition-transform duration-150 ease-out-soft active:scale-[0.96]"
-      >
-        <span className="flex size-9 items-center justify-center rounded-full border border-line bg-surface-muted font-mono text-xs text-ink">
-          {initials(name)}
-        </span>
-      </button>
+      {placement === "sidebar" ? (
+        <button
+          type="button"
+          popoverTarget={menuId}
+          aria-label="Account"
+          className="flex h-12 w-full min-w-0 items-center gap-3 rounded-lg px-2 text-left transition-[background-color,transform] duration-150 ease-out-soft hover:bg-surface/70 active:scale-[0.98]"
+        >
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-line bg-surface font-mono text-xs text-ink">
+            {initials(name)}
+          </span>
+          <span className="flex min-w-0 flex-col">
+            <span className="truncate text-sm font-medium text-ink">{name}</span>
+            <span className="truncate text-xs text-ink-muted">{email}</span>
+          </span>
+        </button>
+      ) : (
+        <button
+          type="button"
+          popoverTarget={menuId}
+          aria-label="Account"
+          className="flex size-11 items-center justify-center rounded-full transition-transform duration-150 ease-out-soft active:scale-[0.96]"
+        >
+          <span className="flex size-9 items-center justify-center rounded-full border border-line bg-surface-muted font-mono text-xs text-ink">
+            {initials(name)}
+          </span>
+        </button>
+      )}
 
       <div
-        id={MENU_ID}
+        id={menuId}
         ref={menuRef}
         popover="auto"
         aria-label="Account"
-        className="inset-auto top-14 right-3 m-0 w-72 rounded-xl border border-line bg-surface-raised p-2 text-ink shadow-overlay"
+        className={cx(
+          "inset-auto m-0 w-72 rounded-xl border border-line bg-surface-raised p-2 text-ink shadow-overlay",
+          placement === "sidebar" ? "bottom-18 left-3" : "top-14 right-3",
+        )}
       >
         <div className="flex flex-col gap-0.5 px-3 pt-2 pb-3">
           <p className="truncate text-sm font-semibold">{name}</p>

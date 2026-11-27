@@ -166,12 +166,14 @@
 }
 
 /*
- * Desktop wallpaper: two soft fields (lagoon and sand, from the orb palette)
- * over a near-neutral base. Windows on top stay opaque.
+ * Desktop wallpaper: a drawn landscape of lagoon water and sand dunes (from the
+ * orb palette), with the old soft fields underneath as the fallback while it loads.
+ * Apps that host the shell serve the images at /wallpapers/. Windows stay opaque.
  */
 :root,
 [data-theme="light"] {
   --vt-wallpaper:
+    url("/wallpapers/dunes-light.svg") center / cover no-repeat,
     radial-gradient(1100px 680px at 12% -6%, oklch(0.93 0.035 190) 0%, transparent 62%),
     radial-gradient(900px 620px at 104% 108%, oklch(0.94 0.03 70) 0%, transparent 58%),
     oklch(0.975 0.004 200);
@@ -179,6 +181,7 @@
 
 [data-theme="dark"] {
   --vt-wallpaper:
+    url("/wallpapers/dunes-dark.svg") center / cover no-repeat,
     radial-gradient(1100px 680px at 12% -6%, oklch(0.26 0.045 190) 0%, transparent 62%),
     radial-gradient(900px 620px at 104% 108%, oklch(0.22 0.03 60) 0%, transparent 58%),
     oklch(0.11 0 0);
@@ -232,5 +235,73 @@
 
   .vt-window[data-closing] {
     animation-name: vt-fade-out;
+  }
+}
+
+/*
+ * Dock: hidden below the edge while windows are open, revealed by the edge strip,
+ * keyboard focus, or when nothing is open. Each item reads --mag (0 to 1) set from
+ * pointer distance: the icon lifts and scales, and the slot widens so neighbours make room.
+ */
+.vt-dock-tray {
+  transform: translateY(calc(100% + 16px));
+  transition: transform 260ms var(--ease-out-soft);
+}
+
+.vt-dock[data-revealed] .vt-dock-tray,
+.vt-dock:focus-within .vt-dock-tray {
+  transform: none;
+}
+
+.vt-dock-handle {
+  transition: opacity 200ms var(--ease-out-soft);
+}
+
+.vt-dock[data-revealed] .vt-dock-handle,
+.vt-dock:focus-within .vt-dock-handle {
+  opacity: 0;
+}
+
+.vt-dock-item {
+  --mag: 0;
+  width: calc(2.75rem + var(--mag) * 1.25rem);
+  transition: width 180ms var(--ease-out-soft);
+}
+
+.vt-dock-icon {
+  transform-origin: 50% 100%;
+  transform: translateY(calc(var(--mag) * -0.5rem)) scale(calc(1 + var(--mag) * 0.45));
+  transition: transform 180ms var(--ease-out-soft);
+}
+
+.vt-dock-tooltip {
+  transform: translateY(calc(var(--mag) * -0.75rem));
+  transition-property: opacity, visibility, transform;
+}
+
+/* Touch screens have no edge to hover: keep the dock in view. */
+@media (hover: none) {
+  .vt-dock-tray {
+    transform: none;
+  }
+
+  .vt-dock-handle {
+    display: none;
+  }
+}
+
+/* Reduced motion: fade in place. Still focusable while hidden, so Tab can reveal it. */
+@media (prefers-reduced-motion: reduce) and (hover: hover) {
+  .vt-dock-tray {
+    transition: opacity 200ms var(--ease-out-soft);
+    transform: none;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .vt-dock[data-revealed] .vt-dock-tray,
+  .vt-dock:focus-within .vt-dock-tray {
+    opacity: 1;
+    pointer-events: auto;
   }
 }

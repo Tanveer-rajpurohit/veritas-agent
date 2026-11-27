@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import type { DesktopSummary } from "@veritas/shared";
-import { SidebarIcon } from "@veritas/ui";
+import { cx, SidebarIcon } from "@veritas/ui";
 import { AccountMenu } from "../shell/account-menu";
 import { Dock } from "../shell/dock";
 import { DesktopProvider } from "./desktop-provider";
@@ -63,9 +63,10 @@ export function DesktopShell({ workspaceId, workspaceName, user, desktops, curre
         >
           Skip to content
         </a>
-        {isCollapsed ? null : <Sidebar onCollapse={() => setCollapsed(true)} />}
+        {isCollapsed ? null : <Sidebar user={user} onCollapse={() => setCollapsed(true)} />}
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex h-12 shrink-0 items-center justify-between gap-2 pr-1 pl-2">
+          {/* With the sidebar open on wide screens it holds the account, so the bar is not needed. */}
+          <header className={cx("flex h-12 shrink-0 items-center justify-between gap-2 pr-1 pl-2", !isCollapsed && "lg:hidden")}>
             {isCollapsed ? (
               <button
                 type="button"
@@ -81,7 +82,8 @@ export function DesktopShell({ workspaceId, workspaceName, user, desktops, curre
             )}
             <AccountMenu name={user.name} email={user.email} />
           </header>
-          <main id="main" className="min-h-0 flex-1 px-2 pb-22 sm:pr-3">
+          {/* The dock hides while windows are open, so windows run to the bottom; touch screens keep it in view. */}
+          <main id="main" className={cx("min-h-0 flex-1 px-2 pb-2 sm:pr-3 [@media(hover:none)]:pb-22", !isCollapsed && "lg:pt-2")}>
             <Stage />
           </main>
         </div>
