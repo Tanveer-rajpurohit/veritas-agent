@@ -12,6 +12,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@veritas/agent-core": "workspace:*",
     "@veritas/db": "workspace:*",
     "@veritas/shared": "workspace:*",
     "better-auth": "1.7.28",
@@ -28,6 +29,7 @@
     "@repo/typescript-config": "workspace:*",
     "@types/node": "22.20.7",
     "@types/nodemailer": "^8.0.2",
+    "ai": "7.0.183",
     "esbuild": "0.28.2",
     "eslint": "10.8.1",
     "globals": "17.11.0",

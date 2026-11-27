@@ -3,13 +3,20 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "lint": "eslint . --max-warnings 0",
     "check-types": "tsc --noEmit",
     "test": "vitest run --passWithNoTests"
   },
-  "dependencies": { "@veritas/shared": "workspace:*", "zod": "4.6.7" },
+  "dependencies": {
+    "@ai-sdk/google": "4.0.128",
+    "@veritas/shared": "workspace:*",
+    "ai": "7.0.183",
+    "zod": "4.6.7"
+  },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
