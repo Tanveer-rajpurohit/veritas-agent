@@ -11,7 +11,7 @@
         "Run pnpm lint and confirm no errors",
         "Confirm turbo run build builds server, web and packages in dependency order"
       ],
-      "status": "failing"
+      "status": "passing"
     },
     {
       "id": "F002", "priority": "P0", "area": "setup",
@@ -659,6 +659,31 @@
         "Follow the README on a clean machine and reach the sign-in page without extra help",
         "Confirm every env var in .env.example is documented",
         "Confirm the legacy apps/backend status is explained"
+      ],
+      "status": "failing"
+    },
+    {
+      "id": "F059", "priority": "P0", "area": "agent",
+      "title": "Agent asks clarifying questions when unsure",
+      "description": "ask_user tool: the agent pauses with 1-4 questions, each with suggested options plus a free-text answer; the run resumes with the answers. Added at the user's request on 2026-11-27.",
+      "steps": [
+        "Ask the agent 'Draft the agreement' with no other details",
+        "See the run pause with a question card (for example 'What kind of agreement?') showing option buttons and an 'Other' text field",
+        "Pick an option and see the run resume, using the answer in its plan",
+        "Reload while the question is open; the card is still there and can be answered",
+        "Answer with only the keyboard; the card is announced to screen readers"
+      ],
+      "status": "failing"
+    },
+    {
+      "id": "F060", "priority": "P0", "area": "agent",
+      "title": "AI provenance on every AI output",
+      "description": "Every agent message, AI-made file version and finding shows which model produced it and when, in plain language. Added at the user's request on 2026-11-27.",
+      "steps": [
+        "Get an agent reply and see a footer like 'Written by <model name> · 27 Nov 2026, 14:05'",
+        "Let the agent edit a doc and open History; the version shows 'Edited by Veritas AI (<model name>)' with its time",
+        "Hover or focus the provenance line and see run details: mode, tokens used, duration",
+        "Export a doc that has AI edits and confirm the export metadata lists the models used"
       ],
       "status": "failing"
     }

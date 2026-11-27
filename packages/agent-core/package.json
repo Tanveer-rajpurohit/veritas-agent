@@ -1,0 +1,20 @@
+{
+  "name": "@veritas/agent-core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "lint": "eslint . --max-warnings 0",
+    "check-types": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": { "@veritas/shared": "workspace:*", "zod": "4.6.7" },
+  "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "eslint": "10.8.1",
+    "typescript": "6.0.3",
+    "vitest": "5.1.2"
+  }
+}
