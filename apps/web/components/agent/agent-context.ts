@@ -66,6 +66,41 @@ export function withdrawAgentContext(ref: ContextRef) {
   update({ ...state, offers: withoutKey(state.offers, chipKey(ref)) });
 }
 
+/**
+ * A prompt sent from outside the panel (the prompt window). The panel sends it as soon as it
+ * is ready; the id lets it tell a new prompt from one it already took.
+ */
+export type QueuedAgentPrompt = { id: number; text: string };
+
+let queuedPrompt: QueuedAgentPrompt | null = null;
+let nextPromptId = 1;
+const promptListeners = new Set<() => void>();
+
+export function queueAgentPrompt(text: string) {
+  queuedPrompt = { id: nextPromptId++, text };
+  for (const listener of promptListeners) listener();
+}
+
+/** Hands the queued prompt to the caller once; later calls get null until a new one is queued. */
+export function takeAgentPrompt(): QueuedAgentPrompt | null {
+  const prompt = queuedPrompt;
+  if (!prompt) return null;
+  queuedPrompt = null;
+  for (const listener of promptListeners) listener();
+  return prompt;
+}
+
+export function useQueuedAgentPrompt(): QueuedAgentPrompt | null {
+  return useSyncExternalStore(
+    (listener) => {
+      promptListeners.add(listener);
+      return () => promptListeners.delete(listener);
+    },
+    () => queuedPrompt,
+    () => null,
+  );
+}
+
 function subscribe(listener: () => void) {
   listeners.add(listener);
   return () => listeners.delete(listener);

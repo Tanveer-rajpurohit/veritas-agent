@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNo
 import type { AgentMessage, AgentMode, AnswerQuestionInput, ModelList, RunRef, ThreadDetail, ThreadSummary } from "@veritas/shared";
 import { Button, cx, Orb, PlusIcon, type OrbTone } from "@veritas/ui";
 import { apiFetch, type ApiResult } from "@/lib/api-client";
-import { useAgentContext } from "./agent-context";
+import { takeAgentPrompt, useAgentContext, useQueuedAgentPrompt } from "./agent-context";
 import { formatElapsed, formatProvenance, isTerminal, textOfParts, toolStepsOfParts, type RunError, type RunView, type ToolStep } from "./agent-state";
 import { Composer, type ModelsState } from "./composer";
 import { Markdown } from "./markdown";
@@ -192,6 +192,19 @@ export function AgentPanel({ workspaceId }: { workspaceId: string }) {
       setIsSending(false);
     }
   };
+
+  // Prompts from the prompt window wait until the panel can send (models loaded, no run open).
+  const queuedPrompt = useQueuedAgentPrompt();
+  const canTakePrompt = models.status === "ready" && !isLoadingThread && !isRunning && !isSending;
+  const sendRef = useRef(send);
+  useEffect(() => {
+    sendRef.current = send;
+  });
+  useEffect(() => {
+    if (!queuedPrompt || !canTakePrompt) return;
+    const prompt = takeAgentPrompt();
+    if (prompt) void sendRef.current(prompt.text);
+  }, [queuedPrompt, canTakePrompt]);
 
   const stop = async () => {
     if (!activeRunId) return;

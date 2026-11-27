@@ -6,6 +6,7 @@ import { cx, SidebarIcon } from "@veritas/ui";
 import { AccountMenu } from "../shell/account-menu";
 import { Dock } from "../shell/dock";
 import { DesktopProvider } from "./desktop-provider";
+import { PromptWindow } from "./prompt-window";
 import { Sidebar } from "./sidebar";
 import { Stage } from "./stage";
 
@@ -88,6 +89,7 @@ export function DesktopShell({ workspaceId, workspaceName, user, desktops, curre
           </main>
         </div>
         <Dock />
+        <PromptWindow />
       </div>
     </DesktopProvider>
   );
