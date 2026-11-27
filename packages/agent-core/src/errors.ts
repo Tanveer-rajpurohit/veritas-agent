@@ -27,6 +27,10 @@ export function toAgentError(error: unknown): AgentErrorInfo {
   if (statusCode === 401 || statusCode === 403) {
     return { code: "provider_unavailable", message: PROVIDER_UNAVAILABLE_MESSAGE, retryable: false, statusCode };
   }
+  // Google lists some models that are retired for new accounts and answers 404 when they're called.
+  if (statusCode === 404) {
+    return { code: "provider_error", message: "This model isn't available to your account. Pick another model and send again.", retryable: false, statusCode };
+  }
   if (statusCode !== undefined) {
     return { code: "provider_error", message: "The model couldn't handle this request. Try rephrasing it.", retryable: false, statusCode };
   }

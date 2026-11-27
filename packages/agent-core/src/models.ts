@@ -53,8 +53,8 @@ export async function fetchGeminiModels(apiKey: string, fetchImpl: typeof fetch 
 
 type Ranked = { family: number; version: number[]; isPreview: boolean; id: string };
 
-// Variants whose output is not chat text (speech, images, live audio); they can't drive the agent loop.
-const NON_CHAT_VARIANT = /(^|-)(tts|image|audio|live|embedding|computer-use)(-|$)/;
+// Variants whose output is not chat text (speech, images, live audio, transcripts, robotics); they can't drive the agent loop.
+const NON_CHAT_VARIANT = /(^|-)(tts|image|audio|live|embedding|computer-use|transcribe|robotics|nano-banana)(-|$)/;
 
 function compareVersionsDesc(a: number[], b: number[]): number {
   for (let i = 0; i < Math.max(a.length, b.length); i++) {

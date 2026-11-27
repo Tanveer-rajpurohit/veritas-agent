@@ -118,10 +118,19 @@ describe.skipIf(!url)("agent API (needs DATABASE_URL and REDIS_URL)", () => {
     return app.inject({ method: "POST", url: `${base(user)}/threads/${threadId}/messages`, headers: as(user), payload });
   }
 
+  /**
+   * Waits until the run row is in one of `statuses` and its matching run-status
+   * event is stored. The runtime updates the row before it emits the event (and,
+   * for ask_user, before the ask-user event), so the row alone is not enough:
+   * reading events or resuming the run at that point races the recorder.
+   */
   async function waitForStatus(runId: string, statuses: string[]): Promise<string> {
     for (let i = 0; i < 200; i++) {
       const [run] = await deps.db.select({ status: agentRuns.status }).from(agentRuns).where(eq(agentRuns.id, runId));
-      if (run && statuses.includes(run.status)) return run.status;
+      if (run && statuses.includes(run.status)) {
+        const lastStatusEvent = (await eventsOf(runId)).filter((e) => e.type === "run-status").at(-1);
+        if (lastStatusEvent?.payload.status === run.status) return run.status;
+      }
       await new Promise((r) => setTimeout(r, 25));
     }
     throw new Error(`run ${runId} never reached ${statuses.join("/")}`);

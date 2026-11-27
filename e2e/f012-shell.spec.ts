@@ -52,7 +52,7 @@ test.describe("F012 shell with bottom dock", () => {
     expect(errors).toEqual([]);
   });
 
-  test("dock hides over open windows, returns at the bottom edge and magnifies", async ({ page }) => {
+  test("dock hides over open windows and returns at the bottom edge", async ({ page }) => {
     await signUpWithWorkspace(page);
     const tray = page.getByRole("navigation", { name: "Apps" }).locator("ul");
     const { width, height } = page.viewportSize()!;
@@ -62,12 +62,9 @@ test.describe("F012 shell with bottom dock", () => {
     await expect(tray).not.toBeInViewport();
 
     await revealDock(page);
-    const docsItem = tray.locator("[data-dock-item]").filter({ has: page.getByRole("link", { name: "Docs", exact: true }) });
-    const restWidth = (await docsItem.boundingBox())!.width;
-    await docsItem.hover();
-    await expect.poll(async () => (await docsItem.boundingBox())!.width).toBeGreaterThan(restWidth + 12);
-
-    // Leaving the dock hides it again after a short delay.
+    // Moving across the icons keeps it up; leaving hides it again after a short delay.
+    await page.getByRole("navigation", { name: "Apps" }).getByRole("link", { name: "Docs", exact: true }).hover();
+    await expect(tray).toBeInViewport({ ratio: 1 });
     await page.mouse.move(width / 2, height / 2);
     await expect(tray).not.toBeInViewport();
   });

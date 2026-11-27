@@ -1,6 +1,7 @@
 import type { AppId } from "@veritas/shared";
 import { MailApp } from "@/components/apps/mail/mail-app";
 import { SettingsApp } from "@/components/apps/settings/settings-app";
+import { AgentPanel } from "@/components/agent/agent-panel";
 import { getApp } from "@/lib/apps";
 import { useDesktop } from "./desktop-provider";
 
@@ -33,6 +34,17 @@ function PlaceholderContent({ app }: { app: AppId }) {
   );
 }
 
+function AgentContent() {
+  const { workspaceId } = useDesktop();
+  // The tab names the window; the panel's visible heading is the thread title.
+  return (
+    <div className="flex h-full flex-col">
+      <h1 className="sr-only">Agent</h1>
+      <AgentPanel workspaceId={workspaceId} />
+    </div>
+  );
+}
+
 export function AppContent({ app }: { app: AppId }) {
   switch (app) {
     case "home":
@@ -41,6 +53,8 @@ export function AppContent({ app }: { app: AppId }) {
       return <MailApp />;
     case "settings":
       return <SettingsApp />;
+    case "agent":
+      return <AgentContent />;
     default:
       return <PlaceholderContent app={app} />;
   }

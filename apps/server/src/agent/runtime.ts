@@ -168,8 +168,13 @@ export function createAgentRuntime(deps: Deps, log: FastifyBaseLogger) {
 
   function launch(run: RunRow) {
     const controller = new AbortController();
-    const done = execute(run, controller.signal).finally(() => active.delete(run.id));
-    active.set(run.id, { controller, done });
+    const entry = { controller, done: Promise.resolve() };
+    // An answer can resume the run before the paused turn settles; only remove our own entry,
+    // or Stop would lose the resumed turn's controller.
+    entry.done = execute(run, controller.signal).finally(() => {
+      if (active.get(run.id) === entry) active.delete(run.id);
+    });
+    active.set(run.id, entry);
   }
 
   return {

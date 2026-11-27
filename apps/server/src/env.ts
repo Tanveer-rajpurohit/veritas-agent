@@ -33,7 +33,8 @@ const envSchema = z.object({
   GOOGLE_API_KEY: optional,
 
   GEMINI_API_KEY: required,
-  MODEL_PREFERENCE: z.string().default("pro,flash"),
+  // Flash first: Pro has no free-tier quota, so a free key would fail on the default model.
+  MODEL_PREFERENCE: z.string().default("flash,pro"),
 
   CONNECTOR_KEK: z.string().min(32, "must be at least 32 characters"),
   MICROSOFT_CLIENT_ID: optional,

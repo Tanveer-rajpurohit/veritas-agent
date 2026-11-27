@@ -240,8 +240,7 @@
 
 /*
  * Dock: hidden below the edge while windows are open, revealed by the edge strip,
- * keyboard focus, or when nothing is open. Each item reads --mag (0 to 1) set from
- * pointer distance: the icon lifts and scales, and the slot widens so neighbours make room.
+ * keyboard focus, or when nothing is open.
  */
 .vt-dock-tray {
   transform: translateY(calc(100% + 16px));
@@ -260,23 +259,6 @@
 .vt-dock[data-revealed] .vt-dock-handle,
 .vt-dock:focus-within .vt-dock-handle {
   opacity: 0;
-}
-
-.vt-dock-item {
-  --mag: 0;
-  width: calc(2.75rem + var(--mag) * 1.25rem);
-  transition: width 180ms var(--ease-out-soft);
-}
-
-.vt-dock-icon {
-  transform-origin: 50% 100%;
-  transform: translateY(calc(var(--mag) * -0.5rem)) scale(calc(1 + var(--mag) * 0.45));
-  transition: transform 180ms var(--ease-out-soft);
-}
-
-.vt-dock-tooltip {
-  transform: translateY(calc(var(--mag) * -0.75rem));
-  transition-property: opacity, visibility, transform;
 }
 
 /* Touch screens have no edge to hover: keep the dock in view. */
